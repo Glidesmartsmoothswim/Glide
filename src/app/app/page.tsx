@@ -1,6 +1,6 @@
 import { getCurrentProfile } from "@/lib/auth";
 import { WaveLogo } from "@/components/brand/wave-logo";
-import { Placeholder } from "@/components/shell/placeholder";
+import { ReadinessCheckin } from "@/components/readiness/checkin";
 
 export default async function SwimmerToday() {
   const profile = await getCurrentProfile();
@@ -15,10 +15,14 @@ export default async function SwimmerToday() {
         </div>
         <WaveLogo size={36} />
       </header>
-      <Placeholder
-        title="La tua giornata"
-        subtitle="Allenamento del giorno, prontezza e prossimi impegni. Onda dopo onda."
-      />
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-display text-lg text-foreground">Check-in</h2>
+        <p className="text-sm text-muted">
+          Registra come stai prima e dopo la vasca — onda dopo onda.
+        </p>
+        <ReadinessCheckin />
+      </section>
     </div>
   );
 }

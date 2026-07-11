@@ -4,7 +4,7 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-11 — fine Sprint 1._
+_Ultimo aggiornamento: 2026-07-11 — fine Sprint 2._
 
 ## Riferimenti nel repo
 - `reference/glide-suite.jsx` — prototipo UI da portare fedelmente (coach desktop + nuotatore mobile). **Gitignored.**
@@ -39,8 +39,13 @@ Tutte le tabelle esistono (verificato via REST, 200): `profiles`, `workouts`,
 - **Canale Open**: `/coach/open` pubblica `workouts(kind='open_channel', week_day)`; `/app/nuoto` (nuotatore) legge Canale Open + schede personali **via RLS**.
 - Colonne query validate contro lo schema reale; build verde (11 route).
 
+## ✅ Fatto (Sprint 2 — Readiness + Progressi)
+- **Check-in** (`components/readiness/checkin.tsx`): pre (sonno/fatica/dolori/umore/motivazione 1–5) + post (RPE 1–10 + nota), su `/app` (Oggi). Insert su `readiness` via RLS (il nuotatore scrive i propri).
+- **Punteggio prontezza 0–100** (`lib/readiness.ts`): fatica/dolori pesano invertiti.
+- **Grafici** (recharts, `components/readiness/chart.tsx` + `progress.tsx`): prontezza + RPE nel tempo. Su `/app/progressi` (nuotatore) e nel dettaglio nuotatore lato coach.
+- Colonne `readiness` validate; build verde (12 route).
+
 ## ❌ Manca
-- **Readiness** (loop pre/post + grafico progressi) — S2.
 - **Video gare** (upload Storage, coda coach, commenti) + **Stripe** (abbonamenti + birra €5 con webhook) — S3.
 - **Business** (MRR, birre, soglia forfettario) + **Social** planner — S4.
 - **PWA offline/notifiche** + rifiniture — S5.
@@ -48,9 +53,12 @@ Tutte le tabelle esistono (verificato via REST, 200): `profiles`, `workouts`,
 - **Nota verifica**: i flussi coach (nuotatori/editor/open) vanno provati con un account **coach** loggato (promuovere il proprio profilo a `role='coach'`); gating già validato.
 
 ## ▶️ Prossimo passo
-Sprint 2 — **Readiness**: loop pre-sessione (sonno/fatica/dolori/umore/motivazione 1–5)
-e post (RPE 1–10 + nota) su `readiness`; grafico progressi per nuotatore.
+Sprint 3 — **Video gare**: upload su Supabase Storage (bucket `race-videos`,
+cartella per utente, signed URL), coda coach + commenti. **Stripe**: abbonamenti
+(Open/Open Water/Elite) + "Offrimi una birra" €5 con webhook che sblocca il video
+(1:1 = analisi inclusa; Open = 'locked' finché non paga). Feature flag se mancano chiavi.
 
 ## Log sprint
 - **Sprint 0** — impalcatura completa. Commit `e42a908` (+ `19134ab` settings). Build verde, login+gating validati in locale.
 - **Sprint 1** — Nuotatori (CRUD profiles), editor allenamenti a zone col parser del prototipo, Canale Open (coach pubblica → swimmer legge via RLS). Build verde.
+- **Sprint 2** — Readiness check-in pre/post + punteggio prontezza; grafici progressi (recharts) lato nuotatore e coach. Build verde.
