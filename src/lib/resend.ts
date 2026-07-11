@@ -1,13 +1,22 @@
 import "server-only";
 import { Resend } from "resend";
-import { getServerEnv } from "@/lib/env";
+import { serverFeatures } from "@/lib/flags";
 
 /**
- * Client Resend per le email transazionali. Solo lato server.
+ * Resend lato SERVER, inizializzato in modo LAZY.
+ * Ritorna null quando la chiave non è configurata → email "simulata".
  */
-export const resend = new Resend(getServerEnv().RESEND_API_KEY);
+let _resend: Resend | null = null;
 
-/** Mittente predefinito delle email (dominio verificato su Resend). */
+export function getResend(): Resend | null {
+  if (!serverFeatures().resend) return null;
+  if (!_resend) {
+    _resend = new Resend(process.env.RESEND_API_KEY!);
+  }
+  return _resend;
+}
+
+/** Mittente predefinito delle email. */
 export function emailFrom() {
-  return getServerEnv().EMAIL_FROM;
+  return process.env.EMAIL_FROM ?? "onda@glide.swim";
 }

@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
-import { glacial, franklin, kotex } from "./fonts";
+import type { Metadata, Viewport } from "next";
+import { oswald, montserrat } from "./fonts";
+import { RegisterSW } from "@/components/pwa/register-sw";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -8,10 +9,29 @@ export const metadata: Metadata = {
     template: "%s · GLIDE",
   },
   description:
-    "GLIDE — coaching di nuoto e analisi video. Onda dopo onda, verso il tuo miglior gesto in acqua.",
+    "GLIDE — coaching di nuoto Master. Allenamenti, analisi video e progressi, onda dopo onda.",
+  applicationName: "GLIDE",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "GLIDE",
+  },
+  icons: {
+    icon: "/icons/icon-192.png",
+    apple: "/icons/apple-touch-icon.png",
+  },
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
   ),
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0B1220",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -22,9 +42,12 @@ export default function RootLayout({
   return (
     <html
       lang="it"
-      className={`${glacial.variable} ${franklin.variable} ${kotex.variable} h-full antialiased`}
+      className={`${oswald.variable} ${montserrat.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full">
+        {children}
+        <RegisterSW />
+      </body>
     </html>
   );
 }

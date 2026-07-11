@@ -47,28 +47,62 @@ App su http://localhost:3000
 | `npm run start` | Avvia la build di produzione         |
 | `npm run lint`  | ESLint                               |
 
+## Ruoli e instradamento
+
+Due ruoli, letti da `profiles.role` su Supabase:
+
+- **coach** → `/coach` — gestionale desktop con **sidebar**.
+- **swimmer** → `/app` — PWA mobile con **bottom-tab**.
+
+`/` instrada in base al ruolo; il `middleware` protegge le rotte private
+(non loggato → `/login`). Il gating per ruolo è nei layout di sezione.
+
 ## Struttura
 
 ```
+middleware.ts          # refresh sessione + protezione rotte
 src/
-  app/                 # route (App Router), layout, landing
-    fonts.ts           # font locali del brand (next/font/local)
-    globals.css        # design token GLIDE (colori, tipografia)
-  fonts/               # file .otf ufficiali
+  app/
+    layout.tsx         # font Oswald/Montserrat, PWA meta, register SW
+    globals.css        # design token GLIDE (palette + tipografia)
+    manifest.ts        # web manifest (/manifest.webmanifest)
+    page.tsx           # instrada per ruolo
+    login/             # login email (server actions + form)
+    coach/             # sezione coach (layout sidebar + pagine)
+    app/               # sezione nuotatore (layout bottom-tab + pagine)
+  components/
+    brand/wave-logo    # logo a onde concentriche
+    shell/             # coach-sidebar, swimmer-tabbar, placeholder
+    pwa/register-sw    # registrazione service worker
   lib/
-    env.ts             # validazione env (public vs server) con Zod
-    supabase/          # client browser + server (@supabase/ssr)
-    stripe.ts          # istanza Stripe + mappa dei Price ID
-    resend.ts          # client email
+    env.ts             # env + helper "configured" (placeholder-safe)
+    flags.ts           # feature flag Stripe/Resend (funzione "simulata")
+    auth.ts            # profilo corrente, requireRole, homeForRole
+    supabase/          # client browser + server + middleware
+    stripe.ts          # Stripe lazy (null se non configurato)
+    resend.ts          # Resend lazy (null se non configurato)
 public/
-  brand/               # loghi ufficiali
+  sw.js                # service worker minimale
+  icons/               # icone PWA (192, 512, maskable, apple)
+reference/             # prototipi UI (glide-suite.jsx) — non buildati
 ```
 
-## Variabili d'ambiente
+## Feature flag (nessun crash senza chiavi)
 
-Tutte documentate in [`.env.local.example`](.env.local.example).
-Regola: le variabili `NEXT_PUBLIC_*` finiscono nel browser (non segrete);
-tutte le altre restano solo lato server. `.env.local` non va mai committato.
+Se mancano le chiavi **Stripe**/**Resend** (o sono placeholder), la relativa
+funzione resta **"simulata"**: l'app parte lo stesso. Vedi `src/lib/flags.ts`.
+
+## Test rapido in locale
+
+1. `npm run dev` → apri http://localhost:3000 (verrai mandato a `/login`).
+2. In **Registrati** crea un account (nasce come `swimmer` → `/app`).
+   - Se il progetto Supabase ha "Confirm email" attivo, conferma via mail;
+     per test rapidi puoi disattivarlo in Supabase → Auth → Providers → Email.
+3. Per provare il **coach**, promuovi l'utente da Supabase (SQL editor):
+   ```sql
+   update public.profiles set role = 'coach' where email = 'tua@email';
+   ```
+   Rientra: verrai instradato su `/coach`.
 
 ## Abbonamenti
 
@@ -81,5 +115,6 @@ tutte le altre restano solo lato server. `.env.local` non va mai committato.
 
 ---
 
-**Sprint 0** — fondamenta del progetto: scaffolding, design system del brand,
-client dei servizi e landing placeholder.
+**Sprint 0** — impalcatura: PWA installabile, Supabase (browser+server),
+login email + gating ruoli, shell coach/nuotatore, feature flag. Nessuna
+funzione applicativa: quelle arrivano dagli sprint successivi.

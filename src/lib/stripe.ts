@@ -1,21 +1,30 @@
 import "server-only";
 import Stripe from "stripe";
-import { getServerEnv } from "@/lib/env";
+import { configured } from "@/lib/env";
+import { serverFeatures } from "@/lib/flags";
 
 /**
- * Istanza Stripe lato SERVER. Non importare mai in codice client.
+ * Stripe lato SERVER, inizializzato in modo LAZY.
+ * Ritorna null quando le chiavi non sono configurate: chi chiama
+ * gestisce il caso "simulato" invece di crashare (requisito Sprint 0).
  */
-export const stripe = new Stripe(getServerEnv().STRIPE_SECRET_KEY, {
-  typescript: true,
-});
+let _stripe: Stripe | null = null;
 
-/** Mappa dei prezzi configurati su Stripe (Price ID). */
+export function getStripe(): Stripe | null {
+  if (!serverFeatures().stripe) return null;
+  if (!_stripe) {
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { typescript: true });
+  }
+  return _stripe;
+}
+
+/** Price ID configurati su Stripe (undefined se placeholder). */
 export function stripePrices() {
-  const env = getServerEnv();
+  const pick = (v?: string) => (configured(v) ? v : undefined);
   return {
-    open: env.STRIPE_PRICE_OPEN, // € 29 / mese
-    openWater: env.STRIPE_PRICE_OPEN_WATER, // € 79 / mese
-    elite: env.STRIPE_PRICE_ELITE, // € 129 / mese
-    birra: env.STRIPE_PRICE_BIRRA, // € 5 una tantum
+    open: pick(process.env.STRIPE_PRICE_OPEN), // € 29 / mese
+    openWater: pick(process.env.STRIPE_PRICE_OPEN_WATER), // € 79 / mese
+    elite: pick(process.env.STRIPE_PRICE_ELITE), // € 129 / mese
+    birra: pick(process.env.STRIPE_PRICE_BIRRA), // € 5 una tantum
   } as const;
 }
