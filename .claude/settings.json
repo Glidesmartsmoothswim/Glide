@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read", "Edit", "Write",
+      "Bash(npm *)", "Bash(npx *)", "Bash(pnpm *)",
+      "Bash(next *)", "Bash(node *)",
+      "Bash(git status)", "Bash(git add *)", "Bash(git commit *)",
+      "Bash(git push)", "Bash(git pull)", "Bash(git checkout *)", "Bash(git diff *)",
+      "Bash(supabase *)", "Bash(vercel *)", "Bash(stripe *)"
+    ],
+    "deny": [
+      "Read(./.env.local)", "Read(./.env*)",
+      "Bash(rm -rf *)", "Bash(git push --force*)", "Bash(sudo *)"
+    ]
+  }
+}
