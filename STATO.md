@@ -4,7 +4,7 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-11 — fine Sprint 0._
+_Ultimo aggiornamento: 2026-07-11 — fine Sprint 1._
 
 ## Riferimenti nel repo
 - `reference/glide-suite.jsx` — prototipo UI da portare fedelmente (coach desktop + nuotatore mobile). **Gitignored.**
@@ -31,15 +31,26 @@ Tutte le tabelle esistono (verificato via REST, 200): `profiles`, `workouts`,
 - **Presenti:** `NEXT_PUBLIC_APP_URL/NAME`, Supabase URL+anon+service, Stripe publishable+secret, `EMAIL_FROM`.
 - **Placeholder:** `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_*` (Open/Open Water/Elite/Birra), `RESEND_API_KEY`.
 
-## ❌ Manca (da portare dal prototipo)
-- **UI reale** (ora ci sono solo placeholder): dashboard coach, elenco nuotatori/lead, **editor allenamenti Zone/Franceschi**, Canale Open, video gare + commenti, chat, business, social; lato nuotatore: Oggi/Nuoto/Video/Progressi/Profilo con dati veri.
-- **Persistenza**: lettura/scrittura su Supabase (finora nessuna query applicativa).
-- **Pagamenti**: checkout Stripe + webhook (mancano webhook secret e Price ID).
-- **Email**: Resend (chiave placeholder).
+## ✅ Fatto (Sprint 1 — Nuotatori + Allenamenti + Canale Open)
+- **Dominio** (`lib/workout.ts`): port fedele parser shorthand (`8x50 SL @1'20" palette Z3`), zone Z1–Z5, strokes, attrezzi, `parseLine/fmtTime/blockMeters/woMeters`, `lineLabel`.
+- **Tipi** (`lib/types.ts`): `SwimmerRow`, `WorkoutRow`, label servizio/stato/cert, helper nome/iniziali.
+- **Nuotatori**: `/coach/nuotatori` (lista da `profiles`, card stato/cert/pacchetto) + `/coach/nuotatori/[id]` (scheda editabile → update `profiles`; archivia = status 'scaduto', niente delete). "Nuovo nuotatore" crea l'utente auth via **service_role** (invito email in modalità simulata finché manca Resend → mostra password temporanea).
+- **Editor allenamenti a zone** (`components/workout/editor.tsx`): blocchi (zona/nome/rounds) + righe con **parsing live** e calcolo metri; riusato per scheda personale e Canale Open.
+- **Canale Open**: `/coach/open` pubblica `workouts(kind='open_channel', week_day)`; `/app/nuoto` (nuotatore) legge Canale Open + schede personali **via RLS**.
+- Colonne query validate contro lo schema reale; build verde (11 route).
+
+## ❌ Manca
+- **Readiness** (loop pre/post + grafico progressi) — S2.
+- **Video gare** (upload Storage, coda coach, commenti) + **Stripe** (abbonamenti + birra €5 con webhook) — S3.
+- **Business** (MRR, birre, soglia forfettario) + **Social** planner — S4.
+- **PWA offline/notifiche** + rifiniture — S5.
+- **Pagamenti**: webhook secret + Price ID ancora placeholder. **Email**: Resend placeholder.
+- **Nota verifica**: i flussi coach (nuotatori/editor/open) vanno provati con un account **coach** loggato (promuovere il proprio profilo a `role='coach'`); gating già validato.
 
 ## ▶️ Prossimo passo
-Sprint 1 — inizio dal cuore del prototipo: **editor allenamenti (Zone/Franceschi)
-+ Canale Open** con persistenza su `workouts` e RLS (coach scrive, swimmer legge).
+Sprint 2 — **Readiness**: loop pre-sessione (sonno/fatica/dolori/umore/motivazione 1–5)
+e post (RPE 1–10 + nota) su `readiness`; grafico progressi per nuotatore.
 
 ## Log sprint
 - **Sprint 0** — impalcatura completa. Commit `e42a908` (+ `19134ab` settings). Build verde, login+gating validati in locale.
+- **Sprint 1** — Nuotatori (CRUD profiles), editor allenamenti a zone col parser del prototipo, Canale Open (coach pubblica → swimmer legge via RLS). Build verde.
