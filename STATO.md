@@ -4,7 +4,7 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-11 — fine Sprint 2._
+_Ultimo aggiornamento: 2026-07-11 — fine Sprint 3._
 
 ## Riferimenti nel repo
 - `reference/glide-suite.jsx` — prototipo UI da portare fedelmente (coach desktop + nuotatore mobile). **Gitignored.**
@@ -45,20 +45,27 @@ Tutte le tabelle esistono (verificato via REST, 200): `profiles`, `workouts`,
 - **Grafici** (recharts, `components/readiness/chart.tsx` + `progress.tsx`): prontezza + RPE nel tempo. Su `/app/progressi` (nuotatore) e nel dettaglio nuotatore lato coach.
 - Colonne `readiness` validate; build verde (12 route).
 
+## ✅ Fatto (Sprint 3 — Video gare + Stripe)
+- **Upload video** (`components/video/uploader.tsx`): carica su Storage `race-videos/{user_id}/…` col client browser (RLS: cartella propria), poi `registerVideo`. tier dal servizio: 1:1/both → analisi inclusa (`pending`, paid); Open → `locked`.
+- **Nuotatore** `/app/video`: lista propri video, playback con **signed URL**, sblocco "Offrimi una birra €5", analisi del coach.
+- **Coach** `/coach/video`: coda (pending→locked→reviewed), playback firmato, **commenti** (`video_comments`) → mette il video `reviewed`, "segna analizzato".
+- **Stripe** (`lib/stripe-checkout.ts`): checkout birra (una tantum) + abbonamenti (Open/Open Water/Elite) su `/app/profilo`. **Webhook** `/api/stripe/webhook`: sblocca video (birra) e specchia abbonamenti/transazioni via service_role.
+- **Feature flag / simulato**: senza chiavi Stripe, lo sblocco birra avviene via service_role (come il webhook) + transazione marcata "simulato"; abbonamenti mostrano badge "simulato". Nessun crash.
+- Middleware: escluso `/api` dal gating (il webhook risponde 200 no-op se Stripe è off — verificato).
+
 ## ❌ Manca
-- **Video gare** (upload Storage, coda coach, commenti) + **Stripe** (abbonamenti + birra €5 con webhook) — S3.
 - **Business** (MRR, birre, soglia forfettario) + **Social** planner — S4.
-- **PWA offline/notifiche** + rifiniture — S5.
-- **Pagamenti**: webhook secret + Price ID ancora placeholder. **Email**: Resend placeholder.
-- **Nota verifica**: i flussi coach (nuotatori/editor/open) vanno provati con un account **coach** loggato (promuovere il proprio profilo a `role='coach'`); gating già validato.
+- **PWA offline/notifiche** + rifiniture + verifica dev/gating — S5.
+- **Pagamenti reali**: servono `STRIPE_WEBHOOK_SECRET` + `STRIPE_PRICE_*` (ora placeholder → simulato). **Email**: `RESEND_API_KEY` placeholder.
+- **Nota verifica**: upload video e flussi coach vanno provati con sessioni reali (nuotatore + coach). Gating e webhook-noop validati.
 
 ## ▶️ Prossimo passo
-Sprint 3 — **Video gare**: upload su Supabase Storage (bucket `race-videos`,
-cartella per utente, signed URL), coda coach + commenti. **Stripe**: abbonamenti
-(Open/Open Water/Elite) + "Offrimi una birra" €5 con webhook che sblocca il video
-(1:1 = analisi inclusa; Open = 'locked' finché non paga). Feature flag se mancano chiavi.
+Sprint 4 — **Business**: dashboard MRR, birre, soglia forfettario (disclaimer
+"non è consulenza fiscale"), transazioni. **Social**: planner feed (griglia stile
+Instagram; pilastri Consigli/Allenamento/Gare/Coach/Su di me; tipi Open plan/Chiuso/Design).
 
 ## Log sprint
 - **Sprint 0** — impalcatura completa. Commit `e42a908` (+ `19134ab` settings). Build verde, login+gating validati in locale.
 - **Sprint 1** — Nuotatori (CRUD profiles), editor allenamenti a zone col parser del prototipo, Canale Open (coach pubblica → swimmer legge via RLS). Build verde.
 - **Sprint 2** — Readiness check-in pre/post + punteggio prontezza; grafici progressi (recharts) lato nuotatore e coach. Build verde.
+- **Sprint 3** — Video gare (upload Storage + signed URL, coda coach, commenti) + Stripe (birra €5 + abbonamenti + webhook), con modalità simulata se mancano le chiavi. Build verde (16 route).

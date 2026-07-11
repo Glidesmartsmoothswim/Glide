@@ -2,8 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { publicEnv } from "@/lib/env";
 
-/** Rotte accessibili senza login. */
-const PUBLIC_PATHS = ["/login", "/auth"];
+/** Rotte accessibili senza login (incl. webhook/API che gestiscono l'auth da sé). */
+const PUBLIC_PATHS = ["/login", "/auth", "/api"];
 
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some(
