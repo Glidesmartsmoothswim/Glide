@@ -1,10 +1,22 @@
+import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { WaveLogo } from "@/components/brand/wave-logo";
 import { ReadinessCheckin } from "@/components/readiness/checkin";
+import { NotifList } from "@/components/notifications/notif-list";
+import type { NotificationRow } from "@/lib/notifications";
 
 export default async function SwimmerToday() {
   const profile = await getCurrentProfile();
   const name = profile?.first_name || "nuotatore";
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("notifications")
+    .select("*")
+    .eq("user_id", profile?.id ?? "")
+    .order("created_at", { ascending: false })
+    .limit(10);
+  const notifs = (data ?? []) as NotificationRow[];
 
   return (
     <div className="flex flex-col gap-6">
@@ -23,6 +35,13 @@ export default async function SwimmerToday() {
         </p>
         <ReadinessCheckin />
       </section>
+
+      {notifs.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-display text-lg text-foreground">Notifiche</h2>
+          <NotifList rows={notifs} />
+        </section>
+      )}
     </div>
   );
 }

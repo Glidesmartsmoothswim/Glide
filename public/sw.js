@@ -1,11 +1,16 @@
 /*
- * GLIDE — service worker minimale.
- * Scopo Sprint 0: rendere la PWA installabile (serve un fetch handler).
- * Strategia: network-first con fallback alla cache dell'app shell.
- * Nessun caching aggressivo: le funzioni offline arriveranno dopo.
+ * GLIDE — service worker.
+ * Strategia: network-first con fallback alla cache; pagina /offline per le
+ * navigazioni quando si è senza rete. Caching prudente dell'app shell.
  */
-const CACHE = "glide-v1";
-const APP_SHELL = ["/login"];
+const CACHE = "glide-v2";
+const APP_SHELL = [
+  "/login",
+  "/offline",
+  "/manifest.webmanifest",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -27,10 +32,13 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
-  // Solo GET same-origin; le API restano sempre live.
+  // Solo GET same-origin; le API/mutazioni restano sempre live.
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith("/api")) return;
+
+  const isNavigation = request.mode === "navigate";
 
   event.respondWith(
     fetch(request)
@@ -39,8 +47,14 @@ self.addEventListener("fetch", (event) => {
         caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => {});
         return res;
       })
-      .catch(() =>
-        caches.match(request).then((r) => r || caches.match("/login")),
-      ),
+      .catch(async () => {
+        const cached = await caches.match(request);
+        if (cached) return cached;
+        // Navigazione offline → pagina dedicata; altrimenti login.
+        return (
+          (await caches.match(isNavigation ? "/offline" : "/login")) ||
+          new Response("Offline", { status: 503 })
+        );
+      }),
   );
 });

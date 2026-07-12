@@ -4,7 +4,7 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-11 — fine Sprint 4._
+_Ultimo aggiornamento: 2026-07-11 — **fine Sprint 5 · Fase 1 completa (S1–S5)**._
 
 ## Riferimenti nel repo
 - `reference/glide-suite.jsx` — prototipo UI da portare fedelmente (coach desktop + nuotatore mobile). **Gitignored.**
@@ -58,16 +58,30 @@ Tutte le tabelle esistono (verificato via REST, 200): `profiles`, `workouts`,
 - **Social** `/coach/social`: planner a griglia IG-style; pilastri (Consigli/Allenamento/Gare/Coach/Su di me), tipi Open plan/Chiuso/Design, canali; creazione post + avanzamento stato draft→scheduled→published (`social_posts`, RLS coach).
 - Colonne `social_posts` e vista ricavi validate; build verde (18 route).
 
-## ❌ Manca
-- **PWA offline/notifiche** + rifiniture + verifica dev/gating — S5.
-- **Pagamenti reali**: servono `STRIPE_WEBHOOK_SECRET` + `STRIPE_PRICE_*` (ora placeholder → simulato). **Email**: `RESEND_API_KEY` placeholder.
-- **Nota verifica**: upload video e flussi coach vanno provati con sessioni reali (nuotatore + coach). Gating e webhook-noop validati.
+## ✅ Fatto (Sprint 5 — PWA offline + Notifiche + verifica)
+- **Notifiche in-app**: helper `lib/notify.ts` (insert via service_role, no-op se assente); create sugli eventi → upload video/sblocco birra notificano il coach, il commento del coach notifica il nuotatore. `/coach/notifiche` + sezione notifiche su `/app` (Oggi); "segna letta / tutte lette" (RLS).
+- **PWA offline**: `sw.js` v2 network-first con precache app shell e **pagina `/offline`** come fallback di navigazione; `/offline` resa pubblica nel middleware.
+- **Verifica finale (runtime):** `npm run dev` parte senza errori; gating ok (`/`,`/coach/*`,`/app/*` → `/login` da non loggato); `/login` e `/offline` = 200; `manifest.webmanifest`/`sw.js` = 200; webhook Stripe = 200 no-op. Build verde (20 route).
+
+## 🔑 Cosa richiede una CHIAVE per funzionare al 100% (checklist)
+Tutto il resto gira già. Queste voci ora sono in **modalità simulata** finché non aggiungi le chiavi in `.env.local` (e su Vercel come Environment Variables):
+
+1. **Pagamenti reali (Stripe)** — servono i **Price ID** e il **webhook secret**:
+   - `STRIPE_PRICE_OPEN`, `STRIPE_PRICE_OPEN_WATER`, `STRIPE_PRICE_ELITE` (abbonamenti), `STRIPE_PRICE_BIRRA` (€5).
+   - `STRIPE_WEBHOOK_SECRET` (da `stripe listen` in locale o dall'endpoint webhook in produzione).
+   - Senza: lo sblocco "birra" avviene simulato (via service_role) e gli abbonamenti mostrano il badge "simulato".
+2. **Email (Resend)** — `RESEND_API_KEY` (+ dominio verificato per `EMAIL_FROM`):
+   - Serve per l'**invito email** ai nuovi nuotatori (ora: password temporanea mostrata a schermo) e per future email transazionali.
+3. **Dominio in produzione** — `NEXT_PUBLIC_APP_URL` = dominio reale (per success/cancel URL Stripe e metadata).
+4. *(opzionale, quando i video crescono)* Mux/Cloudflare Stream per lo streaming — in demo bastano Supabase Storage + signed URL.
+
+> Nota: le chiavi **Supabase** (URL, anon, service_role) sono già presenti e validate. Lo schema è già deployato.
 
 ## ▶️ Prossimo passo
-Sprint 5 — **PWA**: rifiniture manifest + service worker (installabile, offline
-di base), notifiche in-app (`notifications`). Verifica finale: `npm run dev` senza
-errori e instradamento coach/nuotatore corretto. In chiusura: elenco di cosa
-richiede una chiave per funzionare al 100%.
+Fase 1 completa. Da fare con l'utente: (a) **checklist chiavi** qui sopra;
+(b) provare i flussi con un account **coach** (promuovere il proprio profilo)
+e uno **swimmer**; (c) eventuale **deploy su Vercel** + collegamento remote GitHub.
+Fuori scope Fase 1 (schema presente ma UI non portata): **Chat** coach⇄nuotatore, **Lead**.
 
 ## Log sprint
 - **Sprint 0** — impalcatura completa. Commit `e42a908` (+ `19134ab` settings). Build verde, login+gating validati in locale.
@@ -75,3 +89,4 @@ richiede una chiave per funzionare al 100%.
 - **Sprint 2** — Readiness check-in pre/post + punteggio prontezza; grafici progressi (recharts) lato nuotatore e coach. Build verde.
 - **Sprint 3** — Video gare (upload Storage + signed URL, coda coach, commenti) + Stripe (birra €5 + abbonamenti + webhook), con modalità simulata se mancano le chiavi. Build verde (16 route).
 - **Sprint 4** — Business (KPI, ricavi mensili, soglia forfettario + disclaimer, transazioni) + Social planner (griglia, pilastri/tipi, stati). Build verde (18 route).
+- **Sprint 5** — Notifiche in-app (create sugli eventi) + PWA offline (sw v2 + pagina /offline) + verifica finale. Build verde (20 route).

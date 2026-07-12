@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/auth";
+import { notifyUser } from "@/lib/notify";
 
 export type CommentState = { error?: string; info?: string };
 
@@ -25,10 +26,21 @@ export async function addComment(
   if (error) return { error: error.message };
 
   // Passa lo stato a 'reviewed' e assegna il coach.
-  await supabase
+  const { data: video } = await supabase
     .from("race_videos")
     .update({ status: "reviewed", coach_id: coach.id })
-    .eq("id", videoId);
+    .eq("id", videoId)
+    .select("swimmer_id, event")
+    .single();
+
+  if (video?.swimmer_id) {
+    await notifyUser(
+      video.swimmer_id,
+      "video",
+      "Analisi pronta 🎬",
+      `Il coach ha commentato ${video.event ?? "la tua gara"}`,
+    );
+  }
 
   revalidatePath("/coach/video");
   revalidatePath("/app/video");

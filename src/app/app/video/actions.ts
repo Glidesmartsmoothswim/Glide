@@ -8,6 +8,8 @@ import { getCurrentProfile } from "@/lib/auth";
 import { serverFeatures } from "@/lib/flags";
 import { createBirraCheckout } from "@/lib/stripe-checkout";
 import { BIRRA_CENTS } from "@/lib/video";
+import { notifyCoaches } from "@/lib/notify";
+import { fullName } from "@/lib/types";
 
 export type VideoState = { error?: string; info?: string };
 
@@ -49,6 +51,12 @@ export async function registerVideo(
     paid: is11,
   });
   if (error) return { error: error.message };
+
+  await notifyCoaches(
+    "video",
+    "Nuovo video gara",
+    `${fullName(profile)} — ${event}`,
+  );
 
   revalidatePath("/app/video");
   revalidatePath("/coach/video");
@@ -96,6 +104,11 @@ export async function unlockVideo(formData: FormData) {
     status: "succeeded",
     description: "Sblocco analisi video (simulato)",
   });
+  await notifyCoaches(
+    "birra",
+    "🍺 Video sbloccato",
+    `${fullName(profile)} ha sbloccato l'analisi (€5)`,
+  );
   revalidatePath("/app/video");
   revalidatePath("/coach/video");
 }
