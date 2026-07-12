@@ -133,6 +133,28 @@ Fase 1 completa. Da fare con l'utente: (a) **checklist chiavi** qui sopra;
 e uno **swimmer**; (c) eventuale **deploy su Vercel** + collegamento remote GitHub.
 Fuori scope Fase 1 (schema presente ma UI non portata): **Chat** coach⇄nuotatore, **Lead**.
 
+## 🌊 SITO (funnel pubblico) — piano, non ancora eseguito
+> Obiettivo: sito-funnel nello **stesso repo**, sostituisce Linktree, cattura email, spinge nell'app.
+> Sprint dedicati **S1–S4** (numerazione del runbook "SITO", distinta dagli Sprint 0–5 dell'app).
+
+**Rilevato (S0, 2026-07-12):**
+- Nessun route group esiste: `src/app/` è piatto (`app/`, `coach/`, `login/`, `offline/`, `page.tsx` = redirect per ruolo).
+- Token brand già centralizzati in `globals.css` (CSS vars + `@theme inline`) + `fonts.ts` → punto 4 di S0 già soddisfatto; manca solo aggiungere le zone Z1–Z5.
+- Gating in `lib/supabase/middleware.ts`: pubblici `/login /auth /api /offline`; tutto il resto protetto.
+
+**Piano di ristrutturazione:**
+1. `src/app/(app)/` ← sposto `app/` e `coach/` (URL invariati; i route group non cambiano i path).
+2. `RegisterSW` + metadata PWA → `(app)/layout.tsx` (il marketing non carica SW/bundle app).
+3. `src/app/(marketing)/` con layout proprio (header/footer, CTA unico "Entra in GLIDE").
+4. Pagine SSG: `/ /metodo /hub /prezzi /grazie /privacy /termini` + bio coach su **`/coach-alessio`**
+   (`/coach` è già il gestionale → conflitto risolto con slug dedicato).
+5. Root `page.tsx`: da redirect-per-ruolo → home marketing statica.
+6. `middleware`: gating ristretto a `/app` e `/coach` (+ redirect `/login`); marketing pubblico/statico.
+7. Token: aggiungo Z1 #CBD5E1, Z2 #92D050, Z3 #FFF200, Z4 #FFC000, Z5 #FF0000 in `globals.css`.
+8. Copy in `content/site.ts` (unico file editabile dall'utente).
+
+**Decisioni prese:** bio pubblica su `/coach-alessio` (default, app URLs stabili). **In attesa di via libera per S1.**
+
 ## Log sprint
 - **Sprint 0** — impalcatura completa. Commit `e42a908` (+ `19134ab` settings). Build verde, login+gating validati in locale.
 - **Sprint 1** — Nuotatori (CRUD profiles), editor allenamenti a zone col parser del prototipo, Canale Open (coach pubblica → swimmer legge via RLS). Build verde.
