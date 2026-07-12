@@ -17,7 +17,16 @@ export function configured(v: string | undefined | null): v is string {
 const publicSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url(),
   NEXT_PUBLIC_APP_NAME: z.string().min(1),
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
+  // Deve essere l'URL API del progetto (…supabase.co), NON l'URL della
+  // dashboard. Un valore sbagliato fa ricevere HTML al posto di JSON e
+  // rompe login/query: meglio bloccarlo subito con un messaggio chiaro.
+  NEXT_PUBLIC_SUPABASE_URL: z
+    .string()
+    .url()
+    .refine((u) => /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(u.trim()), {
+      message:
+        "NEXT_PUBLIC_SUPABASE_URL deve essere l'URL API del progetto, es. https://xxxx.supabase.co — NON l'URL della dashboard (supabase.com/dashboard/...).",
+    }),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
 });
 
