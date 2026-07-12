@@ -4,7 +4,7 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-11 — **fine Sprint 5 · Fase 1 completa (S1–S5)**._
+_Ultimo aggiornamento: 2026-07-11 — **Fase 1 completa + prep deploy Vercel (test)**._
 
 ## Riferimenti nel repo
 - `reference/glide-suite.jsx` — prototipo UI da portare fedelmente (coach desktop + nuotatore mobile). **Gitignored.**
@@ -77,6 +77,56 @@ Tutto il resto gira già. Queste voci ora sono in **modalità simulata** finché
 
 > Nota: le chiavi **Supabase** (URL, anon, service_role) sono già presenti e validate. Lo schema è già deployato.
 
+## 🚀 Deploy Vercel (ambiente di test)
+
+Stato codice: `npm run build` verde, `npm run lint` pulito, **nessun segreto
+hardcodato** (tutto da `process.env`), `.env.local` gitignored, webhook su
+runtime Node. Manca solo ciò che richiede i tuoi account (checklist B sotto).
+
+### Environment Variables da incollare su Vercel (Project → Settings → Environment Variables)
+Copia **nome per nome**. I valori sono nel tuo `.env.local`.
+
+**Obbligatorie — devono esserci PRIMA del primo build** (le `NEXT_PUBLIC_*` vengono
+inlined a build-time; senza, il build Vercel fallisce):
+1. `NEXT_PUBLIC_APP_URL` → l'URL del deployment Vercel (es. `https://glide-suite.vercel.app`)
+2. `NEXT_PUBLIC_APP_NAME` → `GLIDE`
+3. `NEXT_PUBLIC_SUPABASE_URL`
+4. `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+5. `SUPABASE_SERVICE_ROLE_KEY`  *(segreta, solo server)*
+6. `EMAIL_FROM`
+
+**Opzionali — attivano le funzioni "simulate"** (puoi aggiungerle dopo, senza rompere il build):
+7. `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+8. `STRIPE_SECRET_KEY`  *(segreta)*
+9. `STRIPE_WEBHOOK_SECRET`  *(segreta — la ottieni al passo webhook sotto)*
+10. `STRIPE_PRICE_OPEN`
+11. `STRIPE_PRICE_OPEN_WATER`
+12. `STRIPE_PRICE_ELITE`
+13. `STRIPE_PRICE_BIRRA`
+14. `RESEND_API_KEY`  *(segreta)*
+
+> Le `NEXT_PUBLIC_*` sono pubbliche (finiscono nel browser). Le altre sono **segrete**: solo server.
+> Imposta tutte su Environment = **Production + Preview** (per i deploy di test).
+
+### Webhook Stripe da registrare
+- **Endpoint URL:** `https://<il-tuo-dominio-vercel>/api/stripe/webhook`
+  - es. `https://glide-suite.vercel.app/api/stripe/webhook`
+- **Evento da ascoltare:** `checkout.session.completed`
+- Dopo aver creato il webhook, copia il **Signing secret** (`whsec_…`) in `STRIPE_WEBHOOK_SECRET` su Vercel e fai **Redeploy**.
+- In locale per testare: `stripe listen --forward-to localhost:3000/api/stripe/webhook`.
+
+### Passi (richiedono i tuoi account → checklist B)
+1. **GitHub**: crea un repo (es. `glide-suite`) e collega questo repo locale:
+   ```bash
+   git remote add origin https://github.com/<tuo-utente>/glide-suite.git
+   git push -u origin main
+   ```
+   (Ora non c'è remote; `gh` non è installato → lo fai tu con le tue credenziali.)
+2. **Vercel**: New Project → Import da GitHub → seleziona `glide-suite`. Framework rilevato: Next.js.
+3. Incolla le **Environment Variables** (lista sopra) **prima** di lanciare il deploy.
+4. Deploy. Poi registra il **webhook Stripe** con l'URL sopra, copia `whsec_…` in `STRIPE_WEBHOOK_SECRET`, **Redeploy**.
+5. Su **Supabase → Auth → URL Configuration**: aggiungi l'URL Vercel ai *Redirect URLs* / *Site URL*.
+
 ## ▶️ Prossimo passo
 Fase 1 completa. Da fare con l'utente: (a) **checklist chiavi** qui sopra;
 (b) provare i flussi con un account **coach** (promuovere il proprio profilo)
@@ -90,3 +140,4 @@ Fuori scope Fase 1 (schema presente ma UI non portata): **Chat** coach⇄nuotato
 - **Sprint 3** — Video gare (upload Storage + signed URL, coda coach, commenti) + Stripe (birra €5 + abbonamenti + webhook), con modalità simulata se mancano le chiavi. Build verde (16 route).
 - **Sprint 4** — Business (KPI, ricavi mensili, soglia forfettario + disclaimer, transazioni) + Social planner (griglia, pilastri/tipi, stati). Build verde (18 route).
 - **Sprint 5** — Notifiche in-app (create sugli eventi) + PWA offline (sw v2 + pagina /offline) + verifica finale. Build verde (20 route).
+- **Deploy prep** — audit segreti (nessun hardcode, tutto da process.env), lint pulito (escluso `reference/`), webhook runtime Node + fallback `VERCEL_URL`, elenco Environment Variables e URL webhook in STATO.md. In attesa di GitHub/Vercel/Stripe (checklist B).

@@ -2,7 +2,16 @@ import "server-only";
 import { getStripe, stripePrices } from "@/lib/stripe";
 import { publicEnv } from "@/lib/env";
 
-const appUrl = () => publicEnv.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+/**
+ * Base URL per success/cancel. Preferisce NEXT_PUBLIC_APP_URL se è un dominio
+ * reale; in fallback usa VERCEL_URL (impostata da Vercel) — utile in preview.
+ */
+const appUrl = () => {
+  const configured = publicEnv.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+  if (!/localhost|127\.0\.0\.1/.test(configured)) return configured;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return configured;
+};
 
 export type SubTier = "open" | "open_water" | "elite";
 

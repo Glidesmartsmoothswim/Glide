@@ -3,6 +3,10 @@ import { getStripe } from "@/lib/stripe";
 import { serverFeatures } from "@/lib/flags";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+// Stripe SDK + verifica firma richiedono il runtime Node e nessuna cache.
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 /**
  * Webhook Stripe: sblocca i video (birra) e specchia gli abbonamenti.
  * Scrive con la service_role (bypassa RLS). Se webhook/stripe non
