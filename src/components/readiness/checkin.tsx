@@ -149,12 +149,32 @@ function PreForm() {
   );
 }
 
-function PostForm() {
+function PostForm({ workouts }: { workouts: WorkoutOpt[] }) {
   const [state, action] = useActionState(savePost, {} as ReadinessState);
   const [rpe, setRpe] = useState(0);
   const [umore, setUmore] = useState(0);
   return (
     <form action={action} className="flex flex-col gap-4">
+      {workouts.length > 0 && (
+        <div>
+          <div className="mb-1.5 t-body font-bold text-foreground">
+            Quale allenamento hai fatto?
+          </div>
+          <select
+            name="workout_id"
+            defaultValue=""
+            className="w-full rounded-xl border border-border bg-background px-3 py-2.5 t-body outline-none focus:border-blu"
+          >
+            <option value="">— non lo dico —</option>
+            {workouts.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.kind === "open_channel" ? "Open" : "Scheda"}
+                {w.week_day ? ` ${w.week_day}` : ""} · {w.title}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div>
         <div className="mb-1.5 t-body font-bold text-foreground">
           Quanto è stata dura?
@@ -185,7 +205,14 @@ function PostForm() {
   );
 }
 
-export function ReadinessCheckin() {
+export type WorkoutOpt = {
+  id: string;
+  title: string;
+  week_day: string | null;
+  kind: string;
+};
+
+export function ReadinessCheckin({ workouts }: { workouts: WorkoutOpt[] }) {
   const [tab, setTab] = useState<"pre" | "post">("pre");
   return (
     <div className="rounded-2xl border border-border bg-surface p-5">
@@ -207,7 +234,7 @@ export function ReadinessCheckin() {
           </button>
         ))}
       </div>
-      {tab === "pre" ? <PreForm /> : <PostForm />}
+      {tab === "pre" ? <PreForm /> : <PostForm workouts={workouts} />}
     </div>
   );
 }

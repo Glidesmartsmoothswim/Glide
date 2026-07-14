@@ -18,6 +18,20 @@ export default async function SwimmerToday() {
     .limit(10);
   const notifs = (data ?? []) as NotificationRow[];
 
+  // Allenamenti selezionabili nel check-in post (per la firma del set).
+  const { data: wData } = await supabase
+    .from("workouts")
+    .select("id, title, week_day, kind")
+    .or(`swimmer_id.eq.${profile?.id ?? ""},kind.eq.open_channel`)
+    .order("created_at", { ascending: false })
+    .limit(30);
+  const workouts = (wData ?? []) as {
+    id: string;
+    title: string;
+    week_day: string | null;
+    kind: string;
+  }[];
+
   return (
     <div className="flex flex-col gap-6">
       <header className="flex items-center justify-between">
@@ -33,7 +47,7 @@ export default async function SwimmerToday() {
         <p className="text-sm text-muted">
           Registra come stai prima e dopo la vasca — onda dopo onda.
         </p>
-        <ReadinessCheckin />
+        <ReadinessCheckin workouts={workouts} />
       </section>
 
       {notifs.length > 0 && (

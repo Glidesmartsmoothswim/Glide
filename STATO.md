@@ -40,8 +40,14 @@ rimosso (alias→navy). Oswald/Montserrat eliminati. Build verde.
 - **Indice nascosto al nuotatore** (ADR-006 §4): `/app/progressi` ora mostra solo l'Effetto Acqua (≥20 sessioni), niente indice. Il **coach** legge `v_readiness` (fisica + mentale) nel dettaglio nuotatore.
 - Build/lint verdi.
 
-**▶️ PROSSIMO: FASE 1.3–1.6** — curva efficienza (`v_efficiency_points`, ≥6 punti),
-Effetto Acqua completo, digest coach (Resend), onboarding 6 schermate. Poi FASE 2/3/4/5…
+**FASE 1.3 — FATTA.** Curva di efficienza:
+- `lib/workout.ts`: `mainSetSig(blocks)` (firma set principale "SL|100|100|Z3") + `sigLabel`.
+- `savePost` calcola `main_set_sig` dall'allenamento scelto; il post check-in ha un **selettore allenamento** (`/app` passa personal+open).
+- `components/readiness/efficiency.tsx`: RPE a parità di set, ≥6 punti, mai "peggioramento". Su dettaglio coach e `/app/progressi`.
+- Finestra 8 settimane spostata nella vista `v_efficiency_points` (migration_003, applicata). Build/lint verdi.
+
+**▶️ PROSSIMO: FASE 1.4–1.6** — Effetto Acqua (già in `SwimmerProgress`, ok),
+digest coach lunedì (Resend, modalità simulata), onboarding 6 schermate. Poi FASE 2/3/4/5…
 
 **⚠️ Account coach da ricreare:** `glide.smartswim@gmail.com` è stato cancellato
 (auth+profilo). L'utente deve **ri-registrarsi**; poi lo si rimette `role='coach'`.

@@ -6,6 +6,7 @@ import { Avatar, Card, Pill } from "@/components/ui/card";
 import { WorkoutEditor } from "@/components/workout/editor";
 import { WorkoutCard } from "@/components/workout/workout-card";
 import { ReadinessProgress } from "@/components/readiness/progress";
+import { EfficiencyCurves, type EffPoint } from "@/components/readiness/efficiency";
 import type { VReadinessRow } from "@/lib/readiness";
 import { savePersonalWorkout } from "../../workout-actions";
 import { archiveSwimmer } from "../actions";
@@ -54,6 +55,14 @@ export default async function SwimmerDetail({
     .limit(60);
   const readiness = (rData ?? []) as VReadinessRow[];
 
+  const { data: effData } = await supabase
+    .from("v_efficiency_points")
+    .select("main_set_sig, rpe, created_at")
+    .eq("swimmer_id", id)
+    .order("created_at", { ascending: false })
+    .limit(200);
+  const effPoints = (effData ?? []) as EffPoint[];
+
   return (
     <div className="flex max-w-3xl flex-col gap-6">
       <Link
@@ -85,6 +94,7 @@ export default async function SwimmerDetail({
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-lg text-foreground">Progressi</h2>
         <ReadinessProgress rows={readiness} />
+        <EfficiencyCurves points={effPoints} />
       </section>
 
       <section className="flex flex-col gap-3">

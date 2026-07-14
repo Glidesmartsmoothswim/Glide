@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { notifyCoaches } from "@/lib/notify";
 import { L2_TEMPLATE } from "@/lib/readiness";
+import { mainSetSig, type Block } from "@/lib/workout";
 import { fullName } from "@/lib/types";
 
 export type ReadinessState = { error?: string; info?: string; redFlag?: boolean };
@@ -89,11 +90,27 @@ export async function savePost(
   if (!umorePost) return { error: "Dimmi come stai adesso (1–5)." };
 
   const supabase = await createClient();
+
+  // Firma del set principale dall'allenamento indicato → curva di efficienza.
+  // Se non c'è o non è riconoscibile: null e avanti (GLIDE_QUESTIONARIO §6).
+  const workoutId = String(formData.get("workout_id") ?? "").trim() || null;
+  let sig: string | null = null;
+  if (workoutId) {
+    const { data: w } = await supabase
+      .from("workouts")
+      .select("blocks")
+      .eq("id", workoutId)
+      .single();
+    if (w?.blocks) sig = mainSetSig(w.blocks as Block[]);
+  }
+
   const { error } = await supabase.from("readiness").insert({
     swimmer_id: profile.id,
     phase: "post",
     rpe,
     umore_post: umorePost,
+    workout_id: workoutId,
+    main_set_sig: sig,
     note: String(formData.get("note") ?? "").trim() || null,
   });
   if (error) return { error: error.message };

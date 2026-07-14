@@ -161,3 +161,36 @@ export function lineLabel(raw: string): string {
   if (p.note) bits.push(p.note);
   return bits.join(" · ");
 }
+
+const zoneRank = (z: string) => Number(z[1]) || 0;
+
+/**
+ * Firma del SET PRINCIPALE di un allenamento → "STILE|DISTANZA|INTERVALLO_SEC|ZONA"
+ * (es. "SL|100|100|Z3"). Serve a confrontare l'RPE a parità di prescrizione
+ * (Curva di efficienza). Blocco principale = zona più alta; riga = prima con
+ * distanza > 0. Se non riconoscibile: null (e avanti, GLIDE_QUESTIONARIO §6).
+ */
+export function mainSetSig(blocks: Block[]): string | null {
+  if (!Array.isArray(blocks) || blocks.length === 0) return null;
+  const main = blocks.reduce((best, b) =>
+    zoneRank(b.z) > zoneRank(best.z) ? b : best,
+  );
+  for (const raw of main.lines) {
+    const p = parseLine(raw);
+    if (p.dist > 0) {
+      const zone = p.zone ?? main.z;
+      return `${p.stroke}|${p.dist}|${p.interval ?? 0}|${zone}`;
+    }
+  }
+  return null;
+}
+
+/** "SL|100|100|Z3" → "100 SL @1'40\" Z3" (per l'etichetta della curva). */
+export function sigLabel(sig: string): string {
+  const [stroke, dist, ivl, zone] = sig.split("|");
+  const iv = Number(ivl);
+  const parts = [`${dist} ${STROKES[stroke] ?? stroke}`];
+  if (iv > 0) parts.push("@" + fmtTime(iv));
+  if (zone) parts.push(zone);
+  return parts.join(" ");
+}

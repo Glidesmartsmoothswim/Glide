@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { SwimmerProgress } from "@/components/readiness/progress";
+import { EfficiencyCurves, type EffPoint } from "@/components/readiness/efficiency";
 import type { EffettoAcquaRow } from "@/lib/readiness";
 
 export const metadata = { title: "Progressi" };
@@ -17,6 +18,14 @@ export default async function SwimmerProgressi() {
     .maybeSingle();
   const effetto = (data ?? null) as EffettoAcquaRow | null;
 
+  const { data: effData } = await supabase
+    .from("v_efficiency_points")
+    .select("main_set_sig, rpe, created_at")
+    .eq("swimmer_id", profile?.id ?? "")
+    .order("created_at", { ascending: false })
+    .limit(200);
+  const effPoints = (effData ?? []) as EffPoint[];
+
   return (
     <div className="flex flex-col gap-5">
       <header>
@@ -26,6 +35,7 @@ export default async function SwimmerProgressi() {
         </p>
       </header>
       <SwimmerProgress effetto={effetto} />
+      <EfficiencyCurves points={effPoints} />
     </div>
   );
 }
