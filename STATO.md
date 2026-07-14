@@ -4,9 +4,27 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-11 — **Fase 1 completa + ONLINE su Vercel (test)**._
+_Ultimo aggiornamento: 2026-07-14 — **Runbook v2 · FASE 0 + FASE 1.1 · 🛑 Cancello A PASSATO**._
 
 **🌐 Deploy di test LIVE:** https://glide-zeta-ten.vercel.app — login GLIDE verificato (200, nessun errore).
+
+---
+## 🚀 RUNBOOK v2 (in corso) — spec in `docs/`, migrations in `supabase/migrations/`
+
+**FASE 0 — fatta.** Letti ADR/QUESTIONARIO/VOICE/ONBOARDING/TIPOGRAFIA. Doc copiati in `docs/`. Gerarchia fonti: ADR vince su spec. Le 3 correzioni (events→activity_events; policy bookings solo `is_coach()`; brand ADR-009 no-Teal, Glacial) le applico quando eseguo booking.
+
+**FASE 1.1 — fatta.** `migration_002_readiness_v2` **APPLICATA** su Supabase.
+- Adattamento colonne (0.6): `user_id` → **`swimmer_id`** in indice + 3 viste (solo NOMI, logica invariata). Scale (sleep/fatigue/soreness/mood/motivation/rpe) già corrispondenti.
+- `security_invoker = true` verificato su `v_readiness`, `v_efficiency_points`, `v_effetto_acqua`.
+- **🛑 CANCELLO A (test B2): PASSATO.** A(4·4·5·1·2)=fisica **4.33**/mentale **1.50** · B(2·2·1·5·4)=fisica **1.67**/mentale **4.50**. Distinti; A non genera "alleggerire". Righe di test rimosse.
+
+**❌ Da fare in FASE 1 (dopo GO utente):**
+- **1.2 Questionario v2** (nuove scale "5=meglio", ancore visibili, corpo≤3→sede obbligatoria, chip ⚠︎ petto/respiro/testa→L2, post con "E adesso come stai?"). **Rework `lib/readiness.ts`** (rimuovere il bug `6-x` + `readinessScore`) leggendo da `v_readiness`.
+- **Violazione ADR-006 §4 da correggere:** `/app/progressi` e `components/readiness/progress.tsx` **mostrano al nuotatore il suo indice** → il nuotatore NON deve vederlo. Gli indici restano solo lato coach.
+- 1.3 Curva efficienza (`v_efficiency_points`, ≥6 punti) · 1.4 Effetto Acqua (`v_effetto_acqua`, ≥20 sessioni) · 1.5 Digest coach (Resend) · 1.6 Onboarding 6 schermate.
+
+**⏸️ Bloccati:** tipografia ADR-009 (mancano woff2 Bold+Italic+OFL di Glacial) · FASE 4 Videoanalisi (manca `glide-ext-videoanalisi.md`) · FASE 2 ledger (serve GO esplicito).
+---
 Da rifinire: `NEXT_PUBLIC_APP_URL` = questo URL (poi Redeploy) e Supabase → Auth → URL Configuration (Site URL) = questo URL.
 
 ## Riferimenti nel repo
