@@ -33,8 +33,18 @@ rimosso (alias→navy). Oswald/Montserrat eliminati. Build verde.
 
 **✅ Sbloccati:** GO per tutte le fasi ricevuto · font Glacial ricevuti · `glide-ext-videoanalisi.md` ricevuto (in `docs/`). FASE 2 (ledger) autorizzata.
 
-**▶️ PROSSIMO: FASE 1.2** — rework readiness (questionario v2 nuove scale, due indici
-da `v_readiness`, indice **nascosto al nuotatore**), poi 1.3–1.6, poi FASE 2/3/4/5…
+**FASE 1.2 — FATTA.** Rework readiness:
+- `lib/readiness.ts`: via il bug `6-x` e `readinessScore`; nuove scale "5=meglio" con ancore; tipi `VReadinessRow`/`EffettoAcquaRow`; sedi dolore; red-flag/L2.
+- `readiness-actions`: `savePre` scrive sleep/energia/corpo/mood/motivation + pain_sites + health_flag + red_flag; corpo≤3→sede obbligatoria; **red-flag → notifica coach + template L2** (LLM mai chiamato, non c'è). `savePost`: rpe + umore_post + nota.
+- `checkin.tsx`: UI v2 (ancore visibili, chip sede se corpo≤3, chip petto/respiro/testa).
+- **Indice nascosto al nuotatore** (ADR-006 §4): `/app/progressi` ora mostra solo l'Effetto Acqua (≥20 sessioni), niente indice. Il **coach** legge `v_readiness` (fisica + mentale) nel dettaglio nuotatore.
+- Build/lint verdi.
+
+**▶️ PROSSIMO: FASE 1.3–1.6** — curva efficienza (`v_efficiency_points`, ≥6 punti),
+Effetto Acqua completo, digest coach (Resend), onboarding 6 schermate. Poi FASE 2/3/4/5…
+
+**⚠️ Account coach da ricreare:** `glide.smartswim@gmail.com` è stato cancellato
+(auth+profilo). L'utente deve **ri-registrarsi**; poi lo si rimette `role='coach'`.
 ---
 Da rifinire: `NEXT_PUBLIC_APP_URL` = questo URL (poi Redeploy) e Supabase → Auth → URL Configuration (Site URL) = questo URL.
 

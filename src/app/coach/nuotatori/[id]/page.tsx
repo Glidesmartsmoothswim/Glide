@@ -6,7 +6,7 @@ import { Avatar, Card, Pill } from "@/components/ui/card";
 import { WorkoutEditor } from "@/components/workout/editor";
 import { WorkoutCard } from "@/components/workout/workout-card";
 import { ReadinessProgress } from "@/components/readiness/progress";
-import type { ReadinessRow } from "@/lib/readiness";
+import type { VReadinessRow } from "@/lib/readiness";
 import { savePersonalWorkout } from "../../workout-actions";
 import { archiveSwimmer } from "../actions";
 import { EditSwimmerForm } from "./edit-form";
@@ -45,13 +45,14 @@ export default async function SwimmerDetail({
     .order("created_at", { ascending: false });
   const workouts = (wData ?? []) as WorkoutRow[];
 
+  // Il coach legge la vista scomposta (fisica + mentale). Mai una media unica.
   const { data: rData } = await supabase
-    .from("readiness")
+    .from("v_readiness")
     .select("*")
     .eq("swimmer_id", id)
     .order("created_at", { ascending: false })
     .limit(60);
-  const readiness = (rData ?? []) as ReadinessRow[];
+  const readiness = (rData ?? []) as VReadinessRow[];
 
   return (
     <div className="flex max-w-3xl flex-col gap-6">
