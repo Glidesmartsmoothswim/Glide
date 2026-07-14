@@ -14,6 +14,24 @@ export function configured(v: string | undefined | null): v is string {
   return !/INCOLLA_QUI|xxxxxxxxxxxx|price_\.\.\.|_\.\.\.$/.test(v.trim());
 }
 
+/**
+ * Normalizza l'URL Supabase in modo tollerante:
+ * - toglie spazi e "/" finali;
+ * - se per errore è stato incollato l'URL della DASHBOARD
+ *   (https://supabase.com/dashboard/project/<ref>/...), ne ricava
+ *   automaticamente l'endpoint API https://<ref>.supabase.co.
+ * Così l'errore più comune non rompe più il login: si auto-corregge.
+ */
+export function normalizeSupabaseUrl(
+  raw: string | undefined,
+): string | undefined {
+  if (!raw) return raw;
+  const u = raw.trim().replace(/\/+$/, "");
+  const dash = u.match(/supabase\.com\/dashboard\/project\/([a-z0-9]+)/i);
+  if (dash) return `https://${dash[1]}.supabase.co`;
+  return u;
+}
+
 const publicSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url(),
   NEXT_PUBLIC_APP_NAME: z.string().min(1),
@@ -34,7 +52,9 @@ const publicSchema = z.object({
 export const publicEnv = publicSchema.parse({
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
   NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME,
-  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_URL: normalizeSupabaseUrl(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+  ),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
 });
 

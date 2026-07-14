@@ -12,10 +12,10 @@ import { configured, stripePublishableKey } from "@/lib/env";
  */
 export function serverFeatures() {
   return {
-    // Pagamenti reali possibili solo con segreto + pubblicabile.
-    stripe:
-      configured(process.env.STRIPE_SECRET_KEY) &&
-      configured(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY),
+    // Lato server per checkout + webhook basta la SECRET key (runtime).
+    // NB: non dipende dalla publishable (NEXT_PUBLIC, inlined a build-time):
+    // così l'accensione non è ostaggio della cache di build di Vercel.
+    stripe: configured(process.env.STRIPE_SECRET_KEY),
     // Verifica firma webhook Stripe.
     stripeWebhook: configured(process.env.STRIPE_WEBHOOK_SECRET),
     // Invio email transazionali.

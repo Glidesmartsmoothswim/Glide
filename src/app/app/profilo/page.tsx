@@ -14,9 +14,8 @@ import {
 
 export const metadata = { title: "Profilo" };
 
-const PLANS: { tier: "open" | "open_water" | "elite"; name: string; price: string }[] = [
+const PLANS: { tier: "open" | "elite"; name: string; price: string }[] = [
   { tier: "open", name: "Open", price: "€29" },
-  { tier: "open_water", name: "Open Water", price: "€79" },
   { tier: "elite", name: "Elite 1:1", price: "€129" },
 ];
 
