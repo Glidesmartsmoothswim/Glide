@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { oswald, montserrat } from "./fonts";
+import { glacial } from "./fonts";
 import { RegisterSW } from "@/components/pwa/register-sw";
 import "./globals.css";
 
@@ -40,10 +40,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="it"
-      className={`${oswald.variable} ${montserrat.variable} h-full antialiased`}
-    >
+    <html lang="it" className={`${glacial.variable} h-full antialiased`}>
       <body className="min-h-full">
         {children}
         <RegisterSW />

@@ -3,21 +3,24 @@
 /* ============================================================
    GLIDE — design tokens
    "onda dopo onda" · voce "tu" · tono Esploratore
+   Tipografia: ADR-009 / GLIDE_TIPOGRAFIA.md
    ============================================================ */
 
 :root {
-  /* Brand ufficiale */
-  --ink: #0b1220; /* fondale scuro                     */
-  --turchese: #00ffe6; /* accento vivo, la scia          */
-  --navy: #203979; /* blu profondo                     */
-  --blu: #0e5eab; /* blu principale                   */
-  --teal: #0b7a6e; /* testo-teal                       */
+  /* Palette ufficiale — chiusa (ADR-009 §6). Nessun colore nuovo, nessun rosso. */
+  --ink: #0b1220; /* fondale scuro                 */
+  --turchese: #00ffe6; /* accento: bordi, un dato, un'azione */
+  --navy: #203979; /* call remota                   */
+  --blu: #0e5eab; /* lezione in vasca              */
+  /* NB: il Teal #0B7A6E NON entra (ADR-009). Alias legacy → navy,
+     da rimuovere quando i componenti vecchi saranno ripuliti. */
+  --teal: #203979;
 
-  /* Superfici (tema chiaro = default UI nuotatore/coach) */
+  /* Superfici */
   --background: #f6f9fc;
   --surface: #ffffff;
   --foreground: var(--ink);
-  --muted: #5b6b7b;
+  --muted: #4b5a68; /* >= 70% contrasto: niente grigi troppo chiari */
   --border: #dfe7ef;
 }
 
@@ -26,13 +29,17 @@
     --background: #070c15;
     --surface: #0f1826;
     --foreground: #e9f1f7;
-    --muted: #93a4b5;
+    --muted: #9fb0bc; /* grigio chiaro ma sempre >= 70% su fondo scuro */
     --border: #1d2a3b;
   }
 }
 
+/* Niente grassetti/corsivi sintetici: usiamo solo i pesi reali 400/700. */
+* {
+  font-synthesis: none;
+}
+
 @theme inline {
-  /* Colori → utility Tailwind: bg-ink, text-turchese, border-navy, ecc. */
   --color-ink: var(--ink);
   --color-turchese: var(--turchese);
   --color-navy: var(--navy);
@@ -45,22 +52,69 @@
   --color-muted: var(--muted);
   --color-border: var(--border);
 
-  /* Tipografia */
-  --font-display: var(--font-oswald); /* titoli   */
-  --font-sans: var(--font-montserrat); /* UI/corpo */
+  /* Una sola famiglia: display e sans puntano entrambi a Glacial. */
+  --font-display: var(--font-glide);
+  --font-sans: var(--font-glide);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-glide), "Avenir Next", "Century Gothic", system-ui,
+    sans-serif;
+  font-size: 17px; /* corpo minimo: 40–60 anni, a bordo vasca (TIPOGRAFIA §2) */
+  line-height: 26px;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Titoli in Oswald per default */
 h1,
 h2,
 h3,
 h4 {
-  font-family: var(--font-display), system-ui, sans-serif;
-  letter-spacing: 0.01em;
+  font-family: var(--font-glide), system-ui, sans-serif;
+  font-weight: 700;
+}
+
+/* ---- Scala tipografica GLIDE (TIPOGRAFIA §3) ----
+   Gerarchia con dimensione / MAIUSCOLO+tracking / colore, non col peso. */
+.t-display {
+  font-size: 40px;
+  line-height: 44px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+}
+.t-h1 { font-size: 32px; line-height: 38px; font-weight: 700; }
+.t-h2 { font-size: 25px; line-height: 32px; font-weight: 700; }
+.t-h3 { font-size: 21px; line-height: 28px; font-weight: 700; }
+.t-body-lg { font-size: 19px; line-height: 30px; font-weight: 400; }
+.t-body { font-size: 17px; line-height: 26px; font-weight: 400; }
+.t-small { font-size: 15px; line-height: 22px; font-weight: 400; }
+.t-label {
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+.t-data {
+  font-size: 21px;
+  line-height: 24px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+/* I numeri si allineano e si possono copiare (TIPOGRAFIA §4). */
+.tabular,
+.t-data,
+table,
+.workout,
+.rpe,
+.pace {
+  font-variant-numeric: tabular-nums;
+}
+.workout,
+.pace,
+.rpe {
+  user-select: text;
 }

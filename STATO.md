@@ -23,7 +23,18 @@ _Ultimo aggiornamento: 2026-07-14 — **Runbook v2 · FASE 0 + FASE 1.1 · 🛑 
 - **Violazione ADR-006 §4 da correggere:** `/app/progressi` e `components/readiness/progress.tsx` **mostrano al nuotatore il suo indice** → il nuotatore NON deve vederlo. Gli indici restano solo lato coach.
 - 1.3 Curva efficienza (`v_efficiency_points`, ≥6 punti) · 1.4 Effetto Acqua (`v_effetto_acqua`, ≥20 sessioni) · 1.5 Digest coach (Resend) · 1.6 Onboarding 6 schermate.
 
-**⏸️ Bloccati:** tipografia ADR-009 (mancano woff2 Bold+Italic+OFL di Glacial) · FASE 4 Videoanalisi (manca `glide-ext-videoanalisi.md`) · FASE 2 ledger (serve GO esplicito).
+**FASE 0.3 — Tipografia (ADR-009) — FATTA.** Glacial Indifference 400/700/italic
+in `public/fonts/` (+OFL.txt); `font-synthesis:none`; base 17px; scala tipografica
+(`.t-display/.t-h1/.t-h2/.t-h3/.t-body/.t-label/.t-data`); `tabular-nums`; Teal
+rimosso (alias→navy). Oswald/Montserrat eliminati. Build verde.
+- ⚠️ **Da verificare a schermo** (TIPOGRAFIA §4): distinzione `0/O` e `1/l` in Glacial
+  su "8x50 SL @1'40\" Z2 · 0O1lI". Se ambigua → Plan B JetBrains Mono per la sola notazione.
+  (Da fare prima di rimettere mano all'editor allenamenti.)
+
+**✅ Sbloccati:** GO per tutte le fasi ricevuto · font Glacial ricevuti · `glide-ext-videoanalisi.md` ricevuto (in `docs/`). FASE 2 (ledger) autorizzata.
+
+**▶️ PROSSIMO: FASE 1.2** — rework readiness (questionario v2 nuove scale, due indici
+da `v_readiness`, indice **nascosto al nuotatore**), poi 1.3–1.6, poi FASE 2/3/4/5…
 ---
 Da rifinire: `NEXT_PUBLIC_APP_URL` = questo URL (poi Redeploy) e Supabase → Auth → URL Configuration (Site URL) = questo URL.
 
