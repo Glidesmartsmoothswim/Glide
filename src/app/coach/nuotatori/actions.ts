@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireRole } from "@/lib/auth";
 import { serverFeatures } from "@/lib/flags";
+import { getResend, emailFrom } from "@/lib/resend";
+import { publicEnv } from "@/lib/env";
 import type { ServiceType, SwimmerStatus, CertStatus } from "@/lib/types";
 
 export type SwimmerActionState = {
@@ -107,6 +109,34 @@ export async function createSwimmer(
       tempPassword,
     };
   }
-  // Quando Resend sarà attivo: qui parte l'email d'invito (S3/S5).
-  return { info: "Nuotatore creato e invitato via email." };
+
+  // Resend attivo → invia l'email d'invito con la password temporanea.
+  const resend = getResend();
+  const loginUrl = `${publicEnv.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/login`;
+  const { error: mailError } = (await resend!.emails.send({
+    from: emailFrom(),
+    to: email,
+    subject: "Benvenuto in GLIDE — onda dopo onda",
+    html: `
+      <div style="font-family:Arial,sans-serif;color:#0B1220;line-height:1.5">
+        <h2 style="color:#0E5EAB">Ciao ${firstName || "nuotatore"},</h2>
+        <p>Il tuo coach ti ha aggiunto a <b>GLIDE</b>. Ecco i tuoi accessi:</p>
+        <p>
+          <b>Email:</b> ${email}<br/>
+          <b>Password temporanea:</b> <code>${tempPassword}</code>
+        </p>
+        <p><a href="${loginUrl}" style="background:#0E5EAB;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block">Accedi a GLIDE</a></p>
+        <p style="color:#5b6b7b;font-size:13px">Ti consigliamo di cambiare la password dopo il primo accesso.</p>
+        <p style="color:#5b6b7b;font-size:13px">onda dopo onda 🌊</p>
+      </div>`,
+  })) ?? { error: null };
+
+  if (mailError) {
+    // L'utente è comunque creato: mostra la password come fallback.
+    return {
+      info: "Nuotatore creato, ma l'invio email è fallito. Passagli tu la password temporanea.",
+      tempPassword,
+    };
+  }
+  return { info: `Nuotatore creato e invitato via email a ${email}.` };
 }
