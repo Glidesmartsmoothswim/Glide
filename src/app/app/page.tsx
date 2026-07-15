@@ -3,6 +3,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { WaveLogo } from "@/components/brand/wave-logo";
 import { ReadinessCheckin } from "@/components/readiness/checkin";
 import { NotifList } from "@/components/notifications/notif-list";
+import { Onboarding } from "@/components/onboarding/onboarding";
 import type { NotificationRow } from "@/lib/notifications";
 
 export default async function SwimmerToday() {
@@ -34,6 +35,7 @@ export default async function SwimmerToday() {
 
   return (
     <div className="flex flex-col gap-6">
+      <Onboarding />
       <header className="flex items-center justify-between">
         <div>
           <p className="text-sm text-muted">Ciao {name},</p>

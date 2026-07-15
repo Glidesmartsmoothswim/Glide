@@ -46,8 +46,15 @@ rimosso (alias→navy). Oswald/Montserrat eliminati. Build verde.
 - `components/readiness/efficiency.tsx`: RPE a parità di set, ≥6 punti, mai "peggioramento". Su dettaglio coach e `/app/progressi`.
 - Finestra 8 settimane spostata nella vista `v_efficiency_points` (migration_003, applicata). Build/lint verdi.
 
-**▶️ PROSSIMO: FASE 1.4–1.6** — Effetto Acqua (già in `SwimmerProgress`, ok),
-digest coach lunedì (Resend, modalità simulata), onboarding 6 schermate. Poi FASE 2/3/4/5…
+**FASE 1.4–1.6 — FATTE. ✅ FASE 1 COMPLETA.**
+- **1.4 Effetto Acqua**: in `SwimmerProgress` (≥20 sessioni), niente indice al nuotatore.
+- **1.5 Digest coach** (`lib/digest.ts`): 4 sezioni (Da chiamare / Sta scivolando / Corpo / Certificati), max 3 righe, ogni riga un link-azione, osservazioni mai prescrizioni. Segnale "sta scivolando" = fisica buona + sparito ≥5gg → motivazione. **In-app sulla Dashboard coach** (modalità simulata senza Resend). Cron `/api/cron/digest` + `vercel.json` (lun 07:00) → invia via Resend se configurato.
+- **1.6 Onboarding**: 6 schermate copy identico, schermata 2 non skippabile, su `/app` (localStorage). Build/lint verdi.
+
+**▶️ PROSSIMO: FASE 2** — activity_events ledger (ADR-003, GO ricevuto):
+`migration_001_activity_ledger`, `logEvent()` sugli eventi, backfill. Poi FASE 3 (booking) / 4 (videoanalisi) / 5 (Onda + Glide Score).
+
+**📌 Push:** FASE 1 pronta da mandare live. Quando dai l'ok (o a fine FASE 2), un push unico e vedi tutto online: tipografia Glacial, questionario v2, due indici, curva, digest, onboarding.
 
 **⚠️ Account coach da ricreare:** `glide.smartswim@gmail.com` è stato cancellato
 (auth+profilo). L'utente deve **ri-registrarsi**; poi lo si rimette `role='coach'`.
