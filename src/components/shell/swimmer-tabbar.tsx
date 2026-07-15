@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Home,
   Waves,
+  CalendarPlus,
   Video,
   TrendingUp,
   User,
@@ -17,6 +18,7 @@ type Tab = { href: string; label: string; icon: LucideIcon };
 const TABS: Tab[] = [
   { href: "/app", label: "Oggi", icon: Home },
   { href: "/app/nuoto", label: "Nuoto", icon: Waves },
+  { href: "/app/prenota", label: "Prenota", icon: CalendarPlus },
   { href: "/app/video", label: "Video", icon: Video },
   { href: "/app/progressi", label: "Progressi", icon: TrendingUp },
   { href: "/app/profilo", label: "Profilo", icon: User },

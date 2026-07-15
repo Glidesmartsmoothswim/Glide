@@ -8,7 +8,8 @@ export type NotifType =
   | "birra"
   | "retention"
   | "pay"
-  | "plan";
+  | "plan"
+  | "booking";
 
 /**
  * Crea una notifica per un utente. Usa la service_role perché la tabella

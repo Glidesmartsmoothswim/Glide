@@ -12,6 +12,7 @@ import {
   BarChart3,
   Bell,
   MessageCircle,
+  CalendarClock,
   LogOut,
   type LucideIcon,
 } from "lucide-react";
@@ -36,7 +37,10 @@ const NAV: Group[] = [
   },
   {
     title: "Allenamento",
-    items: [{ href: "/coach/open", label: "Canale Open", icon: Radio }],
+    items: [
+      { href: "/coach/open", label: "Canale Open", icon: Radio },
+      { href: "/coach/agenda", label: "Agenda", icon: CalendarClock },
+    ],
   },
   {
     title: "Contenuti",

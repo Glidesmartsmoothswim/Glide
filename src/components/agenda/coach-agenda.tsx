@@ -1,0 +1,463 @@
+"use client";
+
+import { useActionState, useState } from "react";
+import { Card, Pill } from "@/components/ui/card";
+import {
+  addRule,
+  deleteRule,
+  duplicateRuleAllWeek,
+  closeDay,
+  addExtra,
+  deleteException,
+  completeBooking,
+  noShowBooking,
+  createEvent,
+  cancelEvent,
+  type AgendaState,
+} from "@/app/coach/agenda/actions";
+
+const WD = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"];
+const KINDS = [
+  "clinic_tecnica",
+  "test_set",
+  "open_water",
+  "raduno",
+  "gara_master",
+  "trasferta",
+  "webinar",
+  "consulenza_gruppo",
+  "challenge",
+  "chiusura_piscina",
+];
+
+type Rule = {
+  id: string;
+  weekday: number;
+  start_time: string;
+  end_time: string;
+  slot_step: number;
+  modes: string[];
+  label: string | null;
+};
+type Exc = {
+  id: string;
+  day: string;
+  kind: string;
+  start_time: string | null;
+  end_time: string | null;
+  note: string | null;
+};
+type Booking = {
+  id: string;
+  swimmer: string;
+  service: string;
+  starts_at: string;
+  ends_at: string;
+  mode: string;
+  status: string;
+  payment: string;
+  coach_note: string | null;
+  swimmer_note: string | null;
+};
+type Ev = {
+  id: string;
+  title: string;
+  kind: string;
+  starts_at: string;
+  ends_at: string;
+  location: string | null;
+  mode: string;
+  capacity: number | null;
+  blocks_calendar: boolean;
+  status: string;
+};
+
+const hhmm = (t: string) => t.slice(0, 5);
+const mins = (t: string) => {
+  const [h, m] = hhmm(t).split(":").map(Number);
+  return h * 60 + m;
+};
+const fmtMin = (n: number) =>
+  `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
+
+const dt = (iso: string) =>
+  new Intl.DateTimeFormat("it-IT", {
+    timeZone: "Europe/Rome",
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(iso));
+const dayLabel = (d: string) =>
+  new Intl.DateTimeFormat("it-IT", {
+    timeZone: "Europe/Rome",
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+  }).format(new Date(`${d}T12:00:00Z`));
+
+function ModeBadge({ m }: { m: string }) {
+  return m === "remote" ? (
+    <Pill tone="ok">Remoto</Pill>
+  ) : (
+    <Pill tone="brand">Vasca</Pill>
+  );
+}
+function PayBadge({ p }: { p: string }) {
+  if (p === "credit") return <Pill tone="brand">Credito</Pill>;
+  if (p === "paid") return <Pill tone="ok">Pagato</Pill>;
+  if (p === "pending") return <Pill tone="warn">In attesa</Pill>;
+  return <Pill tone="neutral">Simulato</Pill>;
+}
+
+const TABS = ["Disponibilità", "Prenotazioni", "Eventi"] as const;
+
+export function CoachAgenda({
+  rules,
+  exceptions,
+  bookings,
+  events,
+}: {
+  rules: Rule[];
+  exceptions: Exc[];
+  bookings: Booking[];
+  events: Ev[];
+}) {
+  const [tab, setTab] = useState<(typeof TABS)[number]>("Disponibilità");
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex gap-1 rounded-xl border border-border bg-surface p-1">
+        {TABS.map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+              tab === t ? "bg-blu text-white" : "text-muted hover:bg-background"
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {tab === "Disponibilità" && (
+        <AvailabilityTab rules={rules} exceptions={exceptions} />
+      )}
+      {tab === "Prenotazioni" && <BookingsTab bookings={bookings} />}
+      {tab === "Eventi" && <EventsTab events={events} />}
+    </div>
+  );
+}
+
+// ---------------- Disponibilità ----------------
+function AvailabilityTab({ rules, exceptions }: { rules: Rule[]; exceptions: Exc[] }) {
+  const [state, action] = useActionState<AgendaState, FormData>(addRule, {});
+  const [start, setStart] = useState("12:00");
+  const [end, setEnd] = useState("14:30");
+  const [step, setStep] = useState(15);
+
+  const s = mins(start);
+  const e = mins(end);
+  const preview =
+    e > s
+      ? `partenze ogni ${step}' · ultima 60' alle ${fmtMin(e - 60)} · ultima 30' alle ${fmtMin(e - 30)}`
+      : "la fine dev'essere dopo l'inizio";
+
+  return (
+    <div className="flex flex-col gap-5">
+      <Card>
+        <h2 className="t-h3 mb-3">Nuova finestra</h2>
+        <form action={action} className="flex flex-col gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="t-label text-muted">Giorno</span>
+              <select name="weekday" defaultValue="1" className="rounded-lg border border-border bg-background px-2 py-2">
+                {WD.map((w, i) => (
+                  <option key={i} value={i}>
+                    {w}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="t-label text-muted">Inizio</span>
+              <input type="time" name="start_time" value={start} onChange={(ev) => setStart(ev.target.value)} className="rounded-lg border border-border bg-background px-2 py-2" />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="t-label text-muted">Fine</span>
+              <input type="time" name="end_time" value={end} onChange={(ev) => setEnd(ev.target.value)} className="rounded-lg border border-border bg-background px-2 py-2" />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="t-label text-muted">Passo</span>
+              <select name="slot_step" value={step} onChange={(ev) => setStep(Number(ev.target.value))} className="rounded-lg border border-border bg-background px-2 py-2">
+                {[10, 15, 20, 30].map((n) => (
+                  <option key={n} value={n}>
+                    {n}&apos;
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="flex flex-wrap items-center gap-4">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="modes" value="pool" defaultChecked /> Vasca
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="modes" value="remote" /> Remoto
+            </label>
+            <input name="label" placeholder="Etichetta (es. Pausa pranzo)" className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+          </div>
+          <p className="t-small text-muted">{preview}</p>
+          {state.error && <p className="t-small text-[#DC2626]">{state.error}</p>}
+          {state.info && <p className="t-small text-blu">{state.info}</p>}
+          <button className="self-start rounded-lg bg-blu px-4 py-2 text-sm font-semibold text-white">
+            Aggiungi finestra
+          </button>
+        </form>
+      </Card>
+
+      <Card>
+        <h2 className="t-h3 mb-3">Finestre attive</h2>
+        {rules.length === 0 ? (
+          <p className="t-small text-muted">Nessuna finestra: aggiungine una sopra.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {rules.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-background px-3 py-2">
+                <span className="grid h-8 w-10 place-items-center rounded-md bg-ink text-xs font-bold text-white">
+                  {WD[r.weekday]}
+                </span>
+                <span className="t-data">
+                  {hhmm(r.start_time)}–{hhmm(r.end_time)}
+                </span>
+                <span className="t-small text-muted">ogni {r.slot_step}&apos;</span>
+                <div className="flex gap-1">
+                  {r.modes.map((m) => (
+                    <ModeBadge key={m} m={m} />
+                  ))}
+                </div>
+                {r.label && <span className="t-small text-muted">· {r.label}</span>}
+                <div className="ml-auto flex gap-2">
+                  <form action={duplicateRuleAllWeek}>
+                    <input type="hidden" name="id" value={r.id} />
+                    <button className="rounded-md border border-border px-2 py-1 text-xs text-muted hover:bg-surface">
+                      Duplica su tutta la settimana
+                    </button>
+                  </form>
+                  <form action={deleteRule}>
+                    <input type="hidden" name="id" value={r.id} />
+                    <button className="rounded-md border border-border px-2 py-1 text-xs text-[#DC2626] hover:bg-surface">
+                      Elimina
+                    </button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Card>
+          <h2 className="t-h3 mb-3">Chiudi un giorno</h2>
+          <form action={closeDay} className="flex flex-col gap-2">
+            <input type="date" name="day" required className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+            <input name="note" placeholder="Motivo (facoltativo)" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+            <button className="self-start rounded-lg border border-border px-3 py-2 text-sm font-semibold text-ink hover:bg-background">
+              Chiudi giorno
+            </button>
+          </form>
+        </Card>
+        <Card>
+          <h2 className="t-h3 mb-3">Apertura extra</h2>
+          <form action={addExtra} className="flex flex-col gap-2">
+            <input type="date" name="day" required className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+            <div className="flex gap-2">
+              <input type="time" name="start_time" required className="flex-1 rounded-lg border border-border bg-background px-2 py-2 text-sm" />
+              <input type="time" name="end_time" required className="flex-1 rounded-lg border border-border bg-background px-2 py-2 text-sm" />
+            </div>
+            <div className="flex gap-4 text-sm">
+              <label className="flex items-center gap-2">
+                <input type="checkbox" name="modes" value="pool" defaultChecked /> Vasca
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" name="modes" value="remote" /> Remoto
+              </label>
+            </div>
+            <button className="self-start rounded-lg border border-border px-3 py-2 text-sm font-semibold text-ink hover:bg-background">
+              Aggiungi apertura
+            </button>
+          </form>
+        </Card>
+      </div>
+
+      {exceptions.length > 0 && (
+        <Card>
+          <h2 className="t-h3 mb-3">Eccezioni in arrivo</h2>
+          <ul className="flex flex-col gap-2">
+            {exceptions.map((x) => (
+              <li key={x.id} className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                <Pill tone={x.kind === "closed" ? "bad" : "ok"}>
+                  {x.kind === "closed" ? "Chiuso" : "Extra"}
+                </Pill>
+                <span className="t-data">{dayLabel(x.day)}</span>
+                {x.start_time && (
+                  <span className="text-muted">
+                    {hhmm(x.start_time)}–{x.end_time ? hhmm(x.end_time) : ""}
+                  </span>
+                )}
+                {x.note && <span className="text-muted">· {x.note}</span>}
+                <form action={deleteException} className="ml-auto">
+                  <input type="hidden" name="id" value={x.id} />
+                  <button className="rounded-md border border-border px-2 py-1 text-xs text-[#DC2626] hover:bg-surface">
+                    Rimuovi
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ---------------- Prenotazioni ----------------
+function BookingsTab({ bookings }: { bookings: Booking[] }) {
+  if (bookings.length === 0)
+    return (
+      <Card>
+        <p className="t-small text-muted">Nessuna prenotazione nei prossimi giorni.</p>
+      </Card>
+    );
+  return (
+    <div className="flex flex-col gap-3">
+      {bookings.map((b) => (
+        <Card key={b.id}>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-blu to-navy text-xs font-bold text-white">
+              {b.swimmer.slice(0, 2).toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <p className="font-semibold">{b.swimmer}</p>
+              <p className="t-small text-muted">
+                {b.service} · {dt(b.starts_at)}
+              </p>
+            </div>
+            <div className="ml-auto flex flex-wrap items-center gap-1">
+              <ModeBadge m={b.mode} />
+              <PayBadge p={b.payment} />
+              {b.status === "completed" && <Pill tone="ok">Fatta</Pill>}
+              {b.status === "no_show" && <Pill tone="bad">Assente</Pill>}
+            </div>
+          </div>
+          {b.swimmer_note && (
+            <p className="mt-2 rounded-lg bg-background px-3 py-2 t-small text-muted">
+              «{b.swimmer_note}»
+            </p>
+          )}
+          {b.coach_note && (
+            <p className="mt-2 t-small text-muted">Nota tua: {b.coach_note}</p>
+          )}
+          {b.status === "confirmed" && (
+            <form action={completeBooking} className="mt-3 flex flex-wrap items-center gap-2">
+              <input type="hidden" name="id" value={b.id} />
+              <input
+                name="coach_note"
+                placeholder="Nota post-lezione (si aggancia allo storico)"
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+              <button className="rounded-lg bg-blu px-3 py-2 text-sm font-semibold text-white">
+                Presente
+              </button>
+              <button
+                formAction={noShowBooking}
+                className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-muted hover:bg-background"
+              >
+                Assente
+              </button>
+            </form>
+          )}
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+// ---------------- Eventi ----------------
+function EventsTab({ events }: { events: Ev[] }) {
+  const [state, action] = useActionState<AgendaState, FormData>(createEvent, {});
+  return (
+    <div className="flex flex-col gap-5">
+      <Card>
+        <h2 className="t-h3 mb-3">Nuovo evento</h2>
+        <form action={action} className="flex flex-col gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <input name="title" placeholder="Titolo" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+            <select name="kind" defaultValue="clinic_tecnica" className="rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              {KINDS.map((k) => (
+                <option key={k} value={k}>
+                  {k.replace(/_/g, " ")}
+                </option>
+              ))}
+            </select>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="t-label text-muted">Inizio</span>
+              <input type="datetime-local" name="starts_at" className="rounded-lg border border-border bg-background px-2 py-2" />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="t-label text-muted">Fine</span>
+              <input type="datetime-local" name="ends_at" className="rounded-lg border border-border bg-background px-2 py-2" />
+            </label>
+            <input name="location" placeholder="Luogo" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+            <select name="mode" defaultValue="pool" className="rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="pool">Vasca</option>
+              <option value="remote">Remoto</option>
+              <option value="open_water">Acque libere</option>
+              <option value="offsite">Fuori sede</option>
+            </select>
+            <input type="number" name="capacity" placeholder="Capienza (vuoto = illimitata)" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+          </div>
+          <input name="description" placeholder="Descrizione (facoltativa)" className="rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="blocks_calendar" defaultChecked /> Oscura le prenotazioni in queste ore
+          </label>
+          {state.error && <p className="t-small text-[#DC2626]">{state.error}</p>}
+          {state.info && <p className="t-small text-blu">{state.info}</p>}
+          <button className="self-start rounded-lg bg-blu px-4 py-2 text-sm font-semibold text-white">
+            Pubblica evento
+          </button>
+        </form>
+      </Card>
+
+      {events.length > 0 && (
+        <Card>
+          <h2 className="t-h3 mb-3">Eventi pubblicati</h2>
+          <ul className="flex flex-col gap-2">
+            {events.map((e) => (
+              <li key={e.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                <span className="font-semibold">{e.title}</span>
+                <Pill tone="neutral">{e.kind.replace(/_/g, " ")}</Pill>
+                <span className="t-small text-muted">
+                  {dt(e.starts_at)} → {dt(e.ends_at)}
+                </span>
+                {e.capacity != null && (
+                  <span className="t-small text-muted">· max {e.capacity}</span>
+                )}
+                {e.blocks_calendar && <Pill tone="warn">Oscura agenda</Pill>}
+                <form action={cancelEvent} className="ml-auto">
+                  <input type="hidden" name="id" value={e.id} />
+                  <button className="rounded-md border border-border px-2 py-1 text-xs text-[#DC2626] hover:bg-surface">
+                    Annulla
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+    </div>
+  );
+}

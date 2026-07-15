@@ -18,4 +18,5 @@ export const NOTIF_EMOJI: Record<NotifType, string> = {
   retention: "⏳",
   pay: "💳",
   plan: "🏊",
+  booking: "📅",
 };

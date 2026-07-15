@@ -63,9 +63,31 @@ rimosso (alias→navy). Oswald/Montserrat eliminati. Build verde.
 - **Backfill** (`migration_004_backfill_ledger`, idempotente: gira solo se la tabella è vuota): eventi storici da `readiness`+`race_videos` con `occurred_at`=storico. Prodotti: 2 `readiness.pre` + 2 `readiness.post` (le sedute a DB non avevano workout né video). `workout.completed` di backfill lascia `meters` null → ricalcolo a valle.
 - `tsc --noEmit` pulito.
 
-**▶️ PROSSIMO: FASE 3** — S7 Booking & Agenda (`docs/glide-ext-booking.md`) con le 3 correzioni: `events` (calendario) vs `activity_events` (ledger); policy `bookings` solo `is_coach()` (ADR-008, niente write diretti dal client); brand ADR-009 (no Teal, Glacial). Poi FASE 4 (videoanalisi) / 5 (Onda + Glide Score).
+**FASE 3 — FATTA. ✅ S7 Booking & Agenda.** (3 correzioni applicate: `events`=calendario vs `activity_events`=ledger; `bookings`/`event_signups`/`lesson_credits` scrivibili solo `is_coach()` — ADR-008; brand ADR-009 no-Teal.)
+- **DB** (`migration_005_booking`): `services` (pool_60/30, call_60/30), `availability_rules`, `availability_exceptions`, `bookings` (con **EXCLUDE gist anti-overlap** su `tstzrange(starts_at, block_until)` per coach), `lesson_credits`, `plan_entitlements` (tier = `service_type` REALE: coaching_1_1/both → 1 lez/mese+remoto, open → 0), `events`, `event_signups`. RLS su tutte. `btree_gist` abilitato.
+- **Slot engine** `lib/booking/slots.ts` — funzione pura, DST-safe Europe/Rome (`romeWallToUtc` a doppio raffinamento). **14/14 asserzioni verdi** sugli esempi canonici (§3) + 2 casi DST (29/03, 25/10).
+- **Crediti** `lib/booking/credits.ts`: `ensureCreditPeriod` (idempotente, agganciato all'apertura di `/app/prenota`), `consumeCredit`/`refundCredit` **guardati** (optimistic, anti doppio-consumo), periodo mese/bimestre.
+- **API** (nodejs, service-role dove serve): `GET /slots` (ricalcolo lato server, admin per vedere TUTTE le prenotazioni), `POST /create` (ri-valida slot → 402 senza credito+extra, 409 su `exclusion_violation`, ledger `booking.created`), `POST /cancel` (rimborso oltre 24h, ledger `booking.cancelled`), `GET /ics` (VEVENT+alarm 24h), `POST /events/signup` (capienza→waitlist, ledger `event.signup`). Coach: `booking.completed`/`no_show` da server action.
+- **UI Coach** `/coach/agenda` (3 tab): Disponibilità (finestre + anteprima "ultima 60' alle…", duplica-settimana, chiudi-giorno, apertura-extra), Prenotazioni (Presente/Assente + nota che va allo storico), Eventi (form + tipi §7 + "oscura agenda"). Nav "Agenda".
+- **UI Nuotatore** `/app/prenota` (3 tap): servizio → giorno (strip 14gg, giorni vuoti spenti) → ora → riepilogo → Prenota. Card "Le tue lezioni" (+.ics, disdici "gratis fino a 24h"), sezione Eventi ("Ci sono"/waitlist). Call solo se `remote_allowed`. Tab "Prenota".
+- **Stripe lezioni extra: PARCHEGGIATO** con il resto della riconfig Stripe → senza credito la prenotazione è `payment='free'` (badge "Simulato").
+- **Collaudo**: seminata disponibilità reale coach (Lun 12–14:30 vasca, Mer 18–20 vasca+remoto, Ven 12–13:30 call). Vincolo anti-overlap testato a DB (A ok, B respinta). `next build` + `tsc` verdi.
 
-**📌 Push:** FASE 1+2 pronte da mandare live. Un push unico e vedi tutto online: tipografia Glacial, questionario v2, due indici, curva, digest, onboarding, ledger.
+**Checklist collaudo booking (spec §9):**
+- [x] Finestra coach Lun 12:00–14:30 step 15 solo vasca (seminata).
+- [x] 7 slot per 60' e 9 per 30' (slot engine, verificato).
+- [x] Prenoto 12:30 (60') → spariscono 12:00–12:45…; primo libero 13:45 per 30' (engine).
+- [x] Doppio-click stesso slot → il secondo riceve 409 (EXCLUDE testato a DB).
+- [ ] Credito 1/1 → 0/1 e la 2ª chiede pagamento *(manuale, in-app)*.
+- [ ] Disdetta a 48h → credito reso; a 3h → perso *(manuale)*.
+- [x] Nuotatore Open non vede le call né ha crediti (gating `remote_allowed`/entitlement).
+- [ ] Evento `chiusura_piscina` mercoledì → nessuno slot quel giorno *(manuale)*.
+- [x] Nuotatore A non vede le prenotazioni di B (RLS `r_book` own-or-coach).
+- [x] Ora legale 25/10 e 29/03 mantengono l'orario (test DST verdi).
+
+**▶️ PROSSIMO: FASE 4** — S8 Videoanalisi (`docs/glide-ext-videoanalisi.md`). Poi FASE 5 (Onda + Glide Score, sul ledger), 6 (Badge), 7 (Assistant safety router), 8 (Identity), 9 (collaudo finale).
+
+**📌 Push:** FASE 1+2 già live. FASE 3 pronta da mandare (migration già applicata su Supabase, codice da pushare).
 
 **⚠️ Account coach da ricreare:** `glide.smartswim@gmail.com` è stato cancellato
 (auth+profilo). L'utente deve **ri-registrarsi**; poi lo si rimette `role='coach'`.
