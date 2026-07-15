@@ -85,9 +85,22 @@ rimosso (alias→navy). Oswald/Montserrat eliminati. Build verde.
 - [x] Nuotatore A non vede le prenotazioni di B (RLS `r_book` own-or-coach).
 - [x] Ora legale 25/10 e 29/03 mantengono l'orario (test DST verdi).
 
-**▶️ PROSSIMO: FASE 4** — S8 Videoanalisi (`docs/glide-ext-videoanalisi.md`). Poi FASE 5 (Onda + Glide Score, sul ledger), 6 (Badge), 7 (Assistant safety router), 8 (Identity), 9 (collaudo finale).
+---
 
-**📌 Push:** FASE 1+2 già live. FASE 3 pronta da mandare (migration già applicata su Supabase, codice da pushare).
+**FASE 4 — FATTA. ✅ S8 Evento Videoanalisi.** (Il nuotatore sceglie i *test*, il coach decide l'*ordine*: niente scelta oraria dal client.)
+- **DB** (`migration_006_videoanalisi`): `events` esteso (format/window_start/end/lanes/setup_min/warmup_lead_min/travel_before/after/runsheet_status), + `tests` (catalogo, 8 seed), `event_tests`, `signup_tests`, `runsheet` (unique event+signup e event+position). RLS: catalogo pubblico, scrittura solo coach; `signup_tests` proprie o coach; **`runsheet` visibile al nuotatore solo se `published` e solo la SUA riga**.
+- **Motore scaletta** `lib/events/runsheet.ts` — puro/deterministico: riempimento corsie (l'orologio che si libera prima), warmup clampato a window_start, overrun + `capacityLevel` (semaforo). **13/13 asserzioni verdi** (no-overlap corsia, 2 corsie, sfori, verde/giallo/rosso).
+- **Slot engine aggiornato**: un evento bloccante oscura l'agenda da `starts_at−travel_before` a `ends_at+travel_after` (viaggio A/R).
+- **API/azioni** (coach, RLS): `createVideoEvent` (+event_tests), `generateRunsheet`, `reorderRunsheet` (↑/↓), `recompactRunsheet` (togli assenti, esplicito), `publishRunsheet` (+notifica a ciascun iscritto), `setRunStatus` (live), `setSignupStatus` (accetta/waitlist), `closeVideoEvent` (→ crea voci **coda video** taggate `#eventId` + `videoanalisi.done` nel ledger, dedup). `POST /events/signup` esteso con i test scelti; `GET /events/ics` (solo la propria riga).
+- **UI Coach** `/coach/videoanalisi`: form creazione (3 blocchi + **capienza stimata live**), dettaglio con **semaforo**, iscrizioni (accetta/waitlist), scaletta (genera/riordina/ricompatta/pubblica/chiudi) e **riepilogo LIVE** (ora in acqua / prossimo) con toggle stato per riga. Nav "Videoanalisi".
+- **UI Nuotatore** (in `/app/prenota` → Eventi): per la videoanalisi sceglie i test → "il tuo pacchetto: N minuti", si iscrive; a scaletta pubblicata vede **solo il suo orario** (scalda/in acqua/fine + corsia) e `.ics`. Mai la scaletta degli altri.
+- `next build` + `tsc` verdi. Motore verificato; RLS r_run garantita a livello DB.
+
+**Checklist collaudo videoanalisi (spec §6):** capienza stimata [x engine], pacchetto minuti [x], semaforo 🔴→🟢 con 2ª corsia [x engine/UI], genera scaletta senza overlap [x engine], riordino ricalcola [x], draft nascosto al nuotatore [x RLS], pubblica→solo il suo orario+.ics [x], assente non riscrive da solo (ricompatta esplicito) [x], evento oscura agenda incluso viaggio [x], chiusura→coda video col tag [x]. *(Le voci che dipendono da dati live restano da provare in-app.)*
+
+**▶️ PROSSIMO: FASE 5** — Onda + Glide Score (aggregati sul ledger `activity_events`). Poi 6 (Badge), 7 (Assistant safety router), 8 (Identity, servono 8 settimane di dati), 9 (collaudo finale).
+
+**📌 Push:** FASE 1+2 già live. **FASE 3+4 pronte da pushare** (migration_005 e _006 già applicate su Supabase; manca solo il push del codice → Vercel builda UI agenda + videoanalisi).
 
 **⚠️ Account coach da ricreare:** `glide.smartswim@gmail.com` è stato cancellato
 (auth+profilo). L'utente deve **ri-registrarsi**; poi lo si rimette `role='coach'`.

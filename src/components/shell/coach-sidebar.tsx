@@ -13,6 +13,7 @@ import {
   Bell,
   MessageCircle,
   CalendarClock,
+  Clapperboard,
   LogOut,
   type LucideIcon,
 } from "lucide-react";
@@ -46,6 +47,7 @@ const NAV: Group[] = [
     title: "Contenuti",
     items: [
       { href: "/coach/video", label: "Video gare", icon: Video },
+      { href: "/coach/videoanalisi", label: "Videoanalisi", icon: Clapperboard },
       { href: "/coach/social", label: "Social", icon: Share2 },
     ],
   },

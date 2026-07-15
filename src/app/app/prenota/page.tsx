@@ -67,7 +67,9 @@ export default async function PrenotaPage() {
   const tier = p?.service_type ?? null;
   const { data: evData } = await supabase
     .from("events")
-    .select("id, title, kind, starts_at, location, mode, capacity, audience")
+    .select(
+      "id, title, kind, format, starts_at, window_start, location, mode, capacity, audience",
+    )
     .eq("status", "published")
     .gte("starts_at", new Date().toISOString())
     .order("starts_at")
@@ -76,30 +78,97 @@ export default async function PrenotaPage() {
     id: string;
     title: string;
     kind: string;
+    format: string;
     starts_at: string;
+    window_start: string | null;
     location: string | null;
     mode: string;
     capacity: number | null;
     audience: string[] | null;
   };
-  const events = ((evData ?? []) as EvRow[])
-    .filter((e) => !tier || !e.audience || e.audience.includes(tier))
-    .map((e) => ({
-      id: e.id,
-      title: e.title,
-      kind: e.kind,
-      starts_at: e.starts_at,
-      location: e.location,
-      mode: e.mode,
-      capacity: e.capacity,
-    }));
-  const { data: signupData } = await supabase
-    .from("event_signups")
-    .select("event_id, status")
-    .eq("swimmer_id", profile.id);
-  const signups = Object.fromEntries(
-    (signupData ?? []).map((s) => [s.event_id, s.status]),
+  const evAll = ((evData ?? []) as EvRow[]).filter(
+    (e) => !tier || !e.audience || e.audience.includes(tier),
   );
+  const vaIds = evAll.filter((e) => e.format === "videoanalisi").map((e) => e.id);
+
+  // Test offerti dagli eventi videoanalisi
+  const offeredByEvent: Record<
+    string,
+    { id: string; name: string; duration: number }[]
+  > = {};
+  if (vaIds.length) {
+    const { data: et } = await supabase
+      .from("event_tests")
+      .select("event_id, tests(id, name, duration_min)")
+      .in("event_id", vaIds);
+    for (const r of et ?? []) {
+      const t = r.tests as unknown as {
+        id: string;
+        name: string;
+        duration_min: number;
+      } | null;
+      if (t)
+        (offeredByEvent[r.event_id] ??= []).push({
+          id: t.id,
+          name: t.name,
+          duration: t.duration_min,
+        });
+    }
+  }
+
+  // Le mie iscrizioni + test scelti + eventuale riga di scaletta (RLS: solo se pubblicata)
+  const { data: mySignups } = await supabase
+    .from("event_signups")
+    .select("id, event_id, status")
+    .eq("swimmer_id", profile.id);
+  const signupByEvent = Object.fromEntries(
+    (mySignups ?? []).map((s) => [s.event_id, s]),
+  );
+  const evBySignup = Object.fromEntries(
+    (mySignups ?? []).map((s) => [s.id, s.event_id]),
+  );
+  const myTestsByEvent: Record<string, string[]> = {};
+  const mySignupIds = (mySignups ?? []).map((s) => s.id);
+  if (mySignupIds.length) {
+    const { data: mt } = await supabase
+      .from("signup_tests")
+      .select("signup_id, test_id")
+      .in("signup_id", mySignupIds);
+    for (const r of mt ?? []) {
+      const ev = evBySignup[r.signup_id];
+      if (ev) (myTestsByEvent[ev] ??= []).push(r.test_id);
+    }
+  }
+  const slotByEvent: Record<
+    string,
+    { warmup: string; test: string; out: string; lane: number }
+  > = {};
+  if (vaIds.length) {
+    const { data: rs } = await supabase
+      .from("runsheet")
+      .select("event_id, warmup_at, test_at, out_at, lane")
+      .in("event_id", vaIds);
+    for (const r of rs ?? [])
+      slotByEvent[r.event_id] = {
+        warmup: r.warmup_at,
+        test: r.test_at,
+        out: r.out_at,
+        lane: r.lane,
+      };
+  }
+
+  const events = evAll.map((e) => ({
+    id: e.id,
+    title: e.title,
+    kind: e.kind,
+    format: e.format,
+    starts_at: e.window_start ?? e.starts_at,
+    location: e.location,
+    offeredTests: offeredByEvent[e.id] ?? [],
+    myStatus: signupByEvent[e.id]?.status ?? null,
+    myTests: myTestsByEvent[e.id] ?? [],
+    slot: slotByEvent[e.id] ?? null,
+  }));
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-5 px-4 pb-24 pt-6">
@@ -118,7 +187,7 @@ export default async function PrenotaPage() {
 
       <SwimmerBooking services={services} credit={credit} />
 
-      <SwimmerEvents events={events} signups={signups} />
+      <SwimmerEvents events={events} />
     </div>
   );
 }

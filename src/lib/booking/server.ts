@@ -84,12 +84,13 @@ export async function computeDaySlots(
       .gt("block_until", dayStart.toISOString()),
     db
       .from("events")
-      .select("starts_at,ends_at")
+      .select("starts_at,ends_at,travel_before_min,travel_after_min")
       .eq("coach_id", coachId)
       .eq("blocks_calendar", true)
       .neq("status", "cancelled")
-      .lt("starts_at", dayEnd.toISOString())
-      .gt("ends_at", dayStart.toISOString()),
+      // margine per catturare il viaggio A/R che sconfina nel giorno
+      .lt("starts_at", new Date(dayEnd.getTime() + 12 * 3_600_000).toISOString())
+      .gt("ends_at", new Date(dayStart.getTime() - 12 * 3_600_000).toISOString()),
   ]);
 
   const rules: Rule[] = (rulesRes.data ?? [])
@@ -120,9 +121,16 @@ export async function computeDaySlots(
       start: new Date(b.starts_at),
       end: new Date(b.block_until),
     })),
-    ...(evRes.data ?? []).map((e: Record<string, string>) => ({
-      start: new Date(e.starts_at),
-      end: new Date(e.ends_at),
+    ...(evRes.data ?? []).map((e: Record<string, unknown>) => ({
+      // il blocco include il viaggio A/R (glide-ext-videoanalisi §1)
+      start: new Date(
+        new Date(e.starts_at as string).getTime() -
+          Number(e.travel_before_min ?? 0) * 60_000,
+      ),
+      end: new Date(
+        new Date(e.ends_at as string).getTime() +
+          Number(e.travel_after_min ?? 0) * 60_000,
+      ),
     })),
   ];
 

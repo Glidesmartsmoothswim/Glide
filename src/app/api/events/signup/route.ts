@@ -16,6 +16,9 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const eventId = String(body.eventId ?? "");
+  const testIds: string[] = Array.isArray(body.tests)
+    ? body.tests.map(String)
+    : [];
   if (!eventId) return Response.json({ error: "id mancante" }, { status: 400 });
 
   const admin = createAdminClient();
@@ -49,13 +52,24 @@ export async function POST(req: Request) {
     if ((count ?? 0) >= ev.capacity) status = "waitlist";
   }
 
-  const { error } = await admin
+  const { data: signup, error } = await admin
     .from("event_signups")
     .upsert(
       { event_id: eventId, swimmer_id: profile.id, status },
       { onConflict: "event_id,swimmer_id" },
-    );
+    )
+    .select("id")
+    .single();
   if (error) return Response.json({ error: error.message }, { status: 500 });
+
+  // Videoanalisi: registra i test scelti (sostituisce la selezione precedente).
+  if (signup && testIds.length >= 0) {
+    await admin.from("signup_tests").delete().eq("signup_id", signup.id);
+    if (testIds.length)
+      await admin
+        .from("signup_tests")
+        .insert(testIds.map((test_id) => ({ signup_id: signup.id, test_id })));
+  }
 
   await logEvent(admin, profile.id, "event.signup", {
     event_id: eventId,
