@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { computeDigest } from "@/lib/digest";
+import { computeAndStore } from "@/lib/score/compute";
 import { getResend, emailFrom } from "@/lib/resend";
 import { serverFeatures } from "@/lib/flags";
 
@@ -27,6 +28,13 @@ async function run(req: Request) {
 
   const admin = createAdminClient();
   if (!admin) return new Response("no admin", { status: 200 });
+
+  // Onda + Glide Score settimanali per ogni nuotatore (FASE 5).
+  const { data: swimmers } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("role", "swimmer");
+  for (const s of swimmers ?? []) await computeAndStore(admin, s.id);
 
   const sections = await computeDigest(admin);
   const total = sections.reduce((n, s) => n + s.rows.length, 0);

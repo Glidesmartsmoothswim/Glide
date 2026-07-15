@@ -7,6 +7,8 @@ import { WorkoutEditor } from "@/components/workout/editor";
 import { WorkoutCard } from "@/components/workout/workout-card";
 import { ReadinessProgress } from "@/components/readiness/progress";
 import { EfficiencyCurves, type EffPoint } from "@/components/readiness/efficiency";
+import { OndaCard, GlideScoreCard } from "@/components/score/score-cards";
+import { computeScore } from "@/lib/score/compute";
 import type { VReadinessRow } from "@/lib/readiness";
 import { savePersonalWorkout } from "../../workout-actions";
 import { archiveSwimmer } from "../actions";
@@ -63,6 +65,15 @@ export default async function SwimmerDetail({
     .limit(200);
   const effPoints = (effData ?? []) as EffPoint[];
 
+  const { data: lastScore } = await supabase
+    .from("glide_scores")
+    .select("score")
+    .eq("swimmer_id", id)
+    .order("week", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const score = await computeScore(supabase, id, lastScore?.score ?? null);
+
   return (
     <div className="flex max-w-3xl flex-col gap-6">
       <Link
@@ -93,6 +104,8 @@ export default async function SwimmerDetail({
 
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-lg text-foreground">Progressi</h2>
+        <OndaCard onda={score.onda} />
+        <GlideScoreCard result={score} showBreakdown />
         <ReadinessProgress rows={readiness} />
         <EfficiencyCurves points={effPoints} />
       </section>

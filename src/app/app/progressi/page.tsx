@@ -2,13 +2,28 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { SwimmerProgress } from "@/components/readiness/progress";
 import { EfficiencyCurves, type EffPoint } from "@/components/readiness/efficiency";
+import { OndaCard, GlideScoreCard } from "@/components/score/score-cards";
+import { computeScore } from "@/lib/score/compute";
 import type { EffettoAcquaRow } from "@/lib/readiness";
 
 export const metadata = { title: "Progressi" };
+export const dynamic = "force-dynamic";
 
 export default async function SwimmerProgressi() {
   const profile = await getCurrentProfile();
   const supabase = await createClient();
+
+  // Onda + Glide Score (calcolo on-demand; l'ultimo salvato dà l'inerzia).
+  const { data: lastScore } = await supabase
+    .from("glide_scores")
+    .select("score")
+    .eq("swimmer_id", profile?.id ?? "")
+    .order("week", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const score = profile
+    ? await computeScore(supabase, profile.id, lastScore?.score ?? null)
+    : null;
   // Il nuotatore NON vede il proprio indice di readiness (ADR-006 §4).
   // Vede solo l'Effetto Acqua (>= 20 sessioni).
   const { data } = await supabase
@@ -34,6 +49,8 @@ export default async function SwimmerProgressi() {
           La prova che questa cosa funziona — onda dopo onda.
         </p>
       </header>
+      {score && <OndaCard onda={score.onda} />}
+      {score && <GlideScoreCard result={score} />}
       <SwimmerProgress effetto={effetto} />
       <EfficiencyCurves points={effPoints} />
     </div>

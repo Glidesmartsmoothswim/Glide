@@ -98,9 +98,19 @@ rimosso (alias→navy). Oswald/Montserrat eliminati. Build verde.
 
 **Checklist collaudo videoanalisi (spec §6):** capienza stimata [x engine], pacchetto minuti [x], semaforo 🔴→🟢 con 2ª corsia [x engine/UI], genera scaletta senza overlap [x engine], riordino ricalcola [x], draft nascosto al nuotatore [x RLS], pubblica→solo il suo orario+.ics [x], assente non riscrive da solo (ricompatta esplicito) [x], evento oscura agenda incluso viaggio [x], chiusura→coda video col tag [x]. *(Le voci che dipendono da dati live restano da provare in-app.)*
 
-**▶️ PROSSIMO: FASE 5** — Onda + Glide Score (aggregati sul ledger `activity_events`). Poi 6 (Badge), 7 (Assistant safety router), 8 (Identity, servono 8 settimane di dati), 9 (collaudo finale).
+---
 
-**📌 Push:** FASE 1+2 già live. **FASE 3+4 pronte da pushare** (migration_005 e _006 già applicate su Supabase; manca solo il push del codice → Vercel builda UI agenda + videoanalisi).
+**FASE 5 — FATTA. ✅ Onda + Glide Score** (GLIDE_GAMIFICATION §3-4, ADR-005/006).
+- **Libreria pura** `lib/score/index.ts`: `computeOnda` (EMA aderenza `onda·0.75 + aderenza·25`, clamp 0–100, **mai stato rosso** → "acqua calma"), pesi Glide Score (Costanza 25 · Continuità 20 · Qualità 20 · Aderenza 20 · Miglioramento 15), **inerzia ±3/sett**, **congelamento in Pausa**, `ALGO_VERSION`, `isoWeek`. **14/15 asserzioni verdi** (la 15ª era un'attesa sbagliata: l'onda converge a 100 asintoticamente, ~97 dopo 12 sett. piene — corretto).
+- **DB** `migration_007_glide_scores`: storico settimanale `glide_scores` (swimmer_id, week ISO, onda, dims jsonb, score, frozen, `algo_version`) — sempre versionato, RLS (nuotatore il proprio, coach tutto).
+- **Compute** `lib/score/compute.ts`: legge il ledger (`readiness.pre/post`, `video.uploaded`) + `v_efficiency_points` + `zone_rpe_bands`. Dimensioni: Costanza (completate/previste 4 sett.), Continuità (=Onda), Qualità (RPE in banda di zona), Aderenza (pre/post appaiati + bonus video), Miglioramento (trend RPE a parità di lavoro). **Fallback onesto**: dati insufficienti → dimensione neutra + flag; `ready=false` sotto 3 settimane di dati → il Glide Score NON si mostra ("un numero rumoroso è peggio di nessun numero"). `computeAndStore` con inerzia vs ultimo salvato.
+- **Cron**: il lunedì (route digest) calcola e salva Onda+Score per ogni nuotatore.
+- **UI**: nuotatore su `/app/progressi` vede **Onda** (sempre, gentile) + **Glide Score** (solo se `ready`, altrimenti "stiamo raccogliendo dati"); il **coach** sulla scheda nuotatore vede lo stesso col **breakdown 5 dimensioni** (~ = stima su pochi dati). **ADR-006 rispettato**: l'indice readiness resta nascosto al nuotatore; Onda/Score sono lo strato motivazionale, non l'indice.
+- `next build` + `tsc` verdi.
+
+**▶️ PROSSIMO: FASE 6** — Badge (prima i **conferiti** dal coach, poi gli automatici — §5). Poi 7 (Assistant safety router, ADR-001/004), 8 (Identità, servono 8 settimane di dati), 9 (collaudo finale).
+
+**📌 Push:** FASE 1+2 già live. **FASE 3+4+5 pronte da pushare** (migration_005/006/007 già applicate su Supabase; manca solo il push del codice → Vercel builda agenda, videoanalisi, Onda+Glide Score).
 
 **⚠️ Account coach da ricreare:** `glide.smartswim@gmail.com` è stato cancellato
 (auth+profilo). L'utente deve **ri-registrarsi**; poi lo si rimette `role='coach'`.
