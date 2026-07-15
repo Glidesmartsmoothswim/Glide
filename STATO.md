@@ -51,10 +51,21 @@ rimosso (alias→navy). Oswald/Montserrat eliminati. Build verde.
 - **1.5 Digest coach** (`lib/digest.ts`): 4 sezioni (Da chiamare / Sta scivolando / Corpo / Certificati), max 3 righe, ogni riga un link-azione, osservazioni mai prescrizioni. Segnale "sta scivolando" = fisica buona + sparito ≥5gg → motivazione. **In-app sulla Dashboard coach** (modalità simulata senza Resend). Cron `/api/cron/digest` + `vercel.json` (lun 07:00) → invia via Resend se configurato.
 - **1.6 Onboarding**: 6 schermate copy identico, schermata 2 non skippabile, su `/app` (localStorage). Build/lint verdi.
 
-**▶️ PROSSIMO: FASE 2** — activity_events ledger (ADR-003, GO ricevuto):
-`migration_001_activity_ledger`, `logEvent()` sugli eventi, backfill. Poi FASE 3 (booking) / 4 (videoanalisi) / 5 (Onda + Glide Score).
+**FASE 2 — FATTA. ✅ Activity ledger (ADR-003/004/007).**
+- `migration_001_activity_ledger` applicata: `activity_events` append-only (RLS select/insert own-or-coach, **niente update/delete**), vocabolario chiuso, 2 indici.
+- `lib/ledger.ts`: `logEvent(supabase, userId, type, payload)` **fail-soft** (un errore del ledger non fa mai fallire il check-in/upload). `EventType` = vocabolario chiuso, pronte anche le voci S7/S8.
+- Collegato ai punti sorgente live:
+  - `readiness.pre` in `savePre` → `{sleep, energia, corpo, umore, motivazione, health_flag}` — **mai le sedi del dolore** (solo booleano).
+  - `readiness.post` in `savePost` → `{rpe, umore_post, has_note, workout_id}` — **la nota resta fuori** (solo `has_note`).
+  - `workout.completed` in `savePost` quando il post è su un allenamento → `{workout_id, meters, minutes, zones}` (metri/zone dai blocchi).
+  - `video.uploaded` in `registerVideo` → `{video_id}` (id catturato con `.select("id").single()`).
+  - `race.logged` — nessuna sorgente ancora (arriverà con le gare).
+- **Backfill** (`migration_004_backfill_ledger`, idempotente: gira solo se la tabella è vuota): eventi storici da `readiness`+`race_videos` con `occurred_at`=storico. Prodotti: 2 `readiness.pre` + 2 `readiness.post` (le sedute a DB non avevano workout né video). `workout.completed` di backfill lascia `meters` null → ricalcolo a valle.
+- `tsc --noEmit` pulito.
 
-**📌 Push:** FASE 1 pronta da mandare live. Quando dai l'ok (o a fine FASE 2), un push unico e vedi tutto online: tipografia Glacial, questionario v2, due indici, curva, digest, onboarding.
+**▶️ PROSSIMO: FASE 3** — S7 Booking & Agenda (`docs/glide-ext-booking.md`) con le 3 correzioni: `events` (calendario) vs `activity_events` (ledger); policy `bookings` solo `is_coach()` (ADR-008, niente write diretti dal client); brand ADR-009 (no Teal, Glacial). Poi FASE 4 (videoanalisi) / 5 (Onda + Glide Score).
+
+**📌 Push:** FASE 1+2 pronte da mandare live. Un push unico e vedi tutto online: tipografia Glacial, questionario v2, due indici, curva, digest, onboarding, ledger.
 
 **⚠️ Account coach da ricreare:** `glide.smartswim@gmail.com` è stato cancellato
 (auth+profilo). L'utente deve **ri-registrarsi**; poi lo si rimette `role='coach'`.

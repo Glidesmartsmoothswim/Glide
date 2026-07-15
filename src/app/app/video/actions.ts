@@ -9,6 +9,7 @@ import { serverFeatures } from "@/lib/flags";
 import { createBirraCheckout } from "@/lib/stripe-checkout";
 import { BIRRA_CENTS } from "@/lib/video";
 import { notifyCoaches } from "@/lib/notify";
+import { logEvent } from "@/lib/ledger";
 import { fullName } from "@/lib/types";
 
 export type VideoState = { error?: string; info?: string };
@@ -41,16 +42,24 @@ export async function registerVideo(
   const tier = is11 ? "coaching_1_1" : "open";
 
   const supabase = await createClient();
-  const { error } = await supabase.from("race_videos").insert({
-    swimmer_id: profile.id,
-    event,
-    race_date: raceDate,
-    storage_path: storagePath,
-    tier,
-    status: is11 ? "pending" : "locked",
-    paid: is11,
-  });
+  const { data: inserted, error } = await supabase
+    .from("race_videos")
+    .insert({
+      swimmer_id: profile.id,
+      event,
+      race_date: raceDate,
+      storage_path: storagePath,
+      tier,
+      status: is11 ? "pending" : "locked",
+      paid: is11,
+    })
+    .select("id")
+    .single();
   if (error) return { error: error.message };
+
+  await logEvent(supabase, profile.id, "video.uploaded", {
+    video_id: inserted?.id ?? null,
+  });
 
   await notifyCoaches(
     "video",
