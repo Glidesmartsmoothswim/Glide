@@ -2,6 +2,7 @@ import { CalendarClock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { fullName } from "@/lib/types";
 import { romeDateStr } from "@/lib/booking/credits";
+import { romeWallToUtc } from "@/lib/booking/slots";
 import { CoachAgenda } from "@/components/agenda/coach-agenda";
 
 export const metadata = { title: "Agenda" };
@@ -10,7 +11,8 @@ export const dynamic = "force-dynamic";
 export default async function AgendaPage() {
   const supabase = await createClient();
   const today = romeDateStr();
-  const fromIso = new Date(Date.now() - 2 * 86_400_000).toISOString();
+  // Mostra anche i booking recenti: da 2 giorni fa (mezzanotte di Roma).
+  const fromIso = romeWallToUtc(today, -2 * 24 * 60).toISOString();
 
   const [rulesRes, excRes, bookRes, svcRes, evRes] = await Promise.all([
     supabase

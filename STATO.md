@@ -135,9 +135,33 @@ rimosso (alias→navy). Oswald/Montserrat eliminati. Build verde.
 - **UI** `IdentityCard`: compare **solo quando esiste** — niente countdown né barre di avvicinamento ("uno specchio che ti dice quanto manca sarebbe un gioco"). Su `/app/progressi` e sulla scheda coach.
 - `next build` + `tsc` verdi. Con i dati attuali (1 settimana) nessuno vede l'identità: giusto così, si accende da sola a soglia.
 
-**▶️ PROSSIMO: FASE 9** — Collaudo finale (checklist end-to-end su tutte le fasi + advisors Supabase + verifica deploy).
+---
 
-**📌 Push:** FASE 1–5 live. **FASE 6+7+8 pronte da pushare** (migration_008 già applicata; 7 e 8 senza migration).
+**FASE 9 — FATTA. ✅ Collaudo finale. RUNBOOK v2 COMPLETO (0–9).**
+- **Security advisors** (tutti WARN, zero errori) → `migration_009_security_hardening` applicata: `search_path` fisso su `set_updated_at`/`is_coach`/`handle_new_user`; revoke EXECUTE di `handle_new_user` da anon+authenticated (è un trigger, non un RPC) e di `is_coach` da anon; `btree_gist` spostata nello schema `extensions`.
+- **Performance advisors** (79 WARN) → `migration_010_fk_indexes` applicata: **21 indici** a copertura delle FK. `auth_rls_initplan` (25) e `multiple_permissive_policies` (24) documentati e lasciati: trascurabili alla scala attuale (~30 utenti), le policy separate lettura/scrittura sono una scelta di chiarezza; `unused_index` (9) normali su app appena nata.
+- **RLS: 28/28 tabelle** con row security attiva (verificato su pg_tables).
+- **EXCLUDE anti-overlap testato sul DB reale**: doppio booking sovrapposto → il secondo rifiutato con `exclusion_violation`; vincolo integro anche dopo lo spostamento di btree_gist. Dati di test ripuliti.
+- **Fix lint** (`react-hooks/purity` su `/coach/agenda`): cutoff derivato da `romeWallToUtc(today, −2gg)` invece di `Date.now()` nel render.
+- **`npm run lint` + `tsc --noEmit` + `next build` tutti verdi.**
+- Resta da fare **a mano** (non via SQL): Supabase → Auth → abilitare "Leaked password protection" (HaveIBeenPwned).
+
+## Runbook v2 — riepilogo finale
+| Fase | Contenuto | Stato |
+|---|---|---|
+| 0 | Letture ADR/spec, docs in repo | ✅ |
+| 1 | Readiness v2 (due indici, curva efficienza, digest, onboarding, Glacial) | ✅ live |
+| 2 | Ledger `activity_events` + logEvent + backfill | ✅ live |
+| 3 | Booking & Agenda (slot engine DST-safe, crediti, EXCLUDE, UI coach+nuotatore) | ✅ live |
+| 4 | Videoanalisi (scaletta deterministica, travel, coda video) | ✅ live |
+| 5 | Onda + Glide Score (EMA, ±3/sett, versionato, cron) | ✅ live |
+| 6 | Badge (conferiti+automatici, detection idempotente) | ✅ da pushare |
+| 7 | Assistant safety router (matcher deterministico ADR-004, L0 flag-gated) | ✅ da pushare |
+| 8 | Identità (specchio a soglia 8 settimane) | ✅ da pushare |
+| 9 | Collaudo (advisors, RLS 28/28, EXCLUDE, lint/build) | ✅ da pushare |
+
+**📌 Push finale:** un solo push porta live 6+7+8+9 (migration 008/009/010 già applicate su Supabase).
+**📌 Post-push (facoltativi):** `ANTHROPIC_API_KEY` su Vercel per accendere l'assistente L0 · Stripe test-mode (parcheggiato) · leaked-password protection su Supabase Auth · verifica leggibilità numeri Glacial (occhio umano).
 
 **⚠️ Account coach da ricreare:** `glide.smartswim@gmail.com` è stato cancellato
 (auth+profilo). L'utente deve **ri-registrarsi**; poi lo si rimette `role='coach'`.
