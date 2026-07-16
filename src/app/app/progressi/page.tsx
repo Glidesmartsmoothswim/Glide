@@ -5,6 +5,8 @@ import { EfficiencyCurves, type EffPoint } from "@/components/readiness/efficien
 import { OndaCard, GlideScoreCard } from "@/components/score/score-cards";
 import { computeScore } from "@/lib/score/compute";
 import { BadgeShelf, type EarnedBadge } from "@/components/badges/badge-shelf";
+import { IdentityCard } from "@/components/identity/identity-card";
+import { computeIdentity } from "@/lib/identity/compute";
 import type { EffettoAcquaRow } from "@/lib/readiness";
 
 export const metadata = { title: "Progressi" };
@@ -24,6 +26,9 @@ export default async function SwimmerProgressi() {
     .maybeSingle();
   const score = profile
     ? await computeScore(supabase, profile.id, lastScore?.score ?? null)
+    : null;
+  const identity = profile
+    ? await computeIdentity(supabase, profile.id)
     : null;
 
   // Badge guadagnati (RLS: il nuotatore vede solo i propri).
@@ -76,6 +81,7 @@ export default async function SwimmerProgressi() {
           La prova che questa cosa funziona — onda dopo onda.
         </p>
       </header>
+      <IdentityCard identity={identity} />
       {score && <OndaCard onda={score.onda} />}
       {score && <GlideScoreCard result={score} />}
       <BadgeShelf earned={earned} />

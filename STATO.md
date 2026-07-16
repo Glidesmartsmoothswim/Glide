@@ -127,9 +127,17 @@ rimosso (alias→navy). Oswald/Montserrat eliminati. Build verde.
 - **UI**: bottone flottante + pannello chat nel PWA nuotatore ("Spiega, non prescrive. Il carico resta di Alessio."). Cronologia **solo in memoria di pagina**: i messaggi non si persistono da nessuna parte (ADR-004). Risposte safety evidenziate in ambra.
 - `next build` + `tsc` verdi. NB: senza `ANTHROPIC_API_KEY` su Vercel l'assistente risponde col fallback ma il **safety router è già attivo e completo**.
 
-**▶️ PROSSIMO: FASE 8** — Identità (GLIDE_GAMIFICATION §6: "specchio", non classi — servono **8 settimane di dati reali**, quindi si costruisce lo scheletro e si accende a soglia). Poi 9 (collaudo finale).
+---
 
-**📌 Push:** FASE 1–5 live. **FASE 6+7 pronte da pushare** (migration_008 già applicata su Supabase; la 7 non ha migration).
+**FASE 8 — FATTA. ✅ Identità** (GLIDE_GAMIFICATION §6: "specchio", non classi).
+- **Motore puro** `lib/identity/index.ts`: 5 identità (Esploratore/Costante/Tecnico/Competitore/Mentore) con testi-specchio (riconoscimento, mai una richiesta). **Gate onesto**: primo evento a ledger ≥8 settimane fa **e** ≥4 settimane attive nelle ultime 8 — un buco non azzera lo specchio, ma pochi dati non fanno un ritratto. Priorità del tratto distintivo: **Mentore** (badge Capitano conferito dal coach — il giudizio umano vince) → Competitore (≥2 gare o ≥3 video) → Tecnico (test videoanalisi) → Costante (aderenza ≥75% + 6 settimane senza buchi) → Esploratore (nessun tratto dominante — mai un ripiego negativo). **12/12 asserzioni verdi.** Niente livelli/classifiche/upgrade.
+- **Segnali** `lib/identity/compute.ts`: tutto dal ledger + badge, auto-riferito.
+- **UI** `IdentityCard`: compare **solo quando esiste** — niente countdown né barre di avvicinamento ("uno specchio che ti dice quanto manca sarebbe un gioco"). Su `/app/progressi` e sulla scheda coach.
+- `next build` + `tsc` verdi. Con i dati attuali (1 settimana) nessuno vede l'identità: giusto così, si accende da sola a soglia.
+
+**▶️ PROSSIMO: FASE 9** — Collaudo finale (checklist end-to-end su tutte le fasi + advisors Supabase + verifica deploy).
+
+**📌 Push:** FASE 1–5 live. **FASE 6+7+8 pronte da pushare** (migration_008 già applicata; 7 e 8 senza migration).
 
 **⚠️ Account coach da ricreare:** `glide.smartswim@gmail.com` è stato cancellato
 (auth+profilo). L'utente deve **ri-registrarsi**; poi lo si rimette `role='coach'`.

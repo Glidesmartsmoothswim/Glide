@@ -11,6 +11,8 @@ import { OndaCard, GlideScoreCard } from "@/components/score/score-cards";
 import { computeScore } from "@/lib/score/compute";
 import { BadgeShelf, type EarnedBadge } from "@/components/badges/badge-shelf";
 import { ConferBadges } from "@/components/badges/confer-badges";
+import { IdentityCard } from "@/components/identity/identity-card";
+import { computeIdentity } from "@/lib/identity/compute";
 import type { VReadinessRow } from "@/lib/readiness";
 import { savePersonalWorkout } from "../../workout-actions";
 import { archiveSwimmer } from "../actions";
@@ -75,6 +77,7 @@ export default async function SwimmerDetail({
     .limit(1)
     .maybeSingle();
   const score = await computeScore(supabase, id, lastScore?.score ?? null);
+  const identity = await computeIdentity(supabase, id);
 
   // Badge: guadagnati + catalogo dei conferibili.
   const [{ data: sbData }, { data: catData }] = await Promise.all([
@@ -139,6 +142,7 @@ export default async function SwimmerDetail({
 
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-lg text-foreground">Progressi</h2>
+        <IdentityCard identity={identity} />
         <OndaCard onda={score.onda} />
         <GlideScoreCard result={score} showBreakdown />
         <ReadinessProgress rows={readiness} />
