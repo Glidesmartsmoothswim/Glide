@@ -118,9 +118,18 @@ rimosso (alias→navy). Oswald/Montserrat eliminati. Build verde.
 - Al primo cron: Marta e Salvatore (1 pre + 1 post a testa nel ledger) ricevono **Prima Bracciata** automaticamente.
 - `next build` + `tsc` verdi.
 
-**▶️ PROSSIMO: FASE 7** — Assistant safety router (ADR-001: AI legge/segnala, MAI scrive allenamenti, risponde TESTO; ADR-004: keyword matcher salute PRIMA del LLM, mai contenuto sintomi nel ledger). Poi 8 (Identità — servono 8 settimane di dati reali), 9 (collaudo finale).
+---
 
-**📌 Push:** FASE 1–5 live. **FASE 6 pronta da pushare** (migration_008 già applicata su Supabase).
+**FASE 7 — FATTA. ✅ Assistant safety router** (ADR-001 + ADR-004).
+- **Matcher deterministico** `lib/assistant/safety.ts`: keyword L1 (muscoloscheletrico) e L2 (red flag) ESATTE dall'ADR-004, normalizzazione accenti/maiuscole, match parola-intera con plurali, **L2 vince su L1**. Template fissi copy identico ADR (L1 "Segnalo la cosa ad Alessio…", L2 "Fermati… chiama il 112"). **20/20 asserzioni verdi** (incluso il limite noto e voluto: "vista" scatta anche come participio — falso positivo prudente).
+- **Router** `lib/assistant/router.ts` — ordine non negoziabile: (1) safety PRIMA di tutto — se scatta il modello **non è mai chiamato**, risponde il template + **notifica al coach** senza il contenuto del sintomo (né ledger: vocabolario chiuso ADR-007, il health_flag appartiene al check-in); (2) L0 via Anthropic (Haiku) SOLO se `ANTHROPIC_API_KEY` (flag `ai`), system prompt coi confini ADR-001 (mai carichi, mai rassicurare, max 120 parole, tono Esploratore); (3) **fallback onesto** senza modello. Output SEMPRE e solo testo — nessun percorso scrive su workouts.
+- **API** `POST /api/assistant` (auth, max 2000 char) → `{text, safety}`.
+- **UI**: bottone flottante + pannello chat nel PWA nuotatore ("Spiega, non prescrive. Il carico resta di Alessio."). Cronologia **solo in memoria di pagina**: i messaggi non si persistono da nessuna parte (ADR-004). Risposte safety evidenziate in ambra.
+- `next build` + `tsc` verdi. NB: senza `ANTHROPIC_API_KEY` su Vercel l'assistente risponde col fallback ma il **safety router è già attivo e completo**.
+
+**▶️ PROSSIMO: FASE 8** — Identità (GLIDE_GAMIFICATION §6: "specchio", non classi — servono **8 settimane di dati reali**, quindi si costruisce lo scheletro e si accende a soglia). Poi 9 (collaudo finale).
+
+**📌 Push:** FASE 1–5 live. **FASE 6+7 pronte da pushare** (migration_008 già applicata su Supabase; la 7 non ha migration).
 
 **⚠️ Account coach da ricreare:** `glide.smartswim@gmail.com` è stato cancellato
 (auth+profilo). L'utente deve **ri-registrarsi**; poi lo si rimette `role='coach'`.

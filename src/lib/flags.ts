@@ -20,6 +20,8 @@ export function serverFeatures() {
     stripeWebhook: configured(process.env.STRIPE_WEBHOOK_SECRET),
     // Invio email transazionali.
     resend: configured(process.env.RESEND_API_KEY),
+    // Assistente AI (L0/L1, ADR-001). Il safety router funziona ANCHE senza.
+    ai: configured(process.env.ANTHROPIC_API_KEY),
   } as const;
 }
 
