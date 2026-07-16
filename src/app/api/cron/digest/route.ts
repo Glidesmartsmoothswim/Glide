@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { computeDigest } from "@/lib/digest";
 import { computeAndStore } from "@/lib/score/compute";
+import { detectAndAward } from "@/lib/badges/detect";
 import { getResend, emailFrom } from "@/lib/resend";
 import { serverFeatures } from "@/lib/flags";
 
@@ -34,7 +35,10 @@ async function run(req: Request) {
     .from("profiles")
     .select("id")
     .eq("role", "swimmer");
-  for (const s of swimmers ?? []) await computeAndStore(admin, s.id);
+  for (const s of swimmers ?? []) {
+    await computeAndStore(admin, s.id);
+    await detectAndAward(admin, s.id);
+  }
 
   const sections = await computeDigest(admin);
   const total = sections.reduce((n, s) => n + s.rows.length, 0);

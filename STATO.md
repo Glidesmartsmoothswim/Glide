@@ -108,9 +108,19 @@ rimosso (alias→navy). Oswald/Montserrat eliminati. Build verde.
 - **UI**: nuotatore su `/app/progressi` vede **Onda** (sempre, gentile) + **Glide Score** (solo se `ready`, altrimenti "stiamo raccogliendo dati"); il **coach** sulla scheda nuotatore vede lo stesso col **breakdown 5 dimensioni** (~ = stima su pochi dati). **ADR-006 rispettato**: l'indice readiness resta nascosto al nuotatore; Onda/Score sono lo strato motivazionale, non l'indice.
 - `next build` + `tsc` verdi.
 
-**▶️ PROSSIMO: FASE 6** — Badge (prima i **conferiti** dal coach, poi gli automatici — §5). Poi 7 (Assistant safety router, ADR-001/004), 8 (Identità, servono 8 settimane di dati), 9 (collaudo finale).
+---
 
-**📌 Push:** FASE 1+2 già live. **FASE 3+4+5 pronte da pushare** (migration_005/006/007 già applicate su Supabase; manca solo il push del codice → Vercel builda agenda, videoanalisi, Onda+Glide Score).
+**FASE 6 — FATTA. ✅ Badge** (GLIDE_GAMIFICATION §5: niente premi di partecipazione; i conferiti danno valore agli automatici).
+- **DB** (`migration_008_badges`, applicata): `badges` (catalogo 9 voci: 7 auto + 2 **conferiti** — Capitano ⚓, Occhio in Acqua 👁️) + `swimmer_badges` (unique swimmer+badge, `awarded_by` per i conferiti, `note` del coach). RLS: catalogo leggibile, il nuotatore vede solo i propri, scrive solo il coach (gli automatici via service-role dal cron).
+- **Detection automatica** `lib/badges/detect.ts` (idempotente, nel cron del lunedì): **Prima Bracciata** (primo ciclo pre+post completo), **Prime Onde** (4 settimane consecutive ≥75% aderenza), **Onda dopo Onda** (6 mesi senza un mese fermo). I 4 data-hungry (Acqua Calma, Metronomo, Tecnico, Costruttore) restano a catalogo: meglio non assegnare che assegnare a caso — la detection arriverà con lo storico.
+- **UI Coach** (scheda nuotatore): vetrina badge + pannello **"Conferisci un badge"** con riga di nota personale ("una riga tua vale cento trofei di pixel") e revoca. Il conferimento manda una **notifica** al nuotatore con la nota.
+- **UI Nuotatore** (`/app/progressi`): vetrina badge; i conferiti dal coach sono distinti ("conferito da Alessio" + nota tra virgolette).
+- Al primo cron: Marta e Salvatore (1 pre + 1 post a testa nel ledger) ricevono **Prima Bracciata** automaticamente.
+- `next build` + `tsc` verdi.
+
+**▶️ PROSSIMO: FASE 7** — Assistant safety router (ADR-001: AI legge/segnala, MAI scrive allenamenti, risponde TESTO; ADR-004: keyword matcher salute PRIMA del LLM, mai contenuto sintomi nel ledger). Poi 8 (Identità — servono 8 settimane di dati reali), 9 (collaudo finale).
+
+**📌 Push:** FASE 1–5 live. **FASE 6 pronta da pushare** (migration_008 già applicata su Supabase).
 
 **⚠️ Account coach da ricreare:** `glide.smartswim@gmail.com` è stato cancellato
 (auth+profilo). L'utente deve **ri-registrarsi**; poi lo si rimette `role='coach'`.
