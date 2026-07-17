@@ -19,11 +19,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * POST /api/booking/create  { service, startsAt, note? }
+ * POST /api/booking/create  { service, startsAt, note?, method? }
  * Ricontrolla lo slot, verifica credito/permessi, inserisce in modo atomico.
  * L'EXCLUDE constraint su bookings è la rete anti doppio-click: se il DB
- * rifiuta → 409. Stripe è parcheggiato: senza credito → modalità simulata
- * (payment='free', badge "simulato").
+ * rifiuta → 409.
+ * Saldo (ADR-010): credito se disponibile; altrimenti il nuotatore sceglie
+ * il metodo — `cash` = saldo diretto col coach, booking `da_incassare` con
+ * l'importo dal listino. Lo stato di cassa lo scrive SOLO il server.
  */
 export async function POST(req: Request) {
   const profile = await getCurrentProfile();
@@ -32,6 +34,7 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const code = String(body.service ?? "");
   const startsAtIso = String(body.startsAt ?? "");
+  const method = body.method === "cash" ? "cash" : null;
   const note = String(body.note ?? "").trim().slice(0, 500) || null;
   if (!code || !startsAtIso)
     return Response.json({ error: "dati mancanti" }, { status: 400 });
@@ -73,20 +76,35 @@ export async function POST(req: Request) {
   const endsAt = new Date(startsAt.getTime() + service.duration_min * 60_000);
   const blockUntil = new Date(endsAt.getTime() + service.buffer_min * 60_000);
 
-  // Ordine di consumo: credito → altrimenti extra (simulato).
-  let payment: "credit" | "free";
+  // Ordine di consumo (ADR-010): credito → altrimenti il metodo scelto.
+  let payment: "credit" | "pending";
+  let paymentMethod: "credit" | "cash";
   let consumed = false;
   if (service.credit_cost > 0 && credit.remaining > 0) {
     consumed = await consumeCredit(admin, profile.id, credit.periodStart);
-    if (consumed) payment = "credit";
-    else if (credit.canBookExtra) payment = "free";
-    else return Response.json({ error: "Credito esaurito." }, { status: 402 });
+    if (consumed) {
+      payment = "credit";
+      paymentMethod = "credit";
+    } else if (credit.canBookExtra && method === "cash") {
+      payment = "pending";
+      paymentMethod = "cash";
+    } else {
+      return Response.json({ error: "Credito esaurito." }, { status: 402 });
+    }
+  } else if (credit.canBookExtra && method === "cash") {
+    payment = "pending";
+    paymentMethod = "cash";
   } else if (credit.canBookExtra) {
-    payment = "free"; // modalità simulata (Stripe da riconfigurare)
+    // Nessun credito e nessun metodo indicato: la UI deve proporre la scelta.
+    return Response.json(
+      { error: "Scegli come saldare la lezione.", needsMethod: true },
+      { status: 402 },
+    );
   } else {
     return Response.json({ error: "Nessun credito disponibile." }, { status: 402 });
   }
 
+  const isCash = paymentMethod === "cash";
   const { data: booking, error } = await admin
     .from("bookings")
     .insert({
@@ -99,6 +117,9 @@ export async function POST(req: Request) {
       mode: service.mode,
       status: "confirmed",
       payment,
+      payment_method: paymentMethod,
+      payment_status: isCash ? "da_incassare" : null,
+      amount_cents: isCash ? service.price_cents : null,
       swimmer_note: note,
     })
     .select("id")
@@ -116,12 +137,21 @@ export async function POST(req: Request) {
     booking_id: booking!.id,
     service_code: service.code,
     mode: service.mode,
+    payment_method: paymentMethod,
   });
   await notifyCoaches(
     "booking",
     "Nuova prenotazione",
-    `${fullName(profile)} — ${service.name}`,
+    `${fullName(profile)} — ${service.name}${
+      isCash ? ` · da incassare €${(service.price_cents / 100).toFixed(0)}` : ""
+    }`,
   );
 
-  return Response.json({ ok: true, bookingId: booking!.id, payment });
+  return Response.json({
+    ok: true,
+    bookingId: booking!.id,
+    payment,
+    paymentMethod,
+    amountCents: isCash ? service.price_cents : null,
+  });
 }

@@ -11,6 +11,7 @@ import {
   deleteException,
   completeBooking,
   noShowBooking,
+  markCollected,
   createEvent,
   cancelEvent,
   type AgendaState,
@@ -56,8 +57,21 @@ type Booking = {
   mode: string;
   status: string;
   payment: string;
+  payment_method: string;
+  payment_status: string | null;
+  amount_cents: number | null;
   coach_note: string | null;
   swimmer_note: string | null;
+};
+type CashRow = {
+  id: string;
+  swimmer: string;
+  service: string;
+  starts_at: string;
+  payment_status: string | null;
+  amount_cents: number | null;
+  receipt_number: string | null;
+  paid_at: string | null;
 };
 type Ev = {
   id: string;
@@ -104,40 +118,64 @@ function ModeBadge({ m }: { m: string }) {
     <Pill tone="brand">Vasca</Pill>
   );
 }
-function PayBadge({ p }: { p: string }) {
-  if (p === "credit") return <Pill tone="brand">Credito</Pill>;
-  if (p === "paid") return <Pill tone="ok">Pagato</Pill>;
-  if (p === "pending") return <Pill tone="warn">In attesa</Pill>;
+function PayBadge({ b }: { b: Booking }) {
+  // Cash: navy, non rosso — è un promemoria, non un errore (ADR-010).
+  if (b.payment_method === "cash") {
+    return b.payment_status === "incassato" ? (
+      <Pill tone="ok">Incassato</Pill>
+    ) : (
+      <span className="inline-flex items-center rounded-full border border-navy/40 bg-navy/10 px-2.5 py-0.5 text-xs font-semibold text-navy">
+        Da incassare{b.amount_cents != null ? ` · ${euroCents(b.amount_cents)}` : ""}
+      </span>
+    );
+  }
+  if (b.payment === "credit") return <Pill tone="brand">Credito</Pill>;
+  if (b.payment === "paid") return <Pill tone="ok">Pagato</Pill>;
+  if (b.payment === "pending") return <Pill tone="warn">In attesa</Pill>;
   return <Pill tone="neutral">Simulato</Pill>;
 }
 
-const TABS = ["Disponibilità", "Prenotazioni", "Eventi"] as const;
+const euroCents = (c: number) => `€${(c / 100).toFixed(c % 100 === 0 ? 0 : 2)}`;
+
+const TABS = ["Disponibilità", "Prenotazioni", "Eventi", "Cassa"] as const;
 
 export function CoachAgenda({
   rules,
   exceptions,
   bookings,
   events,
+  cassa,
+  initialTab,
 }: {
   rules: Rule[];
   exceptions: Exc[];
   bookings: Booking[];
   events: Ev[];
+  cassa: CashRow[];
+  initialTab?: string;
 }) {
-  const [tab, setTab] = useState<(typeof TABS)[number]>("Disponibilità");
+  const [tab, setTab] = useState<(typeof TABS)[number]>(
+    initialTab === "cassa" ? "Cassa" : "Disponibilità",
+  );
+  const daIncassare = cassa.filter((c) => c.payment_status === "da_incassare");
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex gap-1 rounded-xl border border-border bg-surface p-1">
+      <div className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-surface p-1">
         {TABS.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+            className={`flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
               tab === t ? "bg-blu text-white" : "text-muted hover:bg-background"
             }`}
           >
             {t}
+            {t === "Cassa" && daIncassare.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-navy px-1.5 py-0.5 text-[10px] text-white">
+                {daIncassare.length}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -147,6 +185,7 @@ export function CoachAgenda({
       )}
       {tab === "Prenotazioni" && <BookingsTab bookings={bookings} />}
       {tab === "Eventi" && <EventsTab events={events} />}
+      {tab === "Cassa" && <CassaTab cassa={cassa} />}
     </div>
   );
 }
@@ -348,7 +387,7 @@ function BookingsTab({ bookings }: { bookings: Booking[] }) {
             </div>
             <div className="ml-auto flex flex-wrap items-center gap-1">
               <ModeBadge m={b.mode} />
-              <PayBadge p={b.payment} />
+              <PayBadge b={b} />
               {b.status === "completed" && <Pill tone="ok">Fatta</Pill>}
               {b.status === "no_show" && <Pill tone="bad">Assente</Pill>}
             </div>
@@ -380,8 +419,131 @@ function BookingsTab({ bookings }: { bookings: Booking[] }) {
               </button>
             </form>
           )}
+          {b.payment_method === "cash" && b.payment_status === "da_incassare" && (
+            <form action={markCollected} className="mt-2 flex flex-wrap items-center gap-2">
+              <input type="hidden" name="id" value={b.id} />
+              <input
+                name="receipt_number"
+                placeholder="N° ricevuta (facoltativo)"
+                className="w-44 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              />
+              <button className="rounded-lg bg-navy px-3 py-2 text-sm font-semibold text-white">
+                Segna incassato
+              </button>
+            </form>
+          )}
         </Card>
       ))}
+    </div>
+  );
+}
+
+// ---------------- Cassa (ADR-010/011) ----------------
+function CassaTab({ cassa }: { cassa: CashRow[] }) {
+  const [period, setPeriod] = useState<"tutto" | "mese">("tutto");
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+
+  const inPeriod = (r: CashRow) =>
+    period === "tutto" || new Date(r.starts_at) >= monthStart;
+  const pending = cassa.filter(
+    (r) => r.payment_status === "da_incassare" && inPeriod(r),
+  );
+  const collected = cassa.filter(
+    (r) => r.payment_status === "incassato" && inPeriod(r),
+  );
+  const tot = (rows: CashRow[]) =>
+    rows.reduce((s, r) => s + (r.amount_cents ?? 0), 0);
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex items-center gap-2">
+        {(["tutto", "mese"] as const).map((p) => (
+          <button
+            key={p}
+            onClick={() => setPeriod(p)}
+            className={`rounded-lg border px-3 py-1.5 text-sm font-semibold ${
+              period === p
+                ? "border-navy bg-navy text-white"
+                : "border-border text-muted hover:bg-surface"
+            }`}
+          >
+            {p === "tutto" ? "Tutto" : "Questo mese"}
+          </button>
+        ))}
+      </div>
+
+      <Card>
+        <div className="flex items-baseline justify-between">
+          <h2 className="t-h3">Da incassare</h2>
+          <span className="t-data text-navy">{euroCents(tot(pending))}</span>
+        </div>
+        {pending.length === 0 ? (
+          <p className="t-small mt-2 text-muted">Niente in sospeso.</p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-2">
+            {pending.map((r) => (
+              <li
+                key={r.id}
+                className="flex flex-wrap items-center gap-3 rounded-lg border border-navy/30 bg-navy/5 px-3 py-2 text-sm"
+              >
+                <span className="font-semibold">{r.swimmer}</span>
+                <span className="text-muted">{r.service}</span>
+                <span className="t-small text-muted">{dt(r.starts_at)}</span>
+                <span className="ml-auto t-data text-navy">
+                  {r.amount_cents != null ? euroCents(r.amount_cents) : "—"}
+                </span>
+                <form action={markCollected} className="flex items-center gap-2">
+                  <input type="hidden" name="id" value={r.id} />
+                  <input
+                    name="receipt_number"
+                    placeholder="N° ricevuta"
+                    className="w-32 rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
+                  />
+                  <button className="rounded-lg bg-navy px-3 py-1.5 text-xs font-semibold text-white">
+                    Segna incassato
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      <Card>
+        <div className="flex items-baseline justify-between">
+          <h2 className="t-h3">Incassato</h2>
+          <span className="t-data">{euroCents(tot(collected))}</span>
+        </div>
+        {collected.length === 0 ? (
+          <p className="t-small mt-2 text-muted">Ancora nulla nel periodo.</p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-2">
+            {collected.map((r) => (
+              <li
+                key={r.id}
+                className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              >
+                <span className="font-semibold">{r.swimmer}</span>
+                <span className="text-muted">{r.service}</span>
+                <span className="t-small text-muted">{dt(r.starts_at)}</span>
+                {r.receipt_number && (
+                  <span className="t-small text-muted">ric. {r.receipt_number}</span>
+                )}
+                <span className="ml-auto t-data">
+                  {r.amount_cents != null ? euroCents(r.amount_cents) : "—"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      <p className="t-small text-muted">
+        Il registro tiene il conto di cosa è stato incassato e cosa no. A fine
+        mese è la lista da portare al commercialista.
+      </p>
     </div>
   );
 }

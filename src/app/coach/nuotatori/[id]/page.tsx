@@ -71,23 +71,28 @@ export default async function SwimmerDetail({
 
   const { data: lastScore } = await supabase
     .from("glide_scores")
-    .select("score")
+    .select("score, onda")
     .eq("swimmer_id", id)
     .order("week", { ascending: false })
     .limit(1)
     .maybeSingle();
-  const score = await computeScore(supabase, id, lastScore?.score ?? null);
+  const score = await computeScore(
+    supabase,
+    id,
+    lastScore?.score ?? null,
+    lastScore?.onda ?? null,
+  );
   const identity = await computeIdentity(supabase, id);
 
   // Badge: guadagnati + catalogo dei conferibili.
   const [{ data: sbData }, { data: catData }] = await Promise.all([
     supabase
       .from("swimmer_badges")
-      .select("badge_code, note, badges(name, emoji, description, kind, sort)")
+      .select("badge_code, note, badges(name, description, kind, sort)")
       .eq("swimmer_id", id),
     supabase
       .from("badges")
-      .select("code, name, emoji, description")
+      .select("code, name, description")
       .eq("kind", "conferred")
       .order("sort"),
   ]);
@@ -95,7 +100,6 @@ export default async function SwimmerDetail({
     .map((r) => {
       const b = r.badges as unknown as {
         name: string;
-        emoji: string | null;
         description: string;
         kind: string;
         sort: number;
@@ -103,7 +107,6 @@ export default async function SwimmerDetail({
       return {
         code: r.badge_code as string,
         name: b?.name ?? r.badge_code,
-        emoji: b?.emoji ?? null,
         description: b?.description ?? "",
         note: (r.note as string | null) ?? null,
         conferred: b?.kind === "conferred",
@@ -160,10 +163,10 @@ export default async function SwimmerDetail({
           conferred={(catData ?? []) as {
             code: string;
             name: string;
-            emoji: string | null;
             description: string;
           }[]}
           earnedCodes={earned.map((b) => b.code)}
+          paused={(swimmer.status ?? "attivo").toLowerCase() !== "attivo"}
         />
       </section>
 

@@ -163,6 +163,34 @@ rimosso (alias→navy). Oswald/Montserrat eliminati. Build verde.
 **📌 Push finale:** un solo push porta live 6+7+8+9 (migration 008/009/010 già applicate su Supabase).
 **📌 Post-push (facoltativi):** `ANTHROPIC_API_KEY` su Vercel per accendere l'assistente L0 · Stripe test-mode (parcheggiato) · leaked-password protection su Supabase Auth · verifica leggibilità numeri Glacial (occhio umano).
 
+---
+
+## Aggiornamento spec 17/07 — ADR-010/011 (cash) + conformità + fix mobile
+
+**Fix mobile coach (segnalato):** la sidebar ora è un **drawer a scomparsa** sotto `lg` — topbar con hamburger, overlay, ogni tap su un link chiude il menu. Desktop invariato. L'app coach si usa in verticale.
+
+**FASE 3.7 — Pagamento diretto `cash` (glide-ext-pagamenti, ADR-010/011). FATTA.**
+- `migration_011_cash_payments` applicata: `payment_method`/`payment_status`/`amount_cents`/`receipt_number`/`paid_at` + constraint `cash_needs_status` + backfill del metodo sulle righe esistenti.
+- API `create`: senza crediti il nuotatore sceglie; `cash` → booking `da_incassare` con importo dal listino. **Stripe non configurato → l'opzione online non compare, resta il diretto** (il vecchio percorso "free simulato" per le lezioni è rimosso). Copy sobrio: "Il pagamento (€X) lo sistemi direttamente con Alessio in vasca."
+- Coach: badge **"Da incassare · €X" in navy** (promemoria, non errore), "Segna incassato" (+ n° ricevuta) sulla card e nella nuova **tab Cassa** (elenco, totale, filtro Tutto/Mese, sezione incassati) — deep-link `?tab=cassa`.
+- Digest lunedì, sezione "I numeri" (ADR-011): "N lezioni da incassare · €X · la più vecchia è di N giorni fa" → tap sulla Cassa.
+- Ledger: `booking.created` porta `payment_method`; nuovo tipo `payment.collected` al "Segna incassato". Il denaro NON entra mai in Onda/Glide Score.
+- **Prove sul DB reale**: constraint rifiuta `cash` senza stato e `credit` con stato (check_violation) · **il nuotatore NON può marcarsi incassato** (update con JWT nuotatore → 0 righe, RLS nega, stato invariato).
+
+**Badge — conformità ADR-005 §8-10 + FASE 6 nuova. FATTA.**
+- **Niente emoji, niente coriandoli** (registro adulto): vetrina e conferimento ridisegnati sobri; la colonna emoji resta a DB ma non si mostra.
+- **Motivazione OBBLIGATORIA, max 140 caratteri** sui conferiti — è quella frase il premio. La notifica al nuotatore è la frase stessa, senza emoji.
+- **Silenzio in pausa** (§8): nuotatore non `attivo` → nessun badge automatico, nessun conferimento (pannello coach lo spiega), nessuna notifica.
+- **Gate fisica** (6.3): media `readiness_fisica` ultime 2 settimane < 3.0 → nessun badge automatico scatta.
+- **Onda congelata in pausa** (FASE 5): oltre allo Score, ora anche l'Onda resta all'ultimo valore salvato.
+
+**Assistente — 7.1/7.2 nuova. FATTA.**
+- L2 esteso con le **frasi**: "testa che gira" / "mi gira(va) la testa". **9/9 verifiche verdi**, inclusi i 4 test canonici del runbook (spalla→L1, peso sul petto→L2, allenamento di domani→passa, stanco morto→passa).
+- **System prompt v2** in file dedicato (`lib/assistant/system-prompt.ts`): voce dell'app senza nome, riconoscimenti attribuiti ad Alessio, zero emoji/esclamativi/superlativi, ogni affermazione con un dato, "Non ho questo dato. Chiedilo ad Alessio.", vietati completi, solo TESTO. Benvenuto del widget adeguato.
+
+**Docs**: `GLIDE_ADR.md` aggiornato (ADR-010/011, ADR-005 §8-10), `glide-ext-pagamenti.md` e `PROMPT_CODE_MASTER.md` in `docs/`.
+`lint` + `tsc` + `next build` verdi. Migration 011 già su Supabase: al push è tutto live.
+
 **⚠️ Account coach da ricreare:** `glide.smartswim@gmail.com` è stato cancellato
 (auth+profilo). L'utente deve **ri-registrarsi**; poi lo si rimette `role='coach'`.
 ---

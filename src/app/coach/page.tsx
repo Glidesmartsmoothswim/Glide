@@ -45,7 +45,7 @@ export default async function CoachDashboard() {
                   {s.rows.map((r) => (
                     <li key={r.swimmerId + r.text}>
                       <Link
-                        href={`/coach/nuotatori/${r.swimmerId}`}
+                        href={r.href ?? `/coach/nuotatori/${r.swimmerId}`}
                         className="block rounded-xl border border-border bg-background p-3 t-small text-foreground hover:border-blu"
                       >
                         {r.text}

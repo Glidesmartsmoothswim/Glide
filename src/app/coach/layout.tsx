@@ -15,7 +15,9 @@ export default async function CoachLayout({
   return (
     <div className="flex min-h-dvh bg-background">
       <CoachSidebar name={name} />
-      <main className="flex-1 overflow-x-hidden px-8 py-8">{children}</main>
+      <main className="flex-1 overflow-x-hidden px-4 pb-8 pt-[72px] lg:px-8 lg:pt-8">
+        {children}
+      </main>
     </div>
   );
 }

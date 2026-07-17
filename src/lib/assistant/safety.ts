@@ -26,7 +26,7 @@ const L1_KEYWORDS = [
   "gonfiore",
 ];
 
-/** L2 — Red flag (ADR-004). */
+/** L2 — Red flag (ADR-004 + runbook 7.1). */
 const L2_KEYWORDS = [
   "petto",
   "torace",
@@ -39,6 +39,9 @@ const L2_KEYWORDS = [
   "nausea",
   "vista",
 ];
+
+/** L2 — frasi multi-parola (runbook 7.1: "testa che gira"). */
+const L2_PHRASES = ["testa che gira", "gira la testa", "girava la testa"];
 
 /** Template fissi — copy ESATTO dall'ADR-004. Non parafrasare. */
 export const SAFETY_TEMPLATES: Record<"l1" | "l2", string> = {
@@ -66,6 +69,8 @@ function hasKeyword(text: string, words: string[]): boolean {
  * Ritorna il livello, MAI il contenuto: chi chiama non deve propagare il testo.
  */
 export function classify(text: string): SafetyLevel {
+  const t = norm(text);
+  if (L2_PHRASES.some((p) => t.includes(p))) return "l2";
   if (hasKeyword(text, L2_KEYWORDS)) return "l2";
   if (hasKeyword(text, L1_KEYWORDS)) return "l1";
   return null;

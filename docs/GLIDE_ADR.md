@@ -322,3 +322,67 @@ La distinzione vasca/remoto si fa con la palette ufficiale:
 
 Spec completa e token: **`GLIDE_TIPOGRAFIA.md`**.
 
+
+---
+
+## ADR-010 — Lezione 1-a-1 e pagamento diretto (contanti)
+
+**Stato:** DECISO — 13/07/2026
+
+**Contesto.** Un nuotatore registrato deve poter prenotare una lezione 1-a-1 a pagamento,
+oltre ai contenuti inclusi. Non tutti i pagamenti devono passare da Stripe: si vuole ridurre
+le commissioni e la dipendenza dal provider, permettendo il saldo diretto col coach.
+
+**Decisione — tre modalità di saldo per una prenotazione a pagamento:**
+
+| `payment_method` | Flusso | Quando |
+|---|---|---|
+| `credit` | Consuma una lezione inclusa nel pacchetto | il nuotatore ha crediti |
+| `stripe` | Stripe Checkout, confermato dal webhook | pagamento a distanza, tracciato dal provider |
+| `cash` | **Saldo diretto col coach.** Booking creato in stato `payment_status = da_incassare` | il coach preferisce il contante |
+
+**Il pagamento in contanti è LEGITTIMO e va TRACCIATO, non nascosto.**
+
+Un professionista può incassare in contanti. Ciò che rende un incasso in regola è la **ricevuta**,
+non il canale. Quindi la modalità `cash` non è una scorciatoia per non registrare: è un
+**registro di cassa**.
+
+Campi del booking in modalità `cash`:
+```
+payment_method   = 'cash'
+payment_status   ∈ { 'da_incassare', 'incassato' }
+amount_cents     -- importo dovuto, dal listino services
+receipt_number   -- n° ricevuta/fattura, opzionale, compilabile dal coach
+paid_at          -- quando il coach segna "incassato"
+```
+
+**Cosa il software fa:**
+- offre il contante come metodo, riducendo le commissioni Stripe
+- tiene il conto di cosa è stato incassato e cosa no (`da_incassare` → il digest lo ricorda al coach)
+- lascia spazio al numero di ricevuta
+
+**Cosa il software NON fa, per protezione del coach stesso:**
+- non esistono campi, etichette o flag pensati per **occultare** un incasso al fisco
+- non esiste un "incasso non registrato" come stato di prima classe
+- il gestionale è l'ARCHIVIO del coach: deve poterlo mostrare, non doverlo nascondere
+
+> Un archivio costruito per nascondere ricavi, il giorno di un controllo, è la prova a carico.
+> Un archivio pulito è la difesa. Costruiamo il secondo.
+
+**Confine.** La conformità fiscale (emissione ricevuta, dichiarazione, regime forfettario)
+è responsabilità del coach e del suo commercialista. GLIDE fornisce lo strumento di tracciamento;
+non fornisce, né suggerisce, strategie di evasione.
+
+---
+
+## ADR-011 — Il digest ricorda gli incassi in sospeso
+
+**Stato:** DECISO — 13/07/2026
+
+Estende il digest coach (GLIDE_GAMIFICATION.md §8) con una riga operativa nella sezione § I NUMERI:
+
+> *"3 lezioni da incassare · €130 totali"* → tap: lista delle lezioni `da_incassare`
+
+Motivo: il contante si dimentica. Se il software offre il saldo diretto ma poi non ricorda
+al coach cosa deve ancora incassare, il coach perde soldi veri. Questa riga trasforma la modalità
+`cash` da buco a registro. Ed è anche la ragione pratica per cui tracciare conviene più che nascondere.

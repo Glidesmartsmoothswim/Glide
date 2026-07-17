@@ -174,6 +174,45 @@ export async function noShowBooking(fd: FormData): Promise<void> {
   await setBookingStatus(String(fd.get("id") ?? ""), "no_show", null);
 }
 
+/**
+ * Registro di cassa (ADR-010): da_incassare → incassato. SOLO il coach
+ * (la RLS su bookings nega ogni update al nuotatore). Ledger:
+ * payment.collected — mai usato per derivare gamification (ADR-005).
+ */
+export async function markCollected(fd: FormData): Promise<void> {
+  const c = await coachOnly();
+  if (!c) return;
+  const id = String(fd.get("id") ?? "");
+  const receipt = String(fd.get("receipt_number") ?? "").trim() || null;
+  if (!id) return;
+
+  const supabase = await createClient();
+  const { data: b } = await supabase
+    .from("bookings")
+    .select("id, swimmer_id, amount_cents, payment_method, payment_status")
+    .eq("id", id)
+    .maybeSingle();
+  if (!b || b.payment_method !== "cash" || b.payment_status !== "da_incassare")
+    return;
+
+  await supabase
+    .from("bookings")
+    .update({
+      payment_status: "incassato",
+      paid_at: new Date().toISOString(),
+      receipt_number: receipt,
+      payment: "paid",
+    })
+    .eq("id", id);
+
+  await logEvent(supabase, b.swimmer_id, "payment.collected", {
+    booking_id: b.id,
+    amount_cents: b.amount_cents,
+    method: "cash",
+  });
+  revalidatePath("/coach/agenda");
+}
+
 // ---------- Eventi ----------
 export async function createEvent(
   _prev: AgendaState,

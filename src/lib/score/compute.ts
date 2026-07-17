@@ -41,6 +41,7 @@ export async function computeScore(
   db: SupabaseClient,
   swimmerId: string,
   prevScore: number | null,
+  prevOnda: number | null = null,
 ): Promise<ScoreResult> {
   const insufficient: (keyof Dimensions)[] = [];
 
@@ -86,8 +87,9 @@ export async function computeScore(
   }
 
   // Onda: aderenza settimanale (ultime 8 settimane).
+  // In pausa anche l'ONDA si congela (FASE 5): mai punire chi si cura.
   const weekly = lastWeeks(8).map((w) => (postByWeek[w] ?? 0) / WEEKLY_TARGET);
-  const onda = computeOnda(weekly);
+  const onda = frozen && prevOnda != null ? prevOnda : computeOnda(weekly);
 
   // Costanza: completate/previste su 4 settimane.
   const completed4 = lastWeeks(4).reduce(
@@ -187,14 +189,19 @@ export async function computeAndStore(
   const thisWeek = isoWeek(new Date());
   const { data: last } = await admin
     .from("glide_scores")
-    .select("week, score")
+    .select("week, score, onda")
     .eq("swimmer_id", swimmerId)
     .lt("week", thisWeek)
     .order("week", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  const result = await computeScore(admin, swimmerId, last?.score ?? null);
+  const result = await computeScore(
+    admin,
+    swimmerId,
+    last?.score ?? null,
+    last?.onda ?? null,
+  );
 
   await admin.from("glide_scores").upsert(
     {

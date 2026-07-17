@@ -6,18 +6,30 @@ import { getCurrentProfile } from "@/lib/auth";
 import { notifyUser } from "@/lib/notify";
 
 /**
- * Conferimento badge dal coach (GLIDE_GAMIFICATION §5): il giudizio umano è
- * la merce rara. `awarded_by` = il coach; una notifica avvisa il nuotatore.
+ * Conferimento badge dal coach (FASE 6.1, ADR-005 §8-9).
+ * - Motivazione OBBLIGATORIA, max 140 caratteri: è quella il premio.
+ * - Nuotatore in pausa → niente badge, niente notifica. Silenzio rispettoso.
+ * - Notifica sobria, senza emoji (registro adulto).
  */
 export async function awardBadge(fd: FormData): Promise<void> {
   const coach = await getCurrentProfile();
   if (!coach || coach.role !== "coach") return;
   const swimmerId = String(fd.get("swimmer_id") ?? "");
   const code = String(fd.get("badge_code") ?? "");
-  const note = String(fd.get("note") ?? "").trim() || null;
-  if (!swimmerId || !code) return;
+  const note = String(fd.get("note") ?? "").trim().slice(0, 140);
+  if (!swimmerId || !code || !note) return; // motivazione obbligatoria
 
   const supabase = await createClient();
+
+  // ADR-005 §8: a un nuotatore in pausa non si conferisce nulla.
+  const { data: sw } = await supabase
+    .from("profiles")
+    .select("status")
+    .eq("id", swimmerId)
+    .maybeSingle();
+  const paused = (sw?.status ?? "attivo").toLowerCase() !== "attivo";
+  if (paused) return;
+
   await supabase.from("swimmer_badges").upsert(
     { swimmer_id: swimmerId, badge_code: code, awarded_by: coach.id, note },
     { onConflict: "swimmer_id,badge_code" },
@@ -25,14 +37,14 @@ export async function awardBadge(fd: FormData): Promise<void> {
 
   const { data: badge } = await supabase
     .from("badges")
-    .select("name, emoji")
+    .select("name")
     .eq("code", code)
     .maybeSingle();
   await notifyUser(
     swimmerId,
     "open",
-    `${badge?.emoji ?? "🏅"} ${badge?.name ?? "Nuovo badge"}`,
-    note ?? "Alessio ti ha conferito un badge.",
+    `Badge da Alessio: ${badge?.name ?? code}`,
+    note,
   );
 
   revalidatePath(`/coach/nuotatori/${swimmerId}`);

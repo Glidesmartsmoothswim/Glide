@@ -19,13 +19,18 @@ export default async function SwimmerProgressi() {
   // Onda + Glide Score (calcolo on-demand; l'ultimo salvato dà l'inerzia).
   const { data: lastScore } = await supabase
     .from("glide_scores")
-    .select("score")
+    .select("score, onda")
     .eq("swimmer_id", profile?.id ?? "")
     .order("week", { ascending: false })
     .limit(1)
     .maybeSingle();
   const score = profile
-    ? await computeScore(supabase, profile.id, lastScore?.score ?? null)
+    ? await computeScore(
+        supabase,
+        profile.id,
+        lastScore?.score ?? null,
+        lastScore?.onda ?? null,
+      )
     : null;
   const identity = profile
     ? await computeIdentity(supabase, profile.id)
@@ -34,13 +39,12 @@ export default async function SwimmerProgressi() {
   // Badge guadagnati (RLS: il nuotatore vede solo i propri).
   const { data: sbData } = await supabase
     .from("swimmer_badges")
-    .select("badge_code, note, awarded_by, badges(name, emoji, description, kind, sort)")
+    .select("badge_code, note, awarded_by, badges(name, description, kind, sort)")
     .eq("swimmer_id", profile?.id ?? "");
   const earned: EarnedBadge[] = (sbData ?? [])
     .map((r) => {
       const b = r.badges as unknown as {
         name: string;
-        emoji: string | null;
         description: string;
         kind: string;
         sort: number;
@@ -48,7 +52,6 @@ export default async function SwimmerProgressi() {
       return {
         code: r.badge_code as string,
         name: b?.name ?? r.badge_code,
-        emoji: b?.emoji ?? null,
         description: b?.description ?? "",
         note: (r.note as string | null) ?? null,
         conferred: b?.kind === "conferred",

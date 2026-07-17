@@ -8,7 +8,12 @@ import { CoachAgenda } from "@/components/agenda/coach-agenda";
 export const metadata = { title: "Agenda" };
 export const dynamic = "force-dynamic";
 
-export default async function AgendaPage() {
+export default async function AgendaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const { tab } = await searchParams;
   const supabase = await createClient();
   const today = romeDateStr();
   // Mostra anche i booking recenti: da 2 giorni fa (mezzanotte di Roma).
@@ -28,7 +33,7 @@ export default async function AgendaPage() {
     supabase
       .from("bookings")
       .select(
-        "id, swimmer_id, service_id, starts_at, ends_at, mode, status, payment, coach_note, swimmer_note",
+        "id, swimmer_id, service_id, starts_at, ends_at, mode, status, payment, payment_method, payment_status, amount_cents, receipt_number, coach_note, swimmer_note",
       )
       .neq("status", "cancelled")
       .gte("starts_at", fromIso)
@@ -45,7 +50,21 @@ export default async function AgendaPage() {
   ]);
 
   const bookings = bookRes.data ?? [];
-  const swimmerIds = [...new Set(bookings.map((b) => b.swimmer_id))];
+
+  // Registro di cassa (ADR-010/011): tutte le lezioni cash, senza limite di data.
+  const { data: cashData } = await supabase
+    .from("bookings")
+    .select(
+      "id, swimmer_id, service_id, starts_at, payment_status, amount_cents, receipt_number, paid_at",
+    )
+    .eq("payment_method", "cash")
+    .neq("status", "cancelled")
+    .order("starts_at", { ascending: true });
+  const cassa = cashData ?? [];
+
+  const swimmerIds = [
+    ...new Set([...bookings, ...cassa].map((b) => b.swimmer_id)),
+  ];
   const { data: swimmers } = swimmerIds.length
     ? await supabase
         .from("profiles")
@@ -85,10 +104,24 @@ export default async function AgendaPage() {
           mode: b.mode,
           status: b.status,
           payment: b.payment,
+          payment_method: b.payment_method,
+          payment_status: b.payment_status,
+          amount_cents: b.amount_cents,
           coach_note: b.coach_note,
           swimmer_note: b.swimmer_note,
         }))}
         events={evRes.data ?? []}
+        initialTab={tab}
+        cassa={cassa.map((c) => ({
+          id: c.id,
+          swimmer: nameById[c.swimmer_id] ?? "Nuotatore",
+          service: svcById[c.service_id]?.name ?? "Lezione",
+          starts_at: c.starts_at,
+          payment_status: c.payment_status,
+          amount_cents: c.amount_cents,
+          receipt_number: c.receipt_number,
+          paid_at: c.paid_at,
+        }))}
       />
     </div>
   );

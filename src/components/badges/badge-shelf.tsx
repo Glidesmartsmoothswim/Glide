@@ -3,13 +3,16 @@ import { Card } from "@/components/ui/card";
 export type EarnedBadge = {
   code: string;
   name: string;
-  emoji: string | null;
   description: string;
   note: string | null;
   conferred: boolean; // dato dal coach (raro) vs automatico
 };
 
-/** Vetrina badge del nuotatore. I conferiti dal coach hanno un bordo dedicato. */
+/**
+ * Vetrina badge del nuotatore. Registro adulto (FASE 6.2): nessuna emoji,
+ * nessun coriandolo. I conferiti dal coach si distinguono per il bordo e
+ * per la frase di Alessio — è quella il premio, il badge è la cornice.
+ */
 export function BadgeShelf({
   earned,
   emptyHint,
@@ -26,23 +29,30 @@ export function BadgeShelf({
             "Ancora nessuno. Non sono adesivi: ognuno si guadagna, onda dopo onda."}
         </p>
       ) : (
-        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <ul className="flex flex-col gap-2">
           {earned.map((b) => (
             <li
               key={b.code}
-              className={`flex flex-col items-center gap-1 rounded-xl border px-3 py-3 text-center ${
+              className={`rounded-xl border px-4 py-3 ${
                 b.conferred
-                  ? "border-blu/50 bg-blu/5"
+                  ? "border-navy/50 bg-navy/5"
                   : "border-border bg-background"
               }`}
-              title={b.description}
             >
-              <span className="text-2xl">{b.emoji ?? "🏅"}</span>
-              <span className="t-small font-semibold">{b.name}</span>
-              {b.conferred && (
-                <span className="t-small text-blu">conferito da Alessio</span>
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-bold">{b.name}</span>
+                {b.conferred && (
+                  <span className="t-small uppercase tracking-[0.09em] text-navy">
+                    da Alessio
+                  </span>
+                )}
+              </div>
+              <p className="t-small text-muted">{b.description}</p>
+              {b.note && (
+                <p className="t-small mt-1 border-l-2 border-navy/40 pl-2 text-foreground">
+                  «{b.note}»
+                </p>
               )}
-              {b.note && <span className="t-small text-muted">«{b.note}»</span>}
             </li>
           ))}
         </ul>

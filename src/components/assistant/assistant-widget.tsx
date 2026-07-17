@@ -6,7 +6,7 @@ import { MessageCircleQuestion, Send, X } from "lucide-react";
 type Msg = { from: "me" | "glide"; text: string; safety?: string | null };
 
 const WELCOME =
-  "Ciao! Posso spiegarti il perché di un allenamento, come funziona GLIDE, o darti una mano a orientarti. L'allenamento invece lo scrive Alessio — sempre.";
+  "Posso spiegarti il perché di un allenamento, come funziona GLIDE, o aiutarti a orientarti. L'allenamento lo scrive Alessio. Sempre.";
 
 /**
  * Assistente del nuotatore — bottone flottante + pannello.

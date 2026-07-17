@@ -8,7 +8,7 @@ import { fullName } from "@/lib/types";
  * readiness_fisica buona (>=3.5) MA sedute saltate → è MOTIVAZIONE, non
  * stanchezza → serve una telefonata, non un carico più leggero.
  */
-export type DigestRow = { swimmerId: string; text: string };
+export type DigestRow = { swimmerId: string; text: string; href?: string };
 export type DigestSection = { title: string; rows: DigestRow[] };
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -104,11 +104,35 @@ export async function computeDigest(
       });
   }
 
+  // 5) I numeri — incassi in sospeso (ADR-011): il contante si dimentica.
+  const numeri: DigestRow[] = [];
+  const { data: pend } = await supabase
+    .from("bookings")
+    .select("amount_cents, starts_at")
+    .eq("payment_method", "cash")
+    .eq("payment_status", "da_incassare")
+    .neq("status", "cancelled")
+    .order("starts_at", { ascending: true });
+  if (pend && pend.length > 0) {
+    const tot = pend.reduce((s, b) => s + (b.amount_cents ?? 0), 0);
+    const oldestDays = Math.floor(
+      (now - new Date(pend[0].starts_at).getTime()) / DAY,
+    );
+    numeri.push({
+      swimmerId: "",
+      href: "/coach/agenda?tab=cassa",
+      text: `${pend.length} ${pend.length === 1 ? "lezione" : "lezioni"} da incassare · €${Math.round(tot / 100)}${
+        oldestDays > 0 ? ` · la più vecchia è di ${oldestDays} giorni fa` : ""
+      }`,
+    });
+  }
+
   const cut = (rows: DigestRow[]) => rows.slice(0, 3);
   return [
     { title: "Da chiamare", rows: cut(chiamare) },
     { title: "Sta scivolando", rows: cut(scivola) },
     { title: "Corpo", rows: cut(corpo) },
     { title: "Certificati", rows: cut(certificati) },
+    { title: "I numeri", rows: cut(numeri) },
   ];
 }

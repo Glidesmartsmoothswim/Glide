@@ -57,9 +57,11 @@ function next14(): string[] {
 export function SwimmerBooking({
   services,
   credit,
+  stripeEnabled = false,
 }: {
   services: Svc[];
   credit: Credit;
+  stripeEnabled?: boolean;
 }) {
   const router = useRouter();
   const [days] = useState(next14());
@@ -69,6 +71,7 @@ export function SwimmerBooking({
   );
   const [day, setDay] = useState<string | null>(null);
   const [slot, setSlot] = useState<string | null>(null);
+  const [method, setMethod] = useState<"cash" | "stripe">("cash");
   const [msg, setMsg] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -108,13 +111,21 @@ export function SwimmerBooking({
     const r = await fetch("/api/booking/create", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ service: svc.code, startsAt: slot }),
+      body: JSON.stringify({
+        service: svc.code,
+        startsAt: slot,
+        method: willUseCredit ? undefined : method,
+      }),
     });
     const j = await r.json().catch(() => ({}));
     setBusy(false);
     if (r.ok) {
       setOk(true);
-      setMsg("Prenotato. La trovi qui sopra fra le tue lezioni.");
+      setMsg(
+        j.paymentMethod === "cash" && j.amountCents != null
+          ? `Prenotazione confermata. Il pagamento (€${Math.round(j.amountCents / 100)}) lo sistemi direttamente con Alessio in vasca.`
+          : "Prenotato. La trovi qui sopra fra le tue lezioni.",
+      );
       setSlot(null);
       setSvc(null);
       router.refresh();
@@ -234,6 +245,37 @@ export function SwimmerBooking({
             {svc.mode === "remote" ? "Video call" : "Piscina di Livorno"}
           </p>
           <p className="t-small mt-1 text-muted">{priceLabel}</p>
+          {!willUseCredit && (
+            <div className="mt-3 flex flex-col gap-2">
+              <p className="t-label text-muted">Come paghi</p>
+              {stripeEnabled && (
+                <button
+                  onClick={() => setMethod("stripe")}
+                  className={`rounded-lg border px-3 py-2 text-left text-sm font-semibold ${
+                    method === "stripe"
+                      ? "border-blu bg-blu/10"
+                      : "border-border bg-surface"
+                  }`}
+                >
+                  Paga ora online
+                </button>
+              )}
+              <button
+                onClick={() => setMethod("cash")}
+                className={`rounded-lg border px-3 py-2 text-left text-sm font-semibold ${
+                  method === "cash"
+                    ? "border-navy bg-navy/10"
+                    : "border-border bg-surface"
+                }`}
+              >
+                Paga in vasca col coach
+                <span className="block t-small font-normal text-muted">
+                  Il pagamento (€{Math.round(svc.price_cents / 100)}) lo sistemi
+                  direttamente con Alessio.
+                </span>
+              </button>
+            </div>
+          )}
           {msg && !ok && <p className="t-small mt-2 text-[#DC2626]">{msg}</p>}
           <button
             onClick={confirm}

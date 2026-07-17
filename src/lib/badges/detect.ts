@@ -48,6 +48,31 @@ export async function detectAndAward(
 ): Promise<string[]> {
   const awarded: string[] = [];
 
+  // ADR-005 §8: nuotatore in pausa → nessun badge, nessuna notifica.
+  const { data: prof } = await admin
+    .from("profiles")
+    .select("status")
+    .eq("id", swimmerId)
+    .maybeSingle();
+  if ((prof?.status ?? "attivo").toLowerCase() !== "attivo") return awarded;
+
+  // FASE 6.3: nessun badge scatta con readiness_fisica < 3.0 (ultime 2 sett.):
+  // premiare chi sta male è un incentivo all'infortunio.
+  const twoWeeksAgo = new Date(Date.now() - 14 * 86_400_000).toISOString();
+  const { data: fis } = await admin
+    .from("v_readiness")
+    .select("readiness_fisica")
+    .eq("swimmer_id", swimmerId)
+    .gte("created_at", twoWeeksAgo)
+    .not("readiness_fisica", "is", null);
+  const fisiche = (fis ?? [])
+    .map((r) => Number(r.readiness_fisica))
+    .filter((n) => !Number.isNaN(n));
+  if (fisiche.length > 0) {
+    const avg = fisiche.reduce((s, n) => s + n, 0) / fisiche.length;
+    if (avg < 3.0) return awarded;
+  }
+
   const cutoff = new Date(Date.now() - 30 * 7 * 86_400_000).toISOString();
   const { data: events } = await admin
     .from("activity_events")
