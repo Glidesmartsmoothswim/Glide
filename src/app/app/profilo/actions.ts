@@ -124,3 +124,80 @@ export async function deletePersonalBest(id: string): Promise<{ error?: string }
   revalidatePath("/app/profilo");
   return {};
 }
+
+/* ---- Intake v2 (Sprint V.1) ---- */
+
+/** Step 0: agonista / libero. */
+export async function setAthleteType(
+  type: "agonista" | "libero",
+): Promise<ProfileState> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { error: "Sessione scaduta." };
+  if (type !== "agonista" && type !== "libero")
+    return { error: "Tipo non valido." };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("profiles")
+    .update({ athlete_type: type })
+    .eq("id", profile.id);
+  if (error) return { error: error.message };
+  revalidatePath("/app/profilo");
+  return { info: "Salvato." };
+}
+
+/** Upsert dell'intake (una riga per utente). goal/freq/vasca sono obbligatori. */
+export async function saveIntake(input: {
+  goal_primary: string;
+  goal_note?: string | null;
+  freq_settimanale: string;
+  vasca: number;
+  anni_nuoto?: string | null;
+  continuita?: string | null;
+  gare_12m?: boolean | null;
+  esperienza_intensita?: boolean | null;
+  device_fc?: boolean | null;
+  corsi?: string | null;
+  stili?: string[] | null;
+  autovalutazione?: number | null;
+  aree_miglioramento?: string[] | null;
+}): Promise<ProfileState> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { error: "Sessione scaduta." };
+  if (!input.goal_primary || !input.freq_settimanale || !input.vasca)
+    return { error: "Completa obiettivo, frequenza e vasca." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("intake").upsert(
+    {
+      user_id: profile.id,
+      goal_primary: input.goal_primary,
+      goal_note: input.goal_note ?? null,
+      freq_settimanale: input.freq_settimanale,
+      vasca: input.vasca,
+      anni_nuoto: input.anni_nuoto ?? null,
+      continuita: input.continuita ?? null,
+      gare_12m: input.gare_12m ?? null,
+      esperienza_intensita: input.esperienza_intensita ?? null,
+      device_fc: input.device_fc ?? null,
+      corsi: input.corsi ?? null,
+      stili: input.stili ?? null,
+      autovalutazione: input.autovalutazione ?? null,
+      aree_miglioramento: input.aree_miglioramento ?? null,
+    },
+    { onConflict: "user_id" },
+  );
+  if (error) return { error: error.message };
+  revalidatePath("/app/profilo");
+  return { info: "Intake salvato." };
+}
+
+/** Segna come visto l'onboarding (flag su profiles, non più localStorage). */
+export async function setOnboardingDone(): Promise<void> {
+  const profile = await getCurrentProfile();
+  if (!profile) return;
+  const supabase = await createClient();
+  await supabase
+    .from("profiles")
+    .update({ onboarding_done: true })
+    .eq("id", profile.id);
+}

@@ -11,6 +11,13 @@ export default async function SwimmerToday() {
   const name = profile?.first_name || "nuotatore";
 
   const supabase = await createClient();
+
+  const { data: prof } = await supabase
+    .from("profiles")
+    .select("onboarding_done")
+    .eq("id", profile?.id ?? "")
+    .maybeSingle();
+
   const { data } = await supabase
     .from("notifications")
     .select("*")
@@ -35,7 +42,7 @@ export default async function SwimmerToday() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Onboarding />
+      <Onboarding done={Boolean(prof?.onboarding_done)} />
       <header className="flex items-center justify-between">
         <div>
           <p className="text-sm text-muted">Ciao {name},</p>
