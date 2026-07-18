@@ -3,9 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/auth";
+import { createSwimmerAccount } from "@/lib/coach/create-swimmer";
 import { isLeadSource, isLeadStage } from "@/lib/leads";
+import type { ServiceType } from "@/lib/types";
 
 export type LeadState = { error?: string; info?: string };
+export type ConvertState = {
+  error?: string;
+  info?: string;
+  tempPassword?: string;
+};
 
 /** Crea un lead (RLS: solo coach). */
 export async function createLead(
@@ -52,4 +59,31 @@ export async function deleteLead(formData: FormData) {
   const supabase = await createClient();
   await supabase.from("leads").delete().eq("id", id);
   revalidatePath("/coach/lead");
+}
+
+/**
+ * Converte un lead in nuotatore: crea l'account (via helper condiviso) coi
+ * dati confermati dal coach, poi marca il lead come `convertito`.
+ */
+export async function convertLead(
+  _prev: ConvertState,
+  formData: FormData,
+): Promise<ConvertState> {
+  await requireRole("coach");
+  const id = String(formData.get("lead_id") ?? "");
+  if (!id) return { error: "Lead non valido." };
+
+  const res = await createSwimmerAccount({
+    email: String(formData.get("email") ?? ""),
+    firstName: String(formData.get("first_name") ?? "").trim(),
+    lastName: String(formData.get("last_name") ?? "").trim(),
+    serviceType: String(formData.get("service_type") ?? "open") as ServiceType,
+  });
+  if (res.error) return { error: res.error };
+
+  // Creazione riuscita → il lead è convertito.
+  const supabase = await createClient();
+  await supabase.from("leads").update({ stage: "convertito" }).eq("id", id);
+  revalidatePath("/coach/lead");
+  return { info: res.info, tempPassword: res.tempPassword };
 }
