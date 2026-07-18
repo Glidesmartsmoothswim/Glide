@@ -12,7 +12,7 @@ function SubmitButton({ label }: { label: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="mt-2 w-full rounded-xl bg-gradient-to-br from-blu to-navy px-4 py-3 font-sans font-semibold text-white transition-opacity disabled:opacity-60"
+      className="mt-2 w-full rounded-xl bg-gradient-to-br from-blu to-navy px-4 py-3 font-sans font-semibold text-white shadow-lg shadow-black/20 transition-opacity disabled:opacity-60"
     >
       {pending ? "Attendi…" : label}
     </button>
@@ -26,7 +26,7 @@ export function LoginForm() {
 
   return (
     <div className="w-full max-w-sm">
-      <div className="mb-6 flex rounded-xl border border-border bg-surface p-1 text-sm">
+      <div className="mb-6 flex rounded-xl bg-white p-1 text-sm dark:border dark:border-border dark:bg-surface">
         {(
           [
             ["signin", "Accedi"],
@@ -38,7 +38,9 @@ export function LoginForm() {
             type="button"
             onClick={() => setMode(id)}
             className={`flex-1 rounded-lg px-3 py-2 font-semibold transition-colors ${
-              mode === id ? "bg-navy text-white" : "text-muted"
+              mode === id
+                ? "bg-navy text-white"
+                : "text-navy dark:text-muted"
             }`}
           >
             {label}
@@ -52,7 +54,7 @@ export function LoginForm() {
             name="first_name"
             placeholder="Nome"
             autoComplete="given-name"
-            className="rounded-xl border border-border bg-surface px-4 py-3 outline-none focus:border-blu"
+            className="rounded-xl border border-white bg-white px-4 py-3 text-navy outline-none placeholder:text-slate-500 focus:border-blu dark:border-border dark:bg-surface dark:text-foreground dark:placeholder:text-muted"
           />
         )}
         <input
@@ -61,7 +63,7 @@ export function LoginForm() {
           required
           placeholder="Email"
           autoComplete="email"
-          className="rounded-xl border border-border bg-surface px-4 py-3 outline-none focus:border-blu"
+          className="rounded-xl border border-white bg-white px-4 py-3 text-navy outline-none placeholder:text-slate-500 focus:border-blu dark:border-border dark:bg-surface dark:text-foreground dark:placeholder:text-muted"
         />
         <input
           name="password"
@@ -69,18 +71,20 @@ export function LoginForm() {
           required
           placeholder="Password"
           autoComplete={mode === "signin" ? "current-password" : "new-password"}
-          className="rounded-xl border border-border bg-surface px-4 py-3 outline-none focus:border-blu"
+          className="rounded-xl border border-white bg-white px-4 py-3 text-navy outline-none placeholder:text-slate-500 focus:border-blu dark:border-border dark:bg-surface dark:text-foreground dark:placeholder:text-muted"
         />
 
         {state.error && (
           <p className="text-sm text-[#DC2626]">{state.error}</p>
         )}
-        {state.info && <p className="text-sm text-teal">{state.info}</p>}
+        {state.info && (
+          <p className="text-sm text-[#c7d4ee] dark:text-teal">{state.info}</p>
+        )}
 
         <SubmitButton label={mode === "signin" ? "Entra" : "Crea account"} />
       </form>
 
-      <p className="mt-6 text-center text-xs text-muted">
+      <p className="mt-6 text-center text-xs text-[#aebbdd] dark:text-muted">
         onda dopo onda
       </p>
     </div>

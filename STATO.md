@@ -4,9 +4,17 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-14 — **Runbook v2 · FASE 0 + FASE 1.1 · 🛑 Cancello A PASSATO**._
+_Ultimo aggiornamento: 2026-07-18 — **verifica sui sistemi live (Supabase + Vercel) + migration_012**._
 
 **🌐 Deploy di test LIVE:** https://glide-zeta-ten.vercel.app — login GLIDE verificato (200, nessun errore).
+
+**🔎 Verifica 2026-07-18 (sui sistemi reali, non solo sui doc):**
+- **Runbook v2 (Fasi 0–9) + cash: già in `main`** e già su Supabase (11+1 migration applicate). Le voci "da pushare" più sotto sono **superate**.
+- **Account coach OK:** `glide.smartswim@gmail.com` esiste in auth+profilo, email confermata, `role='coach'`, login recente. La nota "account da ricreare" più sotto è **superata**.
+- **Advisor sicurezza:** `migration_012` revoca l'EXECUTE **da PUBLIC** su `handle_new_user` (la 009 revocava da anon/authenticated, ma il grant era ereditato da PUBLIC → no-op). Chiusi i 2 WARN su `handle_new_user`.
+  - Restano di proposito i 2 WARN su `is_coach` (usata in 20 policy RLS `to public`: togliere il PUBLIC romperebbe le chiamate REST anon con "permission denied"; la funzione ritorna solo un booleano, nessun dato esposto).
+  - Resta **da fare a mano**: Supabase → Auth → abilitare "Leaked password protection".
+- **Logo ufficiale integrato** (asset forniti dall'utente): `WaveLogo` ora mostra il lockup reale `public/brand/logo-mark.png` (mark a onde + wordmark), non più l'SVG a cerchi concentrici. Il wordmark è chiaro → su fondo chiaro (login/app in light mode) spariva: risolto con una **placca navy** di default (`plate`), disattivata dove lo sfondo è già scuro (sidebar coach `bg-ink`). Rigenerate le icone PWA (`public/icons/*`) e la `favicon.ico` (ri-encodata in RGBA: quella fornita rompeva il build di Next). Rimosso il "GLIDE" testuale duplicato accanto al mark. `lint` + `tsc` verdi; `next build` compila tutte le route (l'unico stop è env Supabase mancante nel clone, non la modifica).
 
 ---
 ## 🚀 RUNBOOK v2 (in corso) — spec in `docs/`, migrations in `supabase/migrations/`
@@ -155,12 +163,12 @@ rimosso (alias→navy). Oswald/Montserrat eliminati. Build verde.
 | 3 | Booking & Agenda (slot engine DST-safe, crediti, EXCLUDE, UI coach+nuotatore) | ✅ live |
 | 4 | Videoanalisi (scaletta deterministica, travel, coda video) | ✅ live |
 | 5 | Onda + Glide Score (EMA, ±3/sett, versionato, cron) | ✅ live |
-| 6 | Badge (conferiti+automatici, detection idempotente) | ✅ da pushare |
-| 7 | Assistant safety router (matcher deterministico ADR-004, L0 flag-gated) | ✅ da pushare |
-| 8 | Identità (specchio a soglia 8 settimane) | ✅ da pushare |
-| 9 | Collaudo (advisors, RLS 28/28, EXCLUDE, lint/build) | ✅ da pushare |
+| 6 | Badge (conferiti+automatici, detection idempotente) | ✅ live |
+| 7 | Assistant safety router (matcher deterministico ADR-004, L0 flag-gated) | ✅ live |
+| 8 | Identità (specchio a soglia 8 settimane) | ✅ live |
+| 9 | Collaudo (advisors, RLS 28/28, EXCLUDE, lint/build) | ✅ live |
 
-**📌 Push finale:** un solo push porta live 6+7+8+9 (migration 008/009/010 già applicate su Supabase).
+**📌 Push finale: FATTO.** 6+7+8+9 sono in `main` (migration 008/009/010 applicate su Supabase). *(verificato 2026-07-18)*
 **📌 Post-push (facoltativi):** `ANTHROPIC_API_KEY` su Vercel per accendere l'assistente L0 · Stripe test-mode (parcheggiato) · leaked-password protection su Supabase Auth · verifica leggibilità numeri Glacial (occhio umano).
 
 ---
@@ -191,8 +199,9 @@ rimosso (alias→navy). Oswald/Montserrat eliminati. Build verde.
 **Docs**: `GLIDE_ADR.md` aggiornato (ADR-010/011, ADR-005 §8-10), `glide-ext-pagamenti.md` e `PROMPT_CODE_MASTER.md` in `docs/`.
 `lint` + `tsc` + `next build` verdi. Migration 011 già su Supabase: al push è tutto live.
 
-**⚠️ Account coach da ricreare:** `glide.smartswim@gmail.com` è stato cancellato
-(auth+profilo). L'utente deve **ri-registrarsi**; poi lo si rimette `role='coach'`.
+**✅ Account coach RICREATO** *(verificato 2026-07-18)*: `glide.smartswim@gmail.com`
+esiste in auth+profilo, email confermata, `role='coach'`, con login recente. Nessuna
+azione residua. *(La vecchia nota "da ricreare" è superata.)*
 ---
 Da rifinire: `NEXT_PUBLIC_APP_URL` = questo URL (poi Redeploy) e Supabase → Auth → URL Configuration (Site URL) = questo URL.
 

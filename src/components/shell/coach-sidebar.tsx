@@ -88,8 +88,7 @@ export function CoachSidebar({ name }: { name: string }) {
         >
           <Menu size={20} />
         </button>
-        <WaveLogo size={22} />
-        <span className="font-display text-base tracking-[0.18em]">GLIDE</span>
+        <WaveLogo height={22} plate={false} />
       </header>
 
       {/* Sfondo scuro dietro il drawer aperto */}
@@ -107,8 +106,7 @@ export function CoachSidebar({ name }: { name: string }) {
         }`}
       >
         <div className="flex items-center gap-2 px-5 py-5">
-          <WaveLogo size={28} />
-          <span className="font-display text-lg tracking-[0.18em]">GLIDE</span>
+          <WaveLogo height={26} plate={false} />
           <button
             onClick={close}
             aria-label="Chiudi il menu"
