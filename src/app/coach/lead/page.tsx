@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { Card, Pill } from "@/components/ui/card";
 import { NewLead } from "./new-lead";
+import { ConvertLead } from "./convert-lead";
 import { setLeadStage, deleteLead } from "./actions";
 import {
   STAGE_ORDER,
@@ -108,6 +109,9 @@ function LeadCard({ l }: { l: LeadRow }) {
         )}
         {(l.stage === "convertito" || l.stage === "perso") && (
           <StageButton id={l.id} to="contattato" label="Riapri" />
+        )}
+        {(l.stage === "nuovo" || l.stage === "contattato") && (
+          <ConvertLead leadId={l.id} name={l.name} email={l.email} />
         )}
 
         <form action={deleteLead} className="ml-auto">

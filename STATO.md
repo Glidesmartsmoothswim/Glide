@@ -49,7 +49,7 @@ La voce "Lead" era già in sidebar (`/coach/lead`) ma cadeva sul placeholder `[s
 - **RLS `leads` verificata**: il coach crea+legge (1); uno swimmer che prova a scrivere → *42501 negato* (policy `is_coach()`).
 - `lint` + `tsc` + `next build` verdi (`/coach/lead` compilata).
 
-**Nota:** "Convertito" marca solo il lead; la creazione dell'account nuotatore resta il flusso esistente "Nuovo nuotatore" (service-role). Estensione naturale futura: bottone "Converti in nuotatore" che precompila quel flusso.
+**Converti in nuotatore — FATTO.** Bottone sulla card del lead (stage nuovo/contattato) → modale precompilato (nome→nome/cognome, email) + servizio → crea l'account nuotatore e marca il lead `convertito`. La creazione è estratta in un helper condiviso `lib/coach/create-swimmer.ts` (`createSwimmerAccount`), riusato sia da "Nuovo nuotatore" sia da "Converti lead" (utente auth via service-role + profilo, invito email o password temporanea in simulato). `lint`+`tsc`+`next build` verdi.
 
 ---
 ## 🚀 RUNBOOK v2 (in corso) — spec in `docs/`, migrations in `supabase/migrations/`
