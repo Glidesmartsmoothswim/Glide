@@ -4,13 +4,20 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-18 — **Sprint V.0 (sicurezza: C-1 role-lock, C-3 region EU) + intake/video specs**._
+_Ultimo aggiornamento: 2026-07-18 — **Sprint V.0 completo + V.1 avviato (DB intake applicato). 🛑 wizard/UI V.1 da fare.**_
 
 ## 🔐 Sprint V.0 — Verifiche di sicurezza (2026-07-18)
 - **C-1 · Role-lock — CHIUSO.** Era vulnerabile: un nuotatore autenticato poteva fare `update profiles set role='coach'` (verificato: passava). Fix `migration_015_role_lock` (**applicata**): trigger `protect_role_column` blocca il cambio di `role` per `anon`/`authenticated` (42501); `service_role`/`postgres` liberi (creazione admin + promozione manuale). **Ri-testato:** nuotatore → cambio ruolo **negato**, aggiornamento dei propri campi (first_name, anno_nascita…) **OK**.
 - **C-3 · Region — OK.** Progetto Supabase in **`eu-central-1` (Francoforte, EU)**. Nessuna migrazione necessaria.
 - **⚠️ C-2 · Prima di attivare chiavi Stripe live: verifica firma con raw body + idempotenza per `event.id` (C-2).** (Webhook Stripe NON toccato ora: Stripe parcheggiato.)
 - **SITO:** sezione marcata **[SUPERATA — sito in repo dedicato `glide-site`]**; il piano route-group non va eseguito qui.
+
+## 🧭 Sprint V.1 — Intake v2 (agonista/libero) — **DB applicato, UI da fare**
+- **`migration_016_intake` APPLICATA:** `profiles.athlete_type` (`agonista`/`libero`, default agonista) + `profiles.onboarding_done` (flag spostato da localStorage) + tabella **`intake`** (spec §5, **senza i campi tempi**: i tempi restano in `personal_bests`, Onda 11.3). RLS: self select/insert/update, coach select.
+- **RLS `intake` verificata:** scrittura cross-utente → *42501 negato*; self-insert **OK**.
+- **RICONCILIAZIONE con l'esistente** (spec scritta prima di Onda 11.3): niente tabella `swim_times`, niente wizard parallelo → si **estende** `/app/profilo/crea`. La terna CSS = PB 100/200/400 stesso stile+vasca, più recente per distanza.
+- **DA FARE (UI, ancora prima del 🛑 CANCELLO):** step 0 (card "Nuoto anche in gara" / "Nuoto per me") + step obiettivo comune (§2); percorso B (§4) con motore livello deterministico (Base/Intermedio/Avanzato, solo coach); nuotatore 'libero' non vede mai CSS/pace/Z5/livello numerico (verificare nella RISPOSTA API, non solo UI); scheda coach badge Agonista/Libero + livello (solo B) + obiettivo; spostare il flag onboarding da localStorage a `profiles.onboarding_done`.
+- **🛑 CANCELLO a fine V.1:** mostrare screenshot/percorso wizard + esiti RLS, attendere GO prima di V.2.
 
 
 **🌐 Deploy di test LIVE:** https://glide-zeta-ten.vercel.app — login GLIDE verificato (200, nessun errore).
