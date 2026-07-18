@@ -67,6 +67,18 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Schermate "splash" (login, offline): identità navy costante.
+   In light la pagina è navy (controlli bianchi, lettering navy);
+   in dark torna al fondo scuro standard (controlli scuri, logo trasparente). */
+.splash-bg {
+  background: linear-gradient(160deg, #274488 0%, #1b3169 55%, #142551 100%);
+}
+@media (prefers-color-scheme: dark) {
+  .splash-bg {
+    background: #070c15;
+  }
+}
+
 h1,
 h2,
 h3,
