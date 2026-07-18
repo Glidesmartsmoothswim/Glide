@@ -4,7 +4,7 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-18 — **ONDA 11: auth completa + profilo atleta self-service + editor (reset/modifica)**._
+_Ultimo aggiornamento: 2026-07-18 — **ONDA 11 (in `main`) + impalcatura sottosezione Lead**._
 
 **🌐 Deploy di test LIVE:** https://glide-zeta-ten.vercel.app — login GLIDE verificato (200, nessun errore).
 
@@ -38,6 +38,18 @@ _Ultimo aggiornamento: 2026-07-18 — **ONDA 11: auth completa + profilo atleta 
   - [ ] Registrazione con email già esistente e con rete lenta: l'app risponde, non si blocca.
   - [ ] Creare un profilo atleta completo da telefono (categoria auto, specialità, 3-4 tempi con date) e verificarlo in sola lettura sulla scheda coach.
   - [ ] Salvare un allenamento → editor si svuota da solo; modificare un pubblicato entro 14 giorni → aggiornato; oltre → bloccato con lucchetto.
+
+---
+## 🧲 Sottosezione LEAD — impalcatura (2026-07-18)
+
+La voce "Lead" era già in sidebar (`/coach/lead`) ma cadeva sul placeholder `[section]`. Portata la UII sulla tabella `leads` esistente (nessuna migration).
+- **`lib/leads.ts`**: tipi + vocabolario `stage` (nuovo/contattato/convertito/perso) e `source` (instagram/tiktok/sito/passaparola/altro) — allineati ai CHECK a DB.
+- **`/coach/lead`**: imbuto con conteggi per stage, liste raggruppate, card con contatti cliccabili (`tel:`/`mailto:`), pill sorgente, nota; transizioni di stage (Contattato → Convertito/Perso, Riapri) + Elimina. Form "Nuovo lead" (nome obbligatorio, telefono/email/sorgente/nota) che si chiude a inserimento riuscito.
+- **Actions** (`createLead`/`setLeadStage`/`deleteLead`, RLS `requireRole('coach')`).
+- **RLS `leads` verificata**: il coach crea+legge (1); uno swimmer che prova a scrivere → *42501 negato* (policy `is_coach()`).
+- `lint` + `tsc` + `next build` verdi (`/coach/lead` compilata).
+
+**Nota:** "Convertito" marca solo il lead; la creazione dell'account nuotatore resta il flusso esistente "Nuovo nuotatore" (service-role). Estensione naturale futura: bottone "Converti in nuotatore" che precompila quel flusso.
 
 ---
 ## 🚀 RUNBOOK v2 (in corso) — spec in `docs/`, migrations in `supabase/migrations/`
