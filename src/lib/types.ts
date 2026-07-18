@@ -65,6 +65,7 @@ export type WorkoutRow = {
   total_meters: number | null;
   published_at: string | null;
   created_at: string;
+  updated_at: string | null;
 };
 
 export const fullName = (p: {

@@ -4,7 +4,7 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-18 — **verifica sui sistemi live (Supabase + Vercel) + migration_012**._
+_Ultimo aggiornamento: 2026-07-18 — **ONDA 11: auth completa + profilo atleta self-service + editor (reset/modifica)**._
 
 **🌐 Deploy di test LIVE:** https://glide-zeta-ten.vercel.app — login GLIDE verificato (200, nessun errore).
 
@@ -15,6 +15,29 @@ _Ultimo aggiornamento: 2026-07-18 — **verifica sui sistemi live (Supabase + Ve
   - Restano di proposito i 2 WARN su `is_coach` (usata in 20 policy RLS `to public`: togliere il PUBLIC romperebbe le chiamate REST anon con "permission denied"; la funzione ritorna solo un booleano, nessun dato esposto).
   - Resta **da fare a mano**: Supabase → Auth → abilitare "Leaked password protection".
 - **Logo ufficiale integrato** (asset forniti dall'utente): `WaveLogo` ora mostra il lockup reale `public/brand/logo-mark.png` (mark a onde + wordmark), non più l'SVG a cerchi concentrici. Il wordmark è chiaro → su fondo chiaro (login/app in light mode) spariva: risolto con una **placca navy** di default (`plate`), disattivata dove lo sfondo è già scuro (sidebar coach `bg-ink`). Rigenerate le icone PWA (`public/icons/*`) e la `favicon.ico` (ri-encodata in RGBA: quella fornita rompeva il build di Next). Rimosso il "GLIDE" testuale duplicato accanto al mark. `lint` + `tsc` verdi; `next build` compila tutte le route (l'unico stop è env Supabase mancante nel clone, non la modifica).
+- **Login/offline splash navy** (design deciso con l'utente): in light la pagina è navy con controlli bianchi e lettering navy (tab attivo blu, bottone Entra blu); in dark il modello scuro precedente. Logo senza placca su queste schermate.
+
+---
+## 🌊 ONDA 11 — Auth completa + Profilo atleta + Editor (2026-07-18)
+
+**Migrations applicate su Supabase:** `013_swimmer_profile` (colonne profilo + `personal_bests` + RLS), `014_workout_published_backfill` (`published_at = created_at` dove null).
+
+**11.1 Reset password — FATTO.** Rotte `/forgot-password` (email → `resetPasswordForEmail`), `/auth/callback` (scambio `code` PKCE via `@supabase/ssr`), `/reset-password` (nuova password ≥8, gestione sessione scaduta → link "richiedi nuovo reset"). Link "Password dimenticata?" nel login. Rotte aggiunte a `PUBLIC_PATHS`. Brand navy coerente.
+**11.2 Registrazione robusta — FATTO.** Le action auth non fanno più redirect interno: il client gestisce il loading con try/catch/finally + **watchdog 15s** (l'app non resta mai bloccata), submit disabilitato durante l'invio, errori Supabase in italiano (già registrata/email non valida/password debole), schermata **"Controlla la tua email"** con l'indirizzo.
+**11.3 Profilo atleta self-service — FATTO.** Wizard 3 passi saltabili su `/app/profilo/crea` (rieditabile da Profilo): (1) anno → **categoria Master FIN auto** (`lib/profile/categoria.ts`, correggibile); (2) specialità a chip (stili/distanze); (3) personal best con tempo **MIN:SEC.CENT** ad avanzamento automatico + anteprima live (`lib/profile/tempo.ts`), upsert unico per distanza+stile+vasca. Dopo signup il nuovo nuotatore è instradato al wizard. Scheda coach: sezione **Profilo in sola lettura**. **Unit test 7/7 verdi** (`categoria.test.ts`, `tempo.test.ts`) via `tsx --test`.
+**11.4 Editor: reset + modifica pubblicati — FATTO.** Reset automatico dell'editor a salvataggio confermato dal DB (rimonto via `key`, mai su errore) + "Salvato in scheda" con link. Modifica dei pubblicati entro **14 giorni** (`lib/config.ts WORKOUT_EDIT_WINDOW_DAYS`, imposta sia in UI sia lato server in `updateWorkout`): entro finestra → "Modifica" precompilata (aggiorna il record, `updated_at`, etichetta "Aggiornato" al nuotatore); oltre → lucchetto "Non più modificabile", ma sempre "Duplica come nuovo". Avviso "N atleti l'hanno svolto" (i log delle sessioni non vengono toccati). Applicato a schede personali e Canale Open.
+
+**Verifica:** `npm run lint` + `tsc --noEmit` + `next build` verdi (tutte le route, incluse le nuove). Pagine auth rese a schermo (navy, ok). **RLS `personal_bests` confermata con entrambi i ruoli**: scrittura cross-utente → *42501 negato*; il coach legge i PB dell'atleta (1), un altro nuotatore no (0).
+
+**📌 Da fare a mano (Onda 11):**
+- **Supabase → Authentication → URL Configuration**:
+  - **Site URL:** `https://glide-zeta-ten.vercel.app` (o dominio prod definitivo).
+  - **Redirect URLs** (aggiungere): `https://glide-zeta-ten.vercel.app/auth/callback`, `https://glide-zeta-ten.vercel.app/reset-password`, e per lo sviluppo locale `http://localhost:3000/auth/callback`, `http://localhost:3000/reset-password`.
+- Collaudo mobile (dal browser, la mia rete sandbox è isolata):
+  - [ ] Password dimenticata → email → nuova password → login (con `RESEND_API_KEY` per l'invio reale).
+  - [ ] Registrazione con email già esistente e con rete lenta: l'app risponde, non si blocca.
+  - [ ] Creare un profilo atleta completo da telefono (categoria auto, specialità, 3-4 tempi con date) e verificarlo in sola lettura sulla scheda coach.
+  - [ ] Salvare un allenamento → editor si svuota da solo; modificare un pubblicato entro 14 giorni → aggiornato; oltre → bloccato con lucchetto.
 
 ---
 ## 🚀 RUNBOOK v2 (in corso) — spec in `docs/`, migrations in `supabase/migrations/`

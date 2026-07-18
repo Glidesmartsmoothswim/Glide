@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Plus, Trash2, Waves } from "lucide-react";
+import { CheckCircle2, Plus, Trash2, Waves } from "lucide-react";
 import {
   ZONES,
   woMeters,
@@ -13,7 +14,11 @@ import {
 } from "@/lib/workout";
 import { WEEK_DAYS } from "@/lib/types";
 
-export type WorkoutFormState = { error?: string; info?: string };
+export type WorkoutFormState = {
+  error?: string;
+  info?: string;
+  workoutId?: string;
+};
 
 const ZONE_IDS = Object.keys(ZONES) as ZoneId[];
 
@@ -23,6 +28,33 @@ const emptyBlock = (): Block => ({
   rounds: 1,
   lines: [""],
 });
+
+const defaultBlocks = (): Block[] => [
+  { z: "Z1", name: "Riscaldamento", rounds: 1, lines: ["600 SL pinne Z1"] },
+];
+
+export type WorkoutInitial = {
+  title?: string;
+  focus?: string | null;
+  pool?: number;
+  week_day?: string;
+  blocks?: Block[];
+};
+
+type EditorProps = {
+  action: (
+    prev: WorkoutFormState,
+    formData: FormData,
+  ) => Promise<WorkoutFormState>;
+  context: "personal" | "open";
+  swimmerId?: string;
+  /** Se presente → modalità MODIFICA di un allenamento esistente. */
+  workoutId?: string;
+  initial?: WorkoutInitial;
+  submitLabel?: string;
+  /** Ancora/URL a cui rimanda il link "Vai alla scheda" dopo il salvataggio. */
+  successHref?: string;
+};
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -38,33 +70,53 @@ function Submit({ label }: { label: string }) {
   );
 }
 
-export function WorkoutEditor({
-  action,
+export function WorkoutEditor(props: EditorProps) {
+  const isEdit = Boolean(props.workoutId);
+  const [state, formAction] = useActionState(
+    props.action,
+    {} as WorkoutFormState,
+  );
+
+  // Reset DOPO un salvataggio riuscito (solo in inserimento): rimontiamo il
+  // form cambiando `key`. Il cambio di key è deciso in fase di render
+  // confrontando l'ultimo stato visto (pattern React, niente useEffect).
+  const [formKey, setFormKey] = useState(0);
+  const [seen, setSeen] = useState<WorkoutFormState>(state);
+  if (state !== seen) {
+    setSeen(state);
+    if (state.info && !state.error && !isEdit) setFormKey((k) => k + 1);
+  }
+
+  return (
+    <EditorForm key={formKey} {...props} state={state} formAction={formAction} />
+  );
+}
+
+function EditorForm({
   context,
   swimmerId,
+  workoutId,
+  initial,
   submitLabel = "Salva allenamento",
-}: {
-  action: (
-    prev: WorkoutFormState,
-    formData: FormData,
-  ) => Promise<WorkoutFormState>;
-  context: "personal" | "open";
-  swimmerId?: string;
-  submitLabel?: string;
+  successHref,
+  state,
+  formAction,
+}: EditorProps & {
+  state: WorkoutFormState;
+  formAction: (formData: FormData) => void;
 }) {
-  const [blocks, setBlocks] = useState<Block[]>([
-    { z: "Z1", name: "Riscaldamento", rounds: 1, lines: ["600 SL pinne Z1"] },
-  ]);
-  const [state, formAction] = useActionState(action, {} as WorkoutFormState);
+  const [blocks, setBlocks] = useState<Block[]>(
+    initial?.blocks?.length ? initial.blocks : defaultBlocks(),
+  );
 
   const total = woMeters(blocks);
-
   const patch = (i: number, p: Partial<Block>) =>
     setBlocks((bs) => bs.map((b, j) => (j === i ? { ...b, ...p } : b)));
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
       {swimmerId && <input type="hidden" name="swimmer_id" value={swimmerId} />}
+      {workoutId && <input type="hidden" name="workout_id" value={workoutId} />}
       <input type="hidden" name="blocks" value={JSON.stringify(blocks)} />
       <input type="hidden" name="total_meters" value={total} />
 
@@ -72,17 +124,19 @@ export function WorkoutEditor({
         <input
           name="title"
           required
+          defaultValue={initial?.title ?? ""}
           placeholder="Titolo (es. Soglia progressiva)"
           className="rounded-xl border border-border bg-background px-3 py-2.5 outline-none focus:border-blu"
         />
         <input
           name="focus"
+          defaultValue={initial?.focus ?? ""}
           placeholder="Focus (es. Z3 · Fartlek)"
           className="rounded-xl border border-border bg-background px-3 py-2.5 outline-none focus:border-blu"
         />
         <select
           name="pool"
-          defaultValue="25"
+          defaultValue={String(initial?.pool ?? 25)}
           className="rounded-xl border border-border bg-background px-3 py-2.5 outline-none focus:border-blu"
         >
           <option value="25">Vasca 25 m</option>
@@ -91,7 +145,7 @@ export function WorkoutEditor({
         {context === "open" && (
           <select
             name="week_day"
-            defaultValue="Lun"
+            defaultValue={initial?.week_day ?? "Lun"}
             className="rounded-xl border border-border bg-background px-3 py-2.5 outline-none focus:border-blu"
           >
             {WEEK_DAYS.map((d) => (
@@ -199,7 +253,16 @@ export function WorkoutEditor({
       </div>
 
       {state.error && <p className="text-sm text-[#DC2626]">{state.error}</p>}
-      {state.info && <p className="text-sm text-teal">{state.info}</p>}
+      {state.info && !state.error && (
+        <p className="inline-flex items-center gap-2 text-sm text-teal">
+          <CheckCircle2 size={16} /> {state.info}
+          {successHref && (
+            <Link href={successHref} className="underline">
+              Vai alla scheda
+            </Link>
+          )}
+        </p>
+      )}
 
       <div className="flex justify-end">
         <Submit label={submitLabel} />

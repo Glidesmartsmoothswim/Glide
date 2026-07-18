@@ -5,6 +5,12 @@ import { Card, Pill } from "@/components/ui/card";
 /** Visualizza un allenamento salvato (blocchi a zone + metri). */
 export function WorkoutCard({ w }: { w: WorkoutRow }) {
   const blocks = Array.isArray(w.blocks) ? w.blocks : [];
+  const updated =
+    Boolean(w.updated_at) &&
+    Boolean(w.published_at) &&
+    new Date(w.updated_at as string).getTime() -
+      new Date(w.published_at as string).getTime() >
+      60_000;
   return (
     <Card className="flex flex-col gap-3">
       <div className="flex items-start justify-between gap-3">
@@ -13,6 +19,7 @@ export function WorkoutCard({ w }: { w: WorkoutRow }) {
           {w.focus && <p className="text-sm text-muted">{w.focus}</p>}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
+          {updated && <Pill tone="brand">Aggiornato</Pill>}
           {w.week_day && <Pill tone="brand">{w.week_day}</Pill>}
           <span className="text-xs text-muted">
             {(w.total_meters ?? 0).toLocaleString("it-IT")} m · {w.pool ?? 25} m
