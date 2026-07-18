@@ -4,7 +4,14 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-18 — **ONDA 11 (in `main`) + impalcatura sottosezione Lead**._
+_Ultimo aggiornamento: 2026-07-18 — **Sprint V.0 (sicurezza: C-1 role-lock, C-3 region EU) + intake/video specs**._
+
+## 🔐 Sprint V.0 — Verifiche di sicurezza (2026-07-18)
+- **C-1 · Role-lock — CHIUSO.** Era vulnerabile: un nuotatore autenticato poteva fare `update profiles set role='coach'` (verificato: passava). Fix `migration_015_role_lock` (**applicata**): trigger `protect_role_column` blocca il cambio di `role` per `anon`/`authenticated` (42501); `service_role`/`postgres` liberi (creazione admin + promozione manuale). **Ri-testato:** nuotatore → cambio ruolo **negato**, aggiornamento dei propri campi (first_name, anno_nascita…) **OK**.
+- **C-3 · Region — OK.** Progetto Supabase in **`eu-central-1` (Francoforte, EU)**. Nessuna migrazione necessaria.
+- **⚠️ C-2 · Prima di attivare chiavi Stripe live: verifica firma con raw body + idempotenza per `event.id` (C-2).** (Webhook Stripe NON toccato ora: Stripe parcheggiato.)
+- **SITO:** sezione marcata **[SUPERATA — sito in repo dedicato `glide-site`]**; il piano route-group non va eseguito qui.
+
 
 **🌐 Deploy di test LIVE:** https://glide-zeta-ten.vercel.app — login GLIDE verificato (200, nessun errore).
 
@@ -367,7 +374,13 @@ Fase 1 completa. Da fare con l'utente: (a) **checklist chiavi** qui sopra;
 e uno **swimmer**; (c) eventuale **deploy su Vercel** + collegamento remote GitHub.
 Fuori scope Fase 1 (schema presente ma UI non portata): **Chat** coach⇄nuotatore, **Lead**.
 
-## 🌊 SITO (funnel pubblico) — piano, non ancora eseguito
+## 🌊 SITO (funnel pubblico) — **[SUPERATA — sito in repo dedicato]**
+> ⛔️ **NON eseguire questo piano.** Il sito marketing vive in un repo separato
+> (`glide-site` → glideswim.it), non in questo. Il piano di ristrutturazione a
+> route group qui sotto è **superato**: lasciato solo per memoria storica.
+
+<details><summary>Piano storico (superato)</summary>
+
 > Obiettivo: sito-funnel nello **stesso repo**, sostituisce Linktree, cattura email, spinge nell'app.
 > Sprint dedicati **S1–S4** (numerazione del runbook "SITO", distinta dagli Sprint 0–5 dell'app).
 
@@ -388,6 +401,8 @@ Fuori scope Fase 1 (schema presente ma UI non portata): **Chat** coach⇄nuotato
 8. Copy in `content/site.ts` (unico file editabile dall'utente).
 
 **Decisioni prese:** bio pubblica su `/coach-alessio` (default, app URLs stabili). **In attesa di via libera per S1.**
+
+</details>
 
 ## Log sprint
 - **Sprint 0** — impalcatura completa. Commit `e42a908` (+ `19134ab` settings). Build verde, login+gating validati in locale.
