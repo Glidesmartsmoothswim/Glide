@@ -2,7 +2,7 @@ import { Radio } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/card";
 import { WorkoutEditor } from "@/components/workout/editor";
-import { WorkoutCard } from "@/components/workout/workout-card";
+import { CoachWorkoutCard } from "@/components/workout/coach-workout-card";
 import { saveOpenWorkout } from "../workout-actions";
 import { WEEK_DAYS, type WorkoutRow } from "@/lib/types";
 
@@ -16,6 +16,17 @@ export default async function CanaleOpen() {
     .eq("kind", "open_channel")
     .order("published_at", { ascending: false });
   const workouts = (data ?? []) as WorkoutRow[];
+
+  // Quante volte ogni allenamento Open è stato svolto (coach vede tutto).
+  const { data: doneEv } = await supabase
+    .from("activity_events")
+    .select("payload")
+    .eq("type", "workout.completed");
+  const doneCount: Record<string, number> = {};
+  (doneEv ?? []).forEach((e) => {
+    const wid = (e.payload as { workout_id?: string } | null)?.workout_id;
+    if (wid) doneCount[wid] = (doneCount[wid] ?? 0) + 1;
+  });
 
   const byDay = WEEK_DAYS.map((d) => ({
     day: d,
@@ -45,11 +56,12 @@ export default async function CanaleOpen() {
             action={saveOpenWorkout}
             context="open"
             submitLabel="Pubblica sul Canale Open"
+            successHref="#pubblicati"
           />
         </Card>
       </section>
 
-      <section className="flex flex-col gap-4">
+      <section id="pubblicati" className="flex flex-col gap-4">
         <h2 className="font-display text-lg text-foreground">
           Pubblicati ({workouts.length})
         </h2>
@@ -61,7 +73,11 @@ export default async function CanaleOpen() {
           byDay.map((g) => (
             <div key={g.day} className="flex flex-col gap-3">
               {g.items.map((w) => (
-                <WorkoutCard key={w.id} w={w} />
+                <CoachWorkoutCard
+                  key={w.id}
+                  w={w}
+                  doneCount={doneCount[w.id] ?? 0}
+                />
               ))}
             </div>
           ))

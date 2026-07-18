@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
@@ -5,6 +6,8 @@ import { clientFeatures } from "@/lib/flags";
 import { signOut } from "@/app/login/actions";
 import { Card, Pill } from "@/components/ui/card";
 import { subscribe } from "./actions";
+import { formatTempo } from "@/lib/profile/tempo";
+import { STILE_LABEL, type Stile } from "@/lib/profile/costanti";
 import {
   SERVICE_LABEL,
   CERT_LABEL,
@@ -45,6 +48,25 @@ export default async function SwimmerProfilo({
     .limit(1)
     .maybeSingle();
 
+  const { data: ath } = await supabase
+    .from("profiles")
+    .select("anno_nascita, categoria, stili_abituali, distanze_abituali")
+    .eq("id", profile?.id ?? "")
+    .single();
+
+  const { data: pbs } = await supabase
+    .from("personal_bests")
+    .select("id, distanza_m, stile, vasca, tempo_cc, data_conseguimento")
+    .eq("swimmer_id", profile?.id ?? "")
+    .order("stile", { ascending: true })
+    .order("distanza_m", { ascending: true });
+
+  const hasProfile = Boolean(
+    ath?.anno_nascita ||
+      (ath?.stili_abituali?.length ?? 0) > 0 ||
+      (pbs?.length ?? 0) > 0,
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <header>
@@ -66,6 +88,64 @@ export default async function SwimmerProfilo({
           />
         </Card>
       )}
+
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg text-foreground">Profilo atleta</h2>
+          <Link
+            href="/app/profilo/crea"
+            className="text-sm font-semibold text-blu"
+          >
+            {hasProfile ? "Modifica" : "Completa"}
+          </Link>
+        </div>
+        {hasProfile ? (
+          <Card className="flex flex-col gap-2 text-sm">
+            {ath?.categoria && <Row label="Categoria" value={ath.categoria} />}
+            {ath?.anno_nascita && (
+              <Row label="Anno" value={String(ath.anno_nascita)} />
+            )}
+            {(ath?.stili_abituali?.length ?? 0) > 0 && (
+              <Row
+                label="Stili"
+                value={ath!.stili_abituali
+                  .map((s: string) => STILE_LABEL[s as Stile] ?? s)
+                  .join(", ")}
+              />
+            )}
+            {(ath?.distanze_abituali?.length ?? 0) > 0 && (
+              <Row
+                label="Distanze"
+                value={ath!.distanze_abituali
+                  .map((d: string) => (d === "Fondo" ? "Fondo" : `${d} m`))
+                  .join(", ")}
+              />
+            )}
+            {(pbs?.length ?? 0) > 0 && (
+              <div className="mt-1 flex flex-col gap-1 border-t border-border pt-2">
+                <p className="text-muted">Personal best</p>
+                {pbs!.map((pb) => (
+                  <div key={pb.id} className="flex justify-between">
+                    <span className="text-muted">
+                      {pb.distanza_m} {pb.stile} · vasca {pb.vasca}
+                    </span>
+                    <span className="font-semibold text-foreground">
+                      {formatTempo(pb.tempo_cc)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        ) : (
+          <Card className="text-sm text-muted">
+            Racconta chi sei: categoria, specialità e i tuoi tempi.{" "}
+            <Link href="/app/profilo/crea" className="font-semibold text-blu">
+              Inizia →
+            </Link>
+          </Card>
+        )}
+      </section>
 
       {sp.ok && (
         <Card className="text-teal">Pagamento completato. Grazie!</Card>

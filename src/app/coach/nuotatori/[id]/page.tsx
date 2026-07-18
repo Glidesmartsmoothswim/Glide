@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Avatar, Card, Pill } from "@/components/ui/card";
 import { WorkoutEditor } from "@/components/workout/editor";
-import { WorkoutCard } from "@/components/workout/workout-card";
+import { CoachWorkoutCard } from "@/components/workout/coach-workout-card";
 import { ReadinessProgress } from "@/components/readiness/progress";
 import { EfficiencyCurves, type EffPoint } from "@/components/readiness/efficiency";
 import { OndaCard, GlideScoreCard } from "@/components/score/score-cards";
@@ -14,6 +14,8 @@ import { ConferBadges } from "@/components/badges/confer-badges";
 import { IdentityCard } from "@/components/identity/identity-card";
 import { computeIdentity } from "@/lib/identity/compute";
 import type { VReadinessRow } from "@/lib/readiness";
+import { formatTempo } from "@/lib/profile/tempo";
+import { STILE_LABEL, type Stile } from "@/lib/profile/costanti";
 import { savePersonalWorkout } from "../../workout-actions";
 import { archiveSwimmer } from "../actions";
 import { EditSwimmerForm } from "./edit-form";
@@ -51,6 +53,36 @@ export default async function SwimmerDetail({
     .eq("kind", "personal")
     .order("created_at", { ascending: false });
   const workouts = (wData ?? []) as WorkoutRow[];
+
+  // Profilo atleta dichiarato (sola lettura lato coach).
+  const { data: ath } = await supabase
+    .from("profiles")
+    .select("anno_nascita, categoria, stili_abituali, distanze_abituali")
+    .eq("id", id)
+    .single();
+  const { data: pbs } = await supabase
+    .from("personal_bests")
+    .select("id, distanza_m, stile, vasca, tempo_cc")
+    .eq("swimmer_id", id)
+    .order("stile", { ascending: true })
+    .order("distanza_m", { ascending: true });
+  const hasAthProfile = Boolean(
+    ath?.anno_nascita ||
+      (ath?.stili_abituali?.length ?? 0) > 0 ||
+      (pbs?.length ?? 0) > 0,
+  );
+
+  // Quante volte ogni scheda è stata "svolta" (per l'avviso in modifica).
+  const { data: doneEv } = await supabase
+    .from("activity_events")
+    .select("payload")
+    .eq("user_id", id)
+    .eq("type", "workout.completed");
+  const doneCount: Record<string, number> = {};
+  (doneEv ?? []).forEach((e) => {
+    const wid = (e.payload as { workout_id?: string } | null)?.workout_id;
+    if (wid) doneCount[wid] = (doneCount[wid] ?? 0) + 1;
+  });
 
   // Il coach legge la vista scomposta (fisica + mentale). Mai una media unica.
   const { data: rData } = await supabase
@@ -143,6 +175,58 @@ export default async function SwimmerDetail({
         <EditSwimmerForm s={swimmer} />
       </Card>
 
+      {hasAthProfile && (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-display text-lg text-foreground">Profilo</h2>
+          <Card className="flex flex-col gap-2 text-sm">
+            {ath?.categoria && (
+              <div className="flex justify-between">
+                <span className="text-muted">Categoria</span>
+                <span className="font-semibold text-foreground">
+                  {ath.categoria}
+                  {ath?.anno_nascita ? ` · ${ath.anno_nascita}` : ""}
+                </span>
+              </div>
+            )}
+            {(ath?.stili_abituali?.length ?? 0) > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted">Stili</span>
+                <span className="font-semibold text-foreground">
+                  {ath!.stili_abituali
+                    .map((s: string) => STILE_LABEL[s as Stile] ?? s)
+                    .join(", ")}
+                </span>
+              </div>
+            )}
+            {(ath?.distanze_abituali?.length ?? 0) > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted">Distanze</span>
+                <span className="font-semibold text-foreground">
+                  {ath!.distanze_abituali
+                    .map((d: string) => (d === "Fondo" ? "Fondo" : `${d} m`))
+                    .join(", ")}
+                </span>
+              </div>
+            )}
+            {(pbs?.length ?? 0) > 0 && (
+              <div className="mt-1 flex flex-col gap-1 border-t border-border pt-2">
+                <p className="text-muted">Personal best</p>
+                {pbs!.map((pb) => (
+                  <div key={pb.id} className="flex justify-between">
+                    <span className="text-muted">
+                      {pb.distanza_m} {pb.stile} · vasca {pb.vasca}
+                    </span>
+                    <span className="font-semibold text-foreground">
+                      {formatTempo(pb.tempo_cc)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </section>
+      )}
+
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-lg text-foreground">Progressi</h2>
         <IdentityCard identity={identity} />
@@ -180,17 +264,22 @@ export default async function SwimmerDetail({
             context="personal"
             swimmerId={swimmer.id}
             submitLabel="Salva scheda personale"
+            successHref="#schede"
           />
         </Card>
       </section>
 
       {workouts.length > 0 && (
-        <section className="flex flex-col gap-3">
+        <section id="schede" className="flex flex-col gap-3">
           <h2 className="font-display text-lg text-foreground">
             Schede ({workouts.length})
           </h2>
           {workouts.map((w) => (
-            <WorkoutCard key={w.id} w={w} />
+            <CoachWorkoutCard
+              key={w.id}
+              w={w}
+              doneCount={doneCount[w.id] ?? 0}
+            />
           ))}
         </section>
       )}
