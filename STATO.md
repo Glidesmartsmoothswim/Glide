@@ -14,6 +14,7 @@ _Ultimo aggiornamento: 2026-07-18 — **verifica sui sistemi live (Supabase + Ve
 - **Advisor sicurezza:** `migration_012` revoca l'EXECUTE **da PUBLIC** su `handle_new_user` (la 009 revocava da anon/authenticated, ma il grant era ereditato da PUBLIC → no-op). Chiusi i 2 WARN su `handle_new_user`.
   - Restano di proposito i 2 WARN su `is_coach` (usata in 20 policy RLS `to public`: togliere il PUBLIC romperebbe le chiamate REST anon con "permission denied"; la funzione ritorna solo un booleano, nessun dato esposto).
   - Resta **da fare a mano**: Supabase → Auth → abilitare "Leaked password protection".
+- **Logo ufficiale integrato** (asset forniti dall'utente): `WaveLogo` ora mostra il lockup reale `public/brand/logo-mark.png` (mark a onde + wordmark), non più l'SVG a cerchi concentrici. Il wordmark è chiaro → su fondo chiaro (login/app in light mode) spariva: risolto con una **placca navy** di default (`plate`), disattivata dove lo sfondo è già scuro (sidebar coach `bg-ink`). Rigenerate le icone PWA (`public/icons/*`) e la `favicon.ico` (ri-encodata in RGBA: quella fornita rompeva il build di Next). Rimosso il "GLIDE" testuale duplicato accanto al mark. `lint` + `tsc` verdi; `next build` compila tutte le route (l'unico stop è env Supabase mancante nel clone, non la modifica).
 
 ---
 ## 🚀 RUNBOOK v2 (in corso) — spec in `docs/`, migrations in `supabase/migrations/`

@@ -41,7 +41,7 @@ export default async function SwimmerToday() {
           <p className="text-sm text-muted">Ciao {name},</p>
           <h1 className="font-display text-2xl text-foreground">Oggi</h1>
         </div>
-        <WaveLogo size={36} />
+        <WaveLogo height={30} />
       </header>
 
       <section className="flex flex-col gap-3">
