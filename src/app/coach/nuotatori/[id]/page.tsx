@@ -16,6 +16,11 @@ import { computeIdentity } from "@/lib/identity/compute";
 import type { VReadinessRow } from "@/lib/readiness";
 import { formatTempo } from "@/lib/profile/tempo";
 import { STILE_LABEL, type Stile } from "@/lib/profile/costanti";
+import {
+  livelloLibero,
+  OBIETTIVO_LABEL,
+  ATHLETE_LABEL,
+} from "@/lib/profile/intake";
 import { savePersonalWorkout } from "../../workout-actions";
 import { archiveSwimmer } from "../actions";
 import { EditSwimmerForm } from "./edit-form";
@@ -57,7 +62,7 @@ export default async function SwimmerDetail({
   // Profilo atleta dichiarato (sola lettura lato coach).
   const { data: ath } = await supabase
     .from("profiles")
-    .select("anno_nascita, categoria, stili_abituali, distanze_abituali")
+    .select("athlete_type, anno_nascita, categoria, stili_abituali, distanze_abituali")
     .eq("id", id)
     .single();
   const { data: pbs } = await supabase
@@ -66,10 +71,19 @@ export default async function SwimmerDetail({
     .eq("swimmer_id", id)
     .order("stile", { ascending: true })
     .order("distanza_m", { ascending: true });
+  const { data: intake } = await supabase
+    .from("intake")
+    .select("*")
+    .eq("user_id", id)
+    .maybeSingle();
+  // Livello (deterministico) SOLO per il percorso libero; mai mostrato al nuotatore.
+  const livello =
+    intake && ath?.athlete_type === "libero" ? livelloLibero(intake) : null;
   const hasAthProfile = Boolean(
     ath?.anno_nascita ||
       (ath?.stili_abituali?.length ?? 0) > 0 ||
-      (pbs?.length ?? 0) > 0,
+      (pbs?.length ?? 0) > 0 ||
+      intake,
   );
 
   // Quante volte ogni scheda è stata "svolta" (per l'avviso in modifica).
@@ -177,8 +191,32 @@ export default async function SwimmerDetail({
 
       {hasAthProfile && (
         <section className="flex flex-col gap-3">
-          <h2 className="font-display text-lg text-foreground">Profilo</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="font-display text-lg text-foreground">Profilo</h2>
+            {ath?.athlete_type && (
+              <Pill tone="brand">{ATHLETE_LABEL[ath.athlete_type as "agonista" | "libero"]}</Pill>
+            )}
+            {livello && <Pill tone="brand">Livello {livello}</Pill>}
+          </div>
           <Card className="flex flex-col gap-2 text-sm">
+            {intake?.goal_primary && (
+              <div className="flex justify-between">
+                <span className="text-muted">Obiettivo</span>
+                <span className="font-semibold text-foreground">
+                  {OBIETTIVO_LABEL[
+                    intake.goal_primary as keyof typeof OBIETTIVO_LABEL
+                  ] ?? intake.goal_primary}
+                </span>
+              </div>
+            )}
+            {intake?.freq_settimanale && (
+              <div className="flex justify-between">
+                <span className="text-muted">Frequenza / vasca</span>
+                <span className="font-semibold text-foreground">
+                  {intake.freq_settimanale}×/sett · {intake.vasca} m
+                </span>
+              </div>
+            )}
             {ath?.categoria && (
               <div className="flex justify-between">
                 <span className="text-muted">Categoria</span>

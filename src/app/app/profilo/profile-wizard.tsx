@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Plus, Trash2 } from "lucide-react";
+import { Check, Plus, Trash2, Trophy, Waves } from "lucide-react";
 import { categoriaMaster } from "@/lib/profile/categoria";
 import {
   STILI,
@@ -14,7 +14,27 @@ import {
 } from "@/lib/profile/costanti";
 import { formatTempo, parseTempo } from "@/lib/profile/tempo";
 import {
+  type AthleteType,
+  type IntakeRow,
+  OBIETTIVI,
+  OBIETTIVO_LABEL,
+  FREQ,
+  ANNI_NUOTO,
+  CONTINUITA,
+  CONTINUITA_LABEL,
+  CORSI,
+  CORSI_LABEL,
+  STILI_SAI,
+  STILE_SAI_LABEL,
+  NESSUNO_STILE,
+  AUTOVAL_ANCORE,
+  AREE,
+  AREE_LABEL,
+} from "@/lib/profile/intake";
+import {
   saveProfileBasics,
+  saveIntake,
+  setAthleteType,
   upsertPersonalBest,
   deletePersonalBest,
 } from "./actions";
@@ -29,12 +49,16 @@ export type PB = {
 };
 
 export type WizardInitial = {
+  athlete_type: AthleteType | null;
   anno_nascita: number | null;
   categoria: string | null;
   stili_abituali: string[];
   distanze_abituali: string[];
   personalBests: PB[];
+  intake: Partial<IntakeRow> | null;
 };
+
+type Step = "type" | "comune" | "specialita" | "tempi" | "storia" | "libero";
 
 const CATEGORIE = [
   "U25",
@@ -42,23 +66,13 @@ const CATEGORIE = [
   "M95+",
 ];
 
-function Chip({
-  label,
-  on,
-  onClick,
-}: {
-  label: string;
-  on: boolean;
-  onClick: () => void;
-}) {
+function Chip({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors ${
-        on
-          ? "border-navy bg-navy text-white"
-          : "border-border bg-surface text-foreground"
+        on ? "border-navy bg-navy text-white" : "border-border bg-surface text-foreground"
       }`}
     >
       {on && <Check size={13} className="mr-1 inline" />}
@@ -67,7 +81,6 @@ function Chip({
   );
 }
 
-/** Tre campi MIN : SEC . CENT con avanzamento automatico. */
 function TimeInput({
   value,
   onChange,
@@ -77,7 +90,6 @@ function TimeInput({
 }) {
   const secRef = useRef<HTMLInputElement>(null);
   const centRef = useRef<HTMLInputElement>(null);
-
   const cell = (
     name: "min" | "sec" | "cent",
     ref: React.RefObject<HTMLInputElement | null> | null,
@@ -102,7 +114,6 @@ function TimeInput({
       <span className="mt-1 text-[11px] text-muted">{label}</span>
     </div>
   );
-
   return (
     <div className="flex items-center gap-1">
       {cell("min", null, secRef, "min", "1")}
@@ -116,46 +127,115 @@ function TimeInput({
 
 export function ProfileWizard({ initial }: { initial: WizardInitial }) {
   const router = useRouter();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<Step>(
+    initial.athlete_type ? "comune" : "type",
+  );
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
 
-  // Passo 1
+  const [type, setType] = useState<AthleteType | null>(initial.athlete_type);
+
+  // comune
   const [anno, setAnno] = useState(
     initial.anno_nascita ? String(initial.anno_nascita) : "",
   );
   const [categoria, setCategoria] = useState(initial.categoria ?? "");
   const [catTouched, setCatTouched] = useState(Boolean(initial.categoria));
+  const [vasca, setVasca] = useState<number>(initial.intake?.vasca ?? 25);
+  const [freq, setFreq] = useState<string>(
+    initial.intake?.freq_settimanale ?? "",
+  );
+  const [obiettivo, setObiettivo] = useState<string>(
+    initial.intake?.goal_primary ?? "",
+  );
+  const [goalNote, setGoalNote] = useState(initial.intake?.goal_note ?? "");
 
-  // Passo 2
+  // percorso A · specialità/tempi/storia
   const [stili, setStili] = useState<string[]>(initial.stili_abituali);
   const [distanze, setDistanze] = useState<string[]>(initial.distanze_abituali);
-
-  // Passo 3
   const [pbs, setPbs] = useState<PB[]>(initial.personalBests);
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [anniNuoto, setAnniNuoto] = useState<string>(
+    initial.intake?.anni_nuoto ?? "",
+  );
+  const [continuita, setContinuita] = useState<string>(
+    initial.intake?.continuita ?? "",
+  );
+  const [gare12m, setGare12m] = useState<boolean | null>(
+    initial.intake?.gare_12m ?? null,
+  );
+  const [espInt, setEspInt] = useState<boolean | null>(
+    initial.intake?.esperienza_intensita ?? null,
+  );
+  const [deviceFc, setDeviceFc] = useState<boolean | null>(
+    initial.intake?.device_fc ?? null,
+  );
+
+  // percorso B · libero
+  const [corsi, setCorsi] = useState<string>(initial.intake?.corsi ?? "");
+  const [stiliSai, setStiliSai] = useState<string[]>(initial.intake?.stili ?? []);
+  const [autoval, setAutoval] = useState<number | null>(
+    initial.intake?.autovalutazione ?? null,
+  );
+  const [aree, setAree] = useState<string[]>(
+    initial.intake?.aree_miglioramento ?? [],
+  );
 
   const autoCat = anno ? categoriaMaster(Number(anno)) : "";
   const shownCat = catTouched ? categoria : autoCat;
 
-  const toggle = (
-    list: string[],
-    set: (v: string[]) => void,
-    v: string,
-  ) => set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
+  const toggle = (list: string[], set: (v: string[]) => void, v: string) =>
+    set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
-  async function saveStep1(next: boolean) {
+  /** Corpo intake corrente (per gli upsert). */
+  const intakePayload = () => ({
+    goal_primary: obiettivo,
+    goal_note: goalNote || null,
+    freq_settimanale: freq,
+    vasca,
+    anni_nuoto: anniNuoto || null,
+    continuita: continuita || null,
+    gare_12m: gare12m,
+    esperienza_intensita: espInt,
+    device_fc: deviceFc,
+    corsi: corsi || null,
+    stili: type === "libero" ? stiliSai : null,
+    autovalutazione: type === "libero" ? autoval : null,
+    aree_miglioramento: type === "libero" ? aree : null,
+  });
+
+  async function chooseType(t: AthleteType) {
     setSaving(true);
     setMsg(null);
-    const res = await saveProfileBasics({
-      anno_nascita: anno ? Number(anno) : null,
-      categoria: shownCat || null,
-    });
+    setType(t);
+    const res = await setAthleteType(t);
     setSaving(false);
     if (res.error) return setMsg(res.error);
-    if (next) setStep(2);
+    setStep("comune");
   }
 
-  async function saveStep2(next: boolean) {
+  async function saveComune(next: boolean) {
+    setSaving(true);
+    setMsg(null);
+    // anno/categoria sul profilo
+    if (anno)
+      await saveProfileBasics({
+        anno_nascita: Number(anno),
+        categoria: shownCat || null,
+      });
+    // intake (obbligatori: obiettivo, freq, vasca)
+    let ok = true;
+    if (obiettivo && freq && vasca) {
+      const res = await saveIntake(intakePayload());
+      if (res.error) {
+        ok = false;
+        setMsg(res.error);
+      }
+    }
+    setSaving(false);
+    if (next && ok) setStep(type === "libero" ? "libero" : "specialita");
+  }
+
+  async function saveSpecialita(next: boolean) {
     setSaving(true);
     setMsg(null);
     const res = await saveProfileBasics({
@@ -164,30 +244,109 @@ export function ProfileWizard({ initial }: { initial: WizardInitial }) {
     });
     setSaving(false);
     if (res.error) return setMsg(res.error);
-    if (next) setStep(3);
+    if (next) setStep("tempi");
   }
+
+  async function saveStoria(finish: boolean) {
+    setSaving(true);
+    setMsg(null);
+    let ok = true;
+    if (obiettivo && freq && vasca) {
+      const res = await saveIntake(intakePayload());
+      if (res.error) {
+        ok = false;
+        setMsg(res.error);
+      }
+    }
+    setSaving(false);
+    if (finish && ok) router.push("/app/profilo");
+  }
+
+  async function saveLibero(finish: boolean) {
+    setSaving(true);
+    setMsg(null);
+    let ok = true;
+    if (obiettivo && freq && vasca) {
+      const res = await saveIntake(intakePayload());
+      if (res.error) {
+        ok = false;
+        setMsg(res.error);
+      }
+    } else {
+      setMsg("Torna indietro e completa obiettivo, frequenza e vasca.");
+      ok = false;
+    }
+    setSaving(false);
+    if (finish && ok) router.push("/app/profilo");
+  }
+
+  const steps: Step[] =
+    type === "libero"
+      ? ["type", "comune", "libero"]
+      : ["type", "comune", "specialita", "tempi", "storia"];
+  const idx = steps.indexOf(step);
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-2">
-        {[1, 2, 3].map((n) => (
+        {steps.map((s, i) => (
           <span
-            key={n}
+            key={s}
             className={`h-1.5 flex-1 rounded-full ${
-              n <= step ? "bg-navy" : "bg-border"
+              i <= idx ? "bg-navy" : "bg-border"
             }`}
           />
         ))}
       </div>
 
-      {step === 1 && (
+      {/* STEP 0 — Chi sei */}
+      {step === "type" && (
         <section className="flex flex-col gap-4">
           <div>
             <h2 className="font-display text-xl text-foreground">Chi sei</h2>
             <p className="text-sm text-muted">
-              L&apos;anno di nascita ci dà la categoria Master.
+              Serve a tararti il percorso giusto. Cambiabile in seguito.
             </p>
           </div>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => chooseType("agonista")}
+            className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-5 text-left hover:border-blu disabled:opacity-60"
+          >
+            <Trophy size={26} className="text-navy" />
+            <div>
+              <p className="font-display text-lg text-foreground">
+                Nuoto (anche) in gara
+              </p>
+              <p className="text-sm text-muted">Master, agonista o ex agonista.</p>
+            </div>
+          </button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => chooseType("libero")}
+            className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-5 text-left hover:border-blu disabled:opacity-60"
+          >
+            <Waves size={26} className="text-blu" />
+            <div>
+              <p className="font-display text-lg text-foreground">Nuoto per me</p>
+              <p className="text-sm text-muted">
+                Per stare bene, migliorare, costanza. Non è “principiante”.
+              </p>
+            </div>
+          </button>
+        </section>
+      )}
+
+      {/* STEP comune */}
+      {step === "comune" && (
+        <section className="flex flex-col gap-4">
+          <div>
+            <h2 className="font-display text-xl text-foreground">Su di te</h2>
+            <p className="text-sm text-muted">Pochi dati, poi sei dentro.</p>
+          </div>
+
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-muted">Anno di nascita</span>
             <input
@@ -201,11 +360,10 @@ export function ProfileWizard({ initial }: { initial: WizardInitial }) {
               className="rounded-xl border border-border bg-background px-3 py-2.5 outline-none focus:border-blu"
             />
           </label>
-          {anno.length === 4 && (
+
+          {type === "agonista" && anno.length === 4 && (
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-muted">
-                Categoria <span className="text-muted">(auto, correggibile)</span>
-              </span>
+              <span className="text-muted">Categoria (auto, correggibile)</span>
               <select
                 value={shownCat}
                 onChange={(e) => {
@@ -222,16 +380,65 @@ export function ProfileWizard({ initial }: { initial: WizardInitial }) {
               </select>
             </label>
           )}
+
+          <div className="flex flex-col gap-2">
+            <span className="text-sm text-muted">Vasca abituale</span>
+            <div className="flex gap-2">
+              {VASCHE.map((v) => (
+                <Chip
+                  key={v}
+                  label={`${v} m`}
+                  on={vasca === Number(v)}
+                  onClick={() => setVasca(Number(v))}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className="text-sm text-muted">Volte a settimana</span>
+            <div className="flex flex-wrap gap-2">
+              {FREQ.map((f) => (
+                <Chip key={f} label={f} on={freq === f} onClick={() => setFreq(f)} />
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className="text-sm text-muted">Obiettivo principale</span>
+            <div className="flex flex-wrap gap-2">
+              {OBIETTIVI.map((o) => (
+                <Chip
+                  key={o}
+                  label={OBIETTIVO_LABEL[o]}
+                  on={obiettivo === o}
+                  onClick={() => setObiettivo(o)}
+                />
+              ))}
+            </div>
+          </div>
+
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-muted">In una frase, cosa cerchi? (facoltativo)</span>
+            <input
+              value={goalNote ?? ""}
+              onChange={(e) => setGoalNote(e.target.value)}
+              className="rounded-xl border border-border bg-background px-3 py-2.5 outline-none focus:border-blu"
+            />
+          </label>
+
           {msg && <p className="text-sm text-[#DC2626]">{msg}</p>}
           <StepButtons
             saving={saving}
-            onSkip={() => setStep(2)}
-            onNext={() => saveStep1(true)}
+            onBack={() => setStep("type")}
+            onSkip={() => setStep(type === "libero" ? "libero" : "specialita")}
+            onNext={() => saveComune(true)}
           />
         </section>
       )}
 
-      {step === 2 && (
+      {/* STEP specialità (A) */}
+      {step === "specialita" && (
         <section className="flex flex-col gap-4">
           <div>
             <h2 className="font-display text-xl text-foreground">
@@ -268,14 +475,15 @@ export function ProfileWizard({ initial }: { initial: WizardInitial }) {
           {msg && <p className="text-sm text-[#DC2626]">{msg}</p>}
           <StepButtons
             saving={saving}
-            onSkip={() => setStep(3)}
-            onNext={() => saveStep2(true)}
-            onBack={() => setStep(1)}
+            onBack={() => setStep("comune")}
+            onSkip={() => setStep("tempi")}
+            onNext={() => saveSpecialita(true)}
           />
         </section>
       )}
 
-      {step === 3 && (
+      {/* STEP tempi (A) */}
+      {step === "tempi" && (
         <section className="flex flex-col gap-4">
           <div>
             <h2 className="font-display text-xl text-foreground">I tuoi tempi</h2>
@@ -283,40 +491,151 @@ export function ProfileWizard({ initial }: { initial: WizardInitial }) {
               Personal best dichiarati. Uno per distanza + stile + vasca.
             </p>
           </div>
-
           <PBList pbs={pbs} setPbs={setPbs} />
           <PBAdd
-            onAdded={(pb, updated) => {
-              setPbs((cur) => {
-                const rest = cur.filter(
+            onAdded={(pb) =>
+              setPbs((cur) => [
+                ...cur.filter(
                   (x) =>
                     !(
                       x.distanza_m === pb.distanza_m &&
                       x.stile === pb.stile &&
                       x.vasca === pb.vasca
                     ),
-                );
-                return [...rest, pb];
-              });
-              setMsg(updated ? "Tempo aggiornato." : "Tempo aggiunto.");
-            }}
+                ),
+                pb,
+              ])
+            }
           />
-          {msg && <p className="text-sm text-teal">{msg}</p>}
-
           <div className="flex justify-between pt-2">
-            <button
-              type="button"
-              onClick={() => setStep(2)}
-              className="text-sm text-muted"
-            >
+            <button type="button" onClick={() => setStep("specialita")} className="text-sm text-muted">
               Indietro
             </button>
             <button
               type="button"
-              onClick={() => router.push("/app/profilo")}
+              onClick={() => setStep("storia")}
               className="rounded-xl bg-gradient-to-br from-blu to-navy px-5 py-2.5 font-semibold text-white"
             >
-              Fine
+              Continua
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* STEP storia (A) */}
+      {step === "storia" && (
+        <section className="flex flex-col gap-4">
+          <div>
+            <h2 className="font-display text-xl text-foreground">La tua storia</h2>
+            <p className="text-sm text-muted">Un rapido inquadramento per il coach.</p>
+          </div>
+          <Choice
+            label="Da quanti anni nuoti"
+            options={ANNI_NUOTO.map((v) => [v, v])}
+            value={anniNuoto}
+            onChange={setAnniNuoto}
+          />
+          <Choice
+            label="Continuità"
+            options={CONTINUITA.map((v) => [v, CONTINUITA_LABEL[v]])}
+            value={continuita}
+            onChange={setContinuita}
+          />
+          <YesNo label="Gare negli ultimi 12 mesi" value={gare12m} onChange={setGare12m} />
+          <YesNo label="Esperienza con lavori a intensità" value={espInt} onChange={setEspInt} />
+          <YesNo label="Usi un device per la frequenza cardiaca" value={deviceFc} onChange={setDeviceFc} />
+          {msg && <p className="text-sm text-[#DC2626]">{msg}</p>}
+          <div className="flex justify-between pt-2">
+            <button type="button" onClick={() => setStep("tempi")} className="text-sm text-muted">
+              Indietro
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => saveStoria(true)}
+              className="rounded-xl bg-gradient-to-br from-blu to-navy px-5 py-2.5 font-semibold text-white disabled:opacity-60"
+            >
+              {saving ? "Salvo…" : "Fine"}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* STEP libero (B) */}
+      {step === "libero" && (
+        <section className="flex flex-col gap-4">
+          <div>
+            <h2 className="font-display text-xl text-foreground">Come nuoti</h2>
+            <p className="text-sm text-muted">Nessun cronometro, solo tu e l&apos;acqua.</p>
+          </div>
+          <Choice
+            label="Hai mai fatto corsi di nuoto?"
+            options={CORSI.map((v) => [v, CORSI_LABEL[v]])}
+            value={corsi}
+            onChange={setCorsi}
+          />
+          <div className="flex flex-col gap-2">
+            <span className="text-sm text-muted">Quali stili sai nuotare?</span>
+            <div className="flex flex-wrap gap-2">
+              {STILI_SAI.map((s) => (
+                <Chip
+                  key={s}
+                  label={STILE_SAI_LABEL[s]}
+                  on={stiliSai.includes(s)}
+                  onClick={() => toggle(stiliSai, setStiliSai, s)}
+                />
+              ))}
+              <Chip
+                label="Nessuno con sicurezza"
+                on={stiliSai.includes(NESSUNO_STILE)}
+                onClick={() => toggle(stiliSai, setStiliSai, NESSUNO_STILE)}
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="text-sm text-muted">Come ti giudichi in acqua?</span>
+            <div className="flex flex-col gap-1.5">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setAutoval(n)}
+                  className={`rounded-xl border px-3 py-2 text-left text-sm transition-colors ${
+                    autoval === n
+                      ? "border-navy bg-navy text-white"
+                      : "border-border bg-surface text-foreground"
+                  }`}
+                >
+                  <span className="font-semibold">{n}</span> · {AUTOVAL_ANCORE[n]}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="text-sm text-muted">Dove vorresti migliorare?</span>
+            <div className="flex flex-wrap gap-2">
+              {AREE.map((a) => (
+                <Chip
+                  key={a}
+                  label={AREE_LABEL[a]}
+                  on={aree.includes(a)}
+                  onClick={() => toggle(aree, setAree, a)}
+                />
+              ))}
+            </div>
+          </div>
+          {msg && <p className="text-sm text-[#DC2626]">{msg}</p>}
+          <div className="flex justify-between pt-2">
+            <button type="button" onClick={() => setStep("comune")} className="text-sm text-muted">
+              Indietro
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => saveLibero(true)}
+              className="rounded-xl bg-gradient-to-br from-blu to-navy px-5 py-2.5 font-semibold text-white disabled:opacity-60"
+            >
+              {saving ? "Salvo…" : "Fine"}
             </button>
           </div>
         </section>
@@ -362,6 +681,49 @@ function StepButtons({
   );
 }
 
+function Choice({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: [string, string][];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-sm text-muted">{label}</span>
+      <div className="flex flex-wrap gap-2">
+        {options.map(([v, lbl]) => (
+          <Chip key={v} label={lbl} on={value === v} onClick={() => onChange(v)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function YesNo({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: boolean | null;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-sm text-foreground">{label}</span>
+      <div className="flex gap-2">
+        <Chip label="Sì" on={value === true} onClick={() => onChange(true)} />
+        <Chip label="No" on={value === false} onClick={() => onChange(false)} />
+      </div>
+    </div>
+  );
+}
+
 function PBList({ pbs, setPbs }: { pbs: PB[]; setPbs: (v: PB[]) => void }) {
   const sorted = [...pbs].sort(
     (a, b) =>
@@ -372,7 +734,7 @@ function PBList({ pbs, setPbs }: { pbs: PB[]; setPbs: (v: PB[]) => void }) {
   if (sorted.length === 0)
     return (
       <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted">
-        Nessun tempo ancora. Aggiungine uno qui sotto.
+        Nessun tempo ancora. Aggiungine uno qui sotto (facoltativo).
       </p>
     );
   return (
@@ -407,7 +769,7 @@ function PBList({ pbs, setPbs }: { pbs: PB[]; setPbs: (v: PB[]) => void }) {
   );
 }
 
-function PBAdd({ onAdded }: { onAdded: (pb: PB, updated: boolean) => void }) {
+function PBAdd({ onAdded }: { onAdded: (pb: PB) => void }) {
   const [dist, setDist] = useState<number>(100);
   const [stile, setStile] = useState<Stile>("SL");
   const [vasca, setVasca] = useState<string>("25");
@@ -432,17 +794,14 @@ function PBAdd({ onAdded }: { onAdded: (pb: PB, updated: boolean) => void }) {
     });
     setSaving(false);
     if (res.error) return setErr(res.error);
-    onAdded(
-      {
-        id: `${dist}-${stile}-${vasca}`,
-        distanza_m: dist,
-        stile,
-        vasca,
-        tempo_cc: cc,
-        data_conseguimento: data || null,
-      },
-      Boolean(res.updated),
-    );
+    onAdded({
+      id: `${dist}-${stile}-${vasca}`,
+      distanza_m: dist,
+      stile,
+      vasca,
+      tempo_cc: cc,
+      data_conseguimento: data || null,
+    });
     setT({ min: "", sec: "", cent: "" });
     setData("");
   }
@@ -484,7 +843,6 @@ function PBAdd({ onAdded }: { onAdded: (pb: PB, updated: boolean) => void }) {
           ))}
         </select>
       </div>
-
       <div className="flex flex-wrap items-center justify-between gap-3">
         <TimeInput value={t} onChange={setT} />
         {cc !== null && (
@@ -493,7 +851,6 @@ function PBAdd({ onAdded }: { onAdded: (pb: PB, updated: boolean) => void }) {
           </span>
         )}
       </div>
-
       <label className="flex flex-col gap-1 text-sm">
         <span className="text-muted">Data (facoltativa)</span>
         <input
@@ -504,7 +861,6 @@ function PBAdd({ onAdded }: { onAdded: (pb: PB, updated: boolean) => void }) {
           className="rounded-lg border border-border bg-background px-2 py-2 text-sm"
         />
       </label>
-
       {err && <p className="text-sm text-[#DC2626]">{err}</p>}
       <button
         type="button"

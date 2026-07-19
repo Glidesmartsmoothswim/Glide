@@ -16,6 +16,15 @@ export default async function SwimmerProgressi() {
   const profile = await getCurrentProfile();
   const supabase = await createClient();
 
+  // Percorso "libero": niente Glide Score né 6 profili (spec Intake §4).
+  // Restano Onda, Effetto Acqua, curva pace@RPE, badge.
+  const { data: prof } = await supabase
+    .from("profiles")
+    .select("athlete_type")
+    .eq("id", profile?.id ?? "")
+    .maybeSingle();
+  const libero = prof?.athlete_type === "libero";
+
   // Onda + Glide Score (calcolo on-demand; l'ultimo salvato dà l'inerzia).
   const { data: lastScore } = await supabase
     .from("glide_scores")
@@ -84,9 +93,9 @@ export default async function SwimmerProgressi() {
           La prova che questa cosa funziona — onda dopo onda.
         </p>
       </header>
-      <IdentityCard identity={identity} />
+      {!libero && <IdentityCard identity={identity} />}
       {score && <OndaCard onda={score.onda} />}
-      {score && <GlideScoreCard result={score} />}
+      {score && !libero && <GlideScoreCard result={score} />}
       <BadgeShelf earned={earned} />
       <SwimmerProgress effetto={effetto} />
       <EfficiencyCurves points={effPoints} />

@@ -4,7 +4,30 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-18 — **ONDA 11 (in `main`) + impalcatura sottosezione Lead**._
+_Ultimo aggiornamento: 2026-07-18 — **Sprint V.0 + V.1 (intake agonista/libero) COMPLETI. 🛑 CANCELLO prima di V.2.**_
+
+## 🔐 Sprint V.0 — Verifiche di sicurezza (2026-07-18)
+- **C-1 · Role-lock — CHIUSO.** Era vulnerabile: un nuotatore autenticato poteva fare `update profiles set role='coach'` (verificato: passava). Fix `migration_015_role_lock` (**applicata**): trigger `protect_role_column` blocca il cambio di `role` per `anon`/`authenticated` (42501); `service_role`/`postgres` liberi (creazione admin + promozione manuale). **Ri-testato:** nuotatore → cambio ruolo **negato**, aggiornamento dei propri campi (first_name, anno_nascita…) **OK**.
+- **C-3 · Region — OK.** Progetto Supabase in **`eu-central-1` (Francoforte, EU)**. Nessuna migrazione necessaria.
+- **⚠️ C-2 · Prima di attivare chiavi Stripe live: verifica firma con raw body + idempotenza per `event.id` (C-2).** (Webhook Stripe NON toccato ora: Stripe parcheggiato.)
+- **SITO:** sezione marcata **[SUPERATA — sito in repo dedicato `glide-site`]**; il piano route-group non va eseguito qui.
+
+## 🧭 Sprint V.1 — Intake v2 (agonista/libero) — **COMPLETO · 🛑 al CANCELLO**
+- **`migration_016_intake` APPLICATA:** `profiles.athlete_type` + `profiles.onboarding_done` + tabella **`intake`** (spec §5, **senza i campi tempi**: i tempi restano in `personal_bests`). RLS: self select/insert/update, coach select.
+- **Wizard esteso** `/app/profilo/crea` (niente wizard parallelo, niente `swim_times`):
+  - **Step 0** — due card "Nuoto (anche) in gara" / "Nuoto per me" → `athlete_type`.
+  - **Blocco comune** (§2) — anno (+categoria auto solo agonista), vasca, frequenza, **obiettivo** (chip), nota libera.
+  - **Percorso A** — specialità → tempi (PB) → **storia** (anni_nuoto/continuità/gare_12m/esperienza_intensità/device_fc).
+  - **Percorso B** — corsi, stili che sai nuotare, autovalutazione 1–5 (ancore), aree di miglioramento.
+  - Ogni passo saltabile; upsert su `intake` (obbligatori: obiettivo, frequenza, vasca).
+- **Motore livello** `lib/profile/intake.ts::livelloLibero` (deterministico, 0–6 → Base/Intermedio/Avanzato). **SOLO coach**, mai al nuotatore. **Test 4/4 verdi**.
+- **Scheda coach**: badge Agonista/Libero + **Livello (solo B)** + obiettivo + frequenza/vasca (sola lettura).
+- **Onboarding flag** spostato da `localStorage` a `profiles.onboarding_done` (letto in `/app`, salvato via `setOnboardingDone`).
+- **Gating "libero"**: il livello NON è persistito e viene calcolato solo nel render coach → **la risposta API del nuotatore non contiene mai livello/CSS/pace/Z5** (per costruzione). Inoltre su `/app/progressi` il nuotatore `libero` **non vede Glide Score né i 6 profili** (spec §4): restano Onda, Effetto Acqua, curva pace@RPE e badge.
+- **RLS `intake` verificata** (entrambi i ruoli): scrittura cross-utente → *42501 negato*; self-insert **OK**; coach legge via `is_coach()`.
+- `lint` + `tsc` + `next build` verdi.
+- **🛑 CANCELLO:** raggiunto. Attendere GO prima di V.2 (video: cancellazione + retention).
+
 
 **🌐 Deploy di test LIVE:** https://glide-zeta-ten.vercel.app — login GLIDE verificato (200, nessun errore).
 
@@ -367,7 +390,13 @@ Fase 1 completa. Da fare con l'utente: (a) **checklist chiavi** qui sopra;
 e uno **swimmer**; (c) eventuale **deploy su Vercel** + collegamento remote GitHub.
 Fuori scope Fase 1 (schema presente ma UI non portata): **Chat** coach⇄nuotatore, **Lead**.
 
-## 🌊 SITO (funnel pubblico) — piano, non ancora eseguito
+## 🌊 SITO (funnel pubblico) — **[SUPERATA — sito in repo dedicato]**
+> ⛔️ **NON eseguire questo piano.** Il sito marketing vive in un repo separato
+> (`glide-site` → glideswim.it), non in questo. Il piano di ristrutturazione a
+> route group qui sotto è **superato**: lasciato solo per memoria storica.
+
+<details><summary>Piano storico (superato)</summary>
+
 > Obiettivo: sito-funnel nello **stesso repo**, sostituisce Linktree, cattura email, spinge nell'app.
 > Sprint dedicati **S1–S4** (numerazione del runbook "SITO", distinta dagli Sprint 0–5 dell'app).
 
@@ -388,6 +417,8 @@ Fuori scope Fase 1 (schema presente ma UI non portata): **Chat** coach⇄nuotato
 8. Copy in `content/site.ts` (unico file editabile dall'utente).
 
 **Decisioni prese:** bio pubblica su `/coach-alessio` (default, app URLs stabili). **In attesa di via libera per S1.**
+
+</details>
 
 ## Log sprint
 - **Sprint 0** — impalcatura completa. Commit `e42a908` (+ `19134ab` settings). Build verde, login+gating validati in locale.

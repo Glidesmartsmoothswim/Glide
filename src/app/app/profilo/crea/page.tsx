@@ -11,7 +11,9 @@ export default async function CreaProfiloPage() {
 
   const { data: p } = await supabase
     .from("profiles")
-    .select("anno_nascita, categoria, stili_abituali, distanze_abituali")
+    .select(
+      "athlete_type, anno_nascita, categoria, stili_abituali, distanze_abituali",
+    )
     .eq("id", profile?.id ?? "")
     .single();
 
@@ -20,12 +22,20 @@ export default async function CreaProfiloPage() {
     .select("id, distanza_m, stile, vasca, tempo_cc, data_conseguimento")
     .eq("swimmer_id", profile?.id ?? "");
 
+  const { data: intake } = await supabase
+    .from("intake")
+    .select("*")
+    .eq("user_id", profile?.id ?? "")
+    .maybeSingle();
+
   const initial: WizardInitial = {
+    athlete_type: p?.athlete_type ?? null,
     anno_nascita: p?.anno_nascita ?? null,
     categoria: p?.categoria ?? null,
     stili_abituali: p?.stili_abituali ?? [],
     distanze_abituali: p?.distanze_abituali ?? [],
     personalBests: (pbs ?? []) as PB[],
+    intake: intake ?? null,
   };
 
   return (

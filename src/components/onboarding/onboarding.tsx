@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { setOnboardingDone } from "@/app/app/profilo/actions";
 
 /**
  * Onboarding nuotatore — 6 schermate (GLIDE_ONBOARDING.md, copy IDENTICO).
  * La schermata 2 (il patto) NON è skippabile; skip ammesso dalla 3 in poi.
- * Mostrato una sola volta (flag in localStorage).
+ * Mostrato una sola volta: il "visto" è su `profiles.onboarding_done`
+ * (non più localStorage, che si ripresenta su ogni device).
  */
-const KEY = "glide_onboarded_v1";
-
 type Screen = { title: string; body: React.ReactNode };
 
 const SCREENS: Screen[] = [
@@ -123,30 +123,16 @@ const SCREENS: Screen[] = [
   },
 ];
 
-export function Onboarding() {
-  const [step, setStep] = useState<number | null>(null); // null = deciding
+export function Onboarding({ done }: { done: boolean }) {
+  const [step, setStep] = useState<number>(done ? -1 : 0);
 
-  useEffect(() => {
-    let seen = true;
-    try {
-      seen = Boolean(localStorage.getItem(KEY));
-    } catch {
-      seen = true;
-    }
-    // localStorage esiste solo sul client: l'init in effetto è necessario.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setStep(seen ? -1 : 0);
-  }, []);
-
-  if (step === null || step === -1) return null;
+  if (step === -1) return null;
 
   const last = step === SCREENS.length - 1;
   const canSkip = step >= 2; // dalla terza in poi; la 2 (index 1) NO
   const finish = () => {
-    try {
-      localStorage.setItem(KEY, "1");
-    } catch {}
     setStep(-1);
+    void setOnboardingDone(); // persiste il flag sul profilo
   };
   const sc = SCREENS[step];
 
