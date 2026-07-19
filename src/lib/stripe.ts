@@ -23,8 +23,9 @@ export function stripePrices() {
   const pick = (v?: string) => (configured(v) ? v : undefined);
   return {
     open: pick(process.env.STRIPE_PRICE_OPEN), // € 29 / mese
-    openWater: pick(process.env.STRIPE_PRICE_OPEN_WATER), // € 79 / mese
-    elite: pick(process.env.STRIPE_PRICE_ELITE), // € 129 / mese
+    openPlus: pick(process.env.STRIPE_PRICE_OPEN_PLUS), // Open+ · prezzo deciso da Alessio
+    openWater: pick(process.env.STRIPE_PRICE_OPEN_WATER), // € 79 / mese (legacy)
+    elite: pick(process.env.STRIPE_PRICE_ELITE), // € 129 / mese (legacy)
     birra: pick(process.env.STRIPE_PRICE_BIRRA), // € 5 una tantum
   } as const;
 }

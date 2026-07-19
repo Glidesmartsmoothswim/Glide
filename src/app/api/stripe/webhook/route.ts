@@ -2,6 +2,7 @@ import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { serverFeatures } from "@/lib/flags";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { subTierToAccessTier } from "@/lib/stripe-checkout";
 
 // Stripe SDK + verifica firma richiedono il runtime Node e nessuna cache.
 export const runtime = "nodejs";
@@ -66,6 +67,15 @@ export async function POST(req: Request) {
         },
         { onConflict: "stripe_subscription_id" },
       );
+      // Onda 12.1: abbonamento attivo → aggiorna il tier di accesso.
+      // Non tocca chi è one_to_one (percorso dedicato assegnato dal coach).
+      if (meta.swimmer_id) {
+        await admin
+          .from("profiles")
+          .update({ tier: subTierToAccessTier(meta.tier) })
+          .eq("id", meta.swimmer_id)
+          .neq("tier", "one_to_one");
+      }
       await admin.from("transactions").insert({
         swimmer_id: meta.swimmer_id ?? null,
         type: "subscription",
@@ -74,6 +84,30 @@ export async function POST(req: Request) {
         status: "succeeded",
         description: `Abbonamento ${meta.tier ?? ""}`.trim(),
       });
+    }
+  } else if (
+    event.type === "customer.subscription.deleted" ||
+    event.type === "customer.subscription.updated"
+  ) {
+    // Onda 12.1: abbonamento cancellato/non pagante → il tier torna a free.
+    const sub = event.data.object as Stripe.Subscription;
+    const ended =
+      sub.status === "canceled" ||
+      sub.status === "unpaid" ||
+      sub.status === "incomplete_expired";
+    const { data: row } = await admin
+      .from("subscriptions")
+      .update({ status: sub.status })
+      .eq("stripe_subscription_id", sub.id)
+      .select("swimmer_id")
+      .maybeSingle();
+    if (ended && row?.swimmer_id) {
+      // Non declassa un one_to_one (lo gestisce il coach, non Stripe).
+      await admin
+        .from("profiles")
+        .update({ tier: "free" })
+        .eq("id", row.swimmer_id)
+        .neq("tier", "one_to_one");
     }
   }
 

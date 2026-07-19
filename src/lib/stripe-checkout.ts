@@ -13,7 +13,17 @@ const appUrl = () => {
   return configured;
 };
 
-export type SubTier = "open" | "open_water" | "elite";
+export type SubTier = "open" | "open_plus" | "open_water" | "elite";
+
+/**
+ * Mappa il piano abbonamento → tier di accesso (Onda 12.1). I piani legacy
+ * (open_water/elite) valgono come open_plus. Usata dal webhook.
+ */
+export function subTierToAccessTier(
+  subTier: string | null | undefined,
+): "open" | "open_plus" {
+  return subTier === "open" ? "open" : "open_plus";
+}
 
 /**
  * Checkout una tantum "Offrimi una birra" (€5) per sbloccare un video.
@@ -54,9 +64,11 @@ export async function createSubscriptionCheckout(opts: {
   const priceId =
     opts.tier === "open"
       ? prices.open
-      : opts.tier === "open_water"
-        ? prices.openWater
-        : prices.elite;
+      : opts.tier === "open_plus"
+        ? prices.openPlus
+        : opts.tier === "open_water"
+          ? prices.openWater
+          : prices.elite;
   if (!stripe || !priceId) return null;
 
   const session = await stripe.checkout.sessions.create({

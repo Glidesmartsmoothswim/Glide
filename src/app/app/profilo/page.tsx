@@ -17,9 +17,12 @@ import {
 
 export const metadata = { title: "Profilo" };
 
-const PLANS: { tier: "open" | "elite"; name: string; price: string }[] = [
-  { tier: "open", name: "Open", price: "€29" },
-  { tier: "elite", name: "Elite 1:1", price: "€129" },
+// Onda 12.1: piani self-serve = Open e Open+. Il tier 1:1 lo assegna il coach.
+// Il prezzo di Open+ lo decide Alessio (STRIPE_PRICE_OPEN_PLUS): finché non è
+// fissato mostriamo il piano senza cifra, senza inventarla.
+const PLANS: { tier: "open" | "open_plus"; name: string; price?: string; desc: string }[] = [
+  { tier: "open", name: "Open", price: "€29", desc: "Settimana Canale Open + archivio dei tuoi svolti" },
+  { tier: "open_plus", name: "Open+", desc: "Tutto Open + archivio storico completo" },
 ];
 
 export default async function SwimmerProfilo({
@@ -172,7 +175,9 @@ export default async function SwimmerProfilo({
               <input type="hidden" name="tier" value={p.tier} />
               <div>
                 <p className="font-semibold text-foreground">{p.name}</p>
-                <p className="text-sm text-muted">{p.price} / mese</p>
+                <p className="text-sm text-muted">
+                  {p.price ? `${p.price} / mese` : p.desc}
+                </p>
               </div>
               <button
                 type="submit"

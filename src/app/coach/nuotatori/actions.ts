@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/auth";
 import { createSwimmerAccount } from "@/lib/coach/create-swimmer";
+import { TIERS, type Tier } from "@/lib/access";
 import type { ServiceType, SwimmerStatus, CertStatus } from "@/lib/types";
 
 export type SwimmerActionState = {
@@ -22,11 +23,19 @@ export async function updateSwimmer(
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "Nuotatore non valido." };
 
+  // Onda 12.1: il coach assegna il tier. Guardia server oltre a quella DB
+  // (il trigger consente il cambio solo a coach/service_role).
+  const rawTier = String(formData.get("tier") ?? "free");
+  const tier: Tier = (TIERS as readonly string[]).includes(rawTier)
+    ? (rawTier as Tier)
+    : "free";
+
   const patch = {
     first_name: String(formData.get("first_name") ?? "").trim(),
     last_name: String(formData.get("last_name") ?? "").trim(),
     phone: String(formData.get("phone") ?? "").trim() || null,
     service_type: String(formData.get("service_type") ?? "open") as ServiceType,
+    tier,
     level: String(formData.get("level") ?? "").trim() || null,
     package: String(formData.get("package") ?? "").trim() || null,
     status: String(formData.get("status") ?? "attivo") as SwimmerStatus,

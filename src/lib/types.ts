@@ -1,4 +1,5 @@
 import type { Block } from "@/lib/workout";
+import type { Tier } from "@/lib/access";
 
 export type ServiceType = "coaching_1_1" | "open" | "both";
 export type SwimmerStatus = "attivo" | "in_pausa" | "scaduto";
@@ -43,6 +44,7 @@ export type SwimmerRow = {
   email: string | null;
   phone: string | null;
   service_type: ServiceType;
+  tier: Tier;
   level: string | null;
   package: string | null;
   status: SwimmerStatus;
@@ -61,6 +63,7 @@ export type WorkoutRow = {
   focus: string | null;
   pool: number | null;
   week_day: WeekDay | null;
+  week_start: string | null;
   blocks: Block[];
   total_meters: number | null;
   published_at: string | null;
