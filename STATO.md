@@ -23,7 +23,7 @@ _Ultimo aggiornamento: 2026-07-18 — **Sprint V.0 + V.1 (intake agonista/libero
 - **Motore livello** `lib/profile/intake.ts::livelloLibero` (deterministico, 0–6 → Base/Intermedio/Avanzato). **SOLO coach**, mai al nuotatore. **Test 4/4 verdi**.
 - **Scheda coach**: badge Agonista/Libero + **Livello (solo B)** + obiettivo + frequenza/vasca (sola lettura).
 - **Onboarding flag** spostato da `localStorage` a `profiles.onboarding_done` (letto in `/app`, salvato via `setOnboardingDone`).
-- **Gating "libero"**: il livello NON è persistito e viene calcolato solo nel render coach → **la risposta API del nuotatore non contiene mai livello/CSS/pace/Z5** (per costruzione: non esistono colonne/endpoint che li espongano al nuotatore).
+- **Gating "libero"**: il livello NON è persistito e viene calcolato solo nel render coach → **la risposta API del nuotatore non contiene mai livello/CSS/pace/Z5** (per costruzione). Inoltre su `/app/progressi` il nuotatore `libero` **non vede Glide Score né i 6 profili** (spec §4): restano Onda, Effetto Acqua, curva pace@RPE e badge.
 - **RLS `intake` verificata** (entrambi i ruoli): scrittura cross-utente → *42501 negato*; self-insert **OK**; coach legge via `is_coach()`.
 - `lint` + `tsc` + `next build` verdi.
 - **🛑 CANCELLO:** raggiunto. Attendere GO prima di V.2 (video: cancellazione + retention).
