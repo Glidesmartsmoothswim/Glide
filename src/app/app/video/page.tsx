@@ -7,6 +7,7 @@ import { VideoUploader } from "@/components/video/uploader";
 import { unlockVideo } from "./actions";
 import { VideoActions, UndoDelete } from "./video-actions";
 import { STATUS_LABEL, type VideoRow, type VideoCommentRow } from "@/lib/video";
+import { daysToPurge } from "@/lib/retention";
 
 export const metadata = { title: "Video" };
 
@@ -75,8 +76,19 @@ export default async function SwimmerVideo() {
             ? urlByPath.get(v.storage_path)
             : undefined;
           const vc = comments.filter((c) => c.video_id === v.id);
+          const purgeIn =
+            v.retention_state === "archived" ? daysToPurge(v.archived_at) : null;
           return (
             <Card key={v.id} className="flex flex-col gap-3">
+              {purgeIn != null && v.retention_state !== "preserved" && (
+                <p className="rounded-xl bg-background p-3 text-xs text-muted">
+                  Programma chiuso ·{" "}
+                  {purgeIn > 0
+                    ? `questo video verrà rimosso tra ${purgeIn} giorni`
+                    : "questo video sta per essere rimosso"}
+                  . Preservalo ✦ qui sotto per tenerlo.
+                </p>
+              )}
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="font-semibold text-foreground">{v.event}</h3>

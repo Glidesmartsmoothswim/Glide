@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/auth";
-import { archiveProgramVideos } from "@/lib/retention";
+import { archiveProgramVideos, RETENTION } from "@/lib/retention";
+import { notifyUser } from "@/lib/notify";
 import { validatePhases, type PhaseInput } from "@/lib/programs";
 
 export type ProgState = { error?: string; info?: string; programId?: string };
@@ -144,6 +145,15 @@ export async function closeProgram(
   if (error) return { error: error.message };
 
   const n = await archiveProgramVideos(supabase, programId);
+  // Avviso al nuotatore: i suoi video saranno rimossi tra 90gg → può
+  // preservarne fino a 3 (✦) prima del purge. Nessun avviso se non ce n'erano.
+  if (n > 0)
+    await notifyUser(
+      swimmerId,
+      "retention",
+      "Video del programma archiviati",
+      `${n} ${n === 1 ? "video verrà rimosso" : "video verranno rimossi"} tra ${RETENTION.archiveGraceDays} giorni. Preserva ✦ quelli a cui tieni dalla sezione Video.`,
+    );
   revalidate(swimmerId);
   return { info: `Programma chiuso. ${n} video archiviati.` };
 }

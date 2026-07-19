@@ -21,6 +21,13 @@ export const RETENTION = {
 const DAY = 24 * 60 * 60 * 1000;
 const daysAgo = (n: number) => new Date(Date.now() - n * DAY).toISOString();
 
+/** Giorni al purge di un video archiviato (+90gg dall'archiviazione), >=0. */
+export function daysToPurge(archivedAt: string | null): number | null {
+  if (!archivedAt) return null;
+  const elapsed = (Date.now() - new Date(archivedAt).getTime()) / DAY;
+  return Math.max(0, Math.ceil(RETENTION.archiveGraceDays - elapsed));
+}
+
 /**
  * Archivia i video di un macrociclo (chiusura programma, §2.2).
  * Passa da `active` ad `archived`; i `preserved` restano intoccati.

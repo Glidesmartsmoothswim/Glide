@@ -20,6 +20,9 @@ _Ultimo aggiornamento: 2026-07-19 — **V.3 Programmazione 1:1 (macrocicli + fas
 - **UI nuotatore** (`components/programs/program-home-card.tsx`): card sola lettura in home — fase corrente + giorni-a-gara, **niente conto alla rovescia ansiogeno**, niente obiettivo cronometrico se il coach non l'ha messo.
 - **Integrazioni:** upload video → **tag automatico** al programma attivo (`registerVideo` setta `program_id`); **digest coach** arricchito col contesto 1:1 (fase corrente · gara tra N gg) sulle righe "Da chiamare / Sta scivolando / Corpo".
 - **Test:** RLS come sopra; `validatePhases` respinge sovrapposizioni; `close` archivia solo il programma chiuso; `lint`+`tsc`+`next build` verdi.
+- **Debito V.2/V.3 CHIUSO (2026-07-19):**
+  - **Vista "Archivio" sulla scheda coach** (`/coach/video`): gli archiviati escono dalla coda "in analisi" e finiscono in un `<details>` "Archivio · N" in fondo, con data e **giorni al purge** (`daysToPurge` in `lib/retention.ts`, +90gg). La coda e il conteggio "in coda" contano solo i `live`.
+  - **Notifica in-app all'archiviazione**: `closeProgram` → se archivia ≥1 video, `notifyUser(swimmerId, "retention", …)` avvisa il nuotatore ("rimozione tra 90 giorni, preserva ✦ quelli a cui tieni"). Sulla pagina Video del nuotatore ora compare anche l'avviso inline sui video archiviati (non sui preservati).
 
 ## ⚙️ Config manuale (stato al 2026-07-19)
 - **Leaked password protection (HaveIBeenPwned):** ⛔️ **non attivabile su piano Free** — Supabase la offre solo su **Pro Plan e superiori** (errore alla Save confermato dal dashboard). Le altre voci auth: `Secure email change` ON, `Require current password when updating` **OFF** (obbligatorio: il reset arriva via link email, l'utente non ha la vecchia password). **→ Da riattivare al passaggio a Pro** (probabile al go-live, anche per backup/limiti).
