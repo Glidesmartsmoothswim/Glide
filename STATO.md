@@ -4,7 +4,43 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-18 — **Sprint V.0 + V.1 (intake agonista/libero) COMPLETI. 🛑 CANCELLO prima di V.2.**_
+_Ultimo aggiornamento: 2026-07-19 — **V.3 Programmazione 1:1 (macrocicli + fasi + note coach) COMPLETO.**_
+
+## 🗺️ Sprint V.3 — Programmazione 1:1 (2026-07-19)
+- **`migration_018_programs` APPLICATA:** tre tabelle nuove.
+  - **`programs`** (macrociclo): `swimmer_id`, `coach_id`, `title`, `start_date`/`end_date`, `status` (draft/active/closed), obiettivo gara (`goal_race_name`/`_date`/`_pool`/`goal_events`/`goal_time_target`). **Indice unico parziale** `uniq_active_program` → **un solo programma `active` per nuotatore**.
+  - **`program_phases`** (meso/fasi): `name`, `phase_type` (generale/specifico/gara/tapering/scarico/transizione), `start_date`/`end_date`, `focus`.
+  - **`program_notes`** (note tecniche coach): **tabella separata coach-only** — non una colonna, perché coach e nuotatore sono entrambi `authenticated` e una colonna non si può nascondere via RLS.
+- **RLS (verificata con simulazione ruoli, rollback):** `own_active=1 · draft=0 · notes=0 · phases_draft_nascoste · altro_nuotatore=0`.
+  - Nuotatore: legge **solo** il proprio programma `active` e le sue fasi. Bozze/chiusi/altrui → invisibili. `program_notes` → **0 righe** (nessuna policy per lui).
+  - Coach: `ALL` via `is_coach()` su tutte e tre.
+- **`lib/programs.ts`**: tipi + palette fasi (token brand, **niente rosso** — ADR-005) + `validatePhases` (dentro le date del programma, in sequenza, **niente sovrapposizioni** `gap<=0` **né buchi** `gap>1g`) + `currentPhase`/`daysToRace`.
+- **Server actions** (`coach/nuotatori/[id]/program-actions.ts`, tutte `requireRole("coach")`): create/savePhases(validate)/saveProgramNotes(upsert)/**activate** (cattura il vincolo `uniq_active_program`)/**close** (→ `archiveProgramVideos(programId)`: archivia **solo** i video di QUEL programma)/duplicate/delete.
+- **UI coach** (`program-manager.tsx`): lista programmi, barre-fasi colorate, editor fasi (add/remove + Salva), note tecniche, nuovo programma. Innestata nella scheda nuotatore.
+- **UI nuotatore** (`components/programs/program-home-card.tsx`): card sola lettura in home — fase corrente + giorni-a-gara, **niente conto alla rovescia ansiogeno**, niente obiettivo cronometrico se il coach non l'ha messo.
+- **Integrazioni:** upload video → **tag automatico** al programma attivo (`registerVideo` setta `program_id`); **digest coach** arricchito col contesto 1:1 (fase corrente · gara tra N gg) sulle righe "Da chiamare / Sta scivolando / Corpo".
+- **Test:** RLS come sopra; `validatePhases` respinge sovrapposizioni; `close` archivia solo il programma chiuso; `lint`+`tsc`+`next build` verdi.
+- **Debito V.2/V.3 CHIUSO (2026-07-19):**
+  - **Vista "Archivio" sulla scheda coach** (`/coach/video`): gli archiviati escono dalla coda "in analisi" e finiscono in un `<details>` "Archivio · N" in fondo, con data e **giorni al purge** (`daysToPurge` in `lib/retention.ts`, +90gg). La coda e il conteggio "in coda" contano solo i `live`.
+  - **Notifica in-app all'archiviazione**: `closeProgram` → se archivia ≥1 video, `notifyUser(swimmerId, "retention", …)` avvisa il nuotatore ("rimozione tra 90 giorni, preserva ✦ quelli a cui tieni"). Sulla pagina Video del nuotatore ora compare anche l'avviso inline sui video archiviati (non sui preservati).
+
+## ⚙️ Config manuale (stato al 2026-07-19)
+- **Leaked password protection (HaveIBeenPwned):** ⛔️ **non attivabile su piano Free** — Supabase la offre solo su **Pro Plan e superiori** (errore alla Save confermato dal dashboard). Le altre voci auth: `Secure email change` ON, `Require current password when updating` **OFF** (obbligatorio: il reset arriva via link email, l'utente non ha la vecchia password). **→ Da riattivare al passaggio a Pro** (probabile al go-live, anche per backup/limiti).
+- **URL Configuration (Redirect URLs + Site URL):** da compilare **in un colpo solo alla fine**, con la lista definitiva preview Vercel + dominio prod (evita di rifarli a ogni sprint).
+- **`CRON_SECRET` (Vercel):** necessario perché il cron purge giri in prod. Da impostare al deploy prod.
+- **Checklist mobile Onda 11:** QA finale form auth su schermo stretto — un giro solo, alla fine.
+
+## 🎬 Sprint V.2 — Video: cancellazione utente + retention (2026-07-19)
+- **`migration_017_video_retention` APPLICATA:** su `race_videos` → `deleted_at`, `purged_at`, `retention_state` (active/archived/preserved), `archived_at`, `program_id` (+3 indici).
+- **`lib/storage.ts`** — punto UNICO per lo storage fisico (Supabase Storage oggi; **si cambia solo qui per R2**): `removeVideoObject` (hard delete) + `videoSignedUrl`.
+- **Soft delete** (`softDeleteVideo`): il nuotatore cancella i propri (il coach quelli dei suoi), `deleted_at=now()`, sparisce da ogni vista; **"Annulla" per 7 giorni** (`undoDeleteVideo`). Ownership via RLS-read + write con service-role (la UPDATE su `race_videos` è coach-only). Ledger `video.deleted {by, had_analysis}`. Avvisi differenziati (già commentato / birra pagata).
+- **Hard delete / purge** (`lib/retention.ts::purgeExpiredVideos`, cron `/api/cron/video-purge` giornaliero, `CRON_SECRET`, in `vercel.json`): soft-deleted >7gg, archiviati >90gg, fallback Open >365gg → **rimuove il FILE** e trasforma la riga in **tombstone** (`purged_at`, `storage_path=null`). **La riga NON si cancella**: i commenti del coach (FK CASCADE) devono sopravvivere (reconciliazione della spec "cancella la riga" con "i commenti restano").
+- **Preserva ✦** (`togglePreserve`, max 3/nuotatore) → mai purgato.
+- **Retention params** in `lib/retention.ts` (`RETENTION`: grazia 7/90, max 3, Open 365). **`archiveProgramVideos(programId)`** esposta (il trigger "chiusura macrociclo" arriva in V.3).
+- **UI**: nuotatore (elimina con avviso, annulla, preserva ✦) + coach (stesse azioni sulla coda). Liste filtrate `deleted_at is null`.
+- **Test**: ownership gate verificato (un nuotatore vede **0** video altrui → non può cancellarli); `lint`+`tsc`+`next build` verdi.
+- **Da rifinire (thin)**: vista "Archivio" dei video archiviati sulla scheda coach + notifica in-app all'archiviazione (arrivano naturalmente con la chiusura programma in V.3).
+
 
 ## 🔐 Sprint V.0 — Verifiche di sicurezza (2026-07-18)
 - **C-1 · Role-lock — CHIUSO.** Era vulnerabile: un nuotatore autenticato poteva fare `update profiles set role='coach'` (verificato: passava). Fix `migration_015_role_lock` (**applicata**): trigger `protect_role_column` blocca il cambio di `role` per `anon`/`authenticated` (42501); `service_role`/`postgres` liberi (creazione admin + promozione manuale). **Ri-testato:** nuotatore → cambio ruolo **negato**, aggiornamento dei propri campi (first_name, anno_nascita…) **OK**.

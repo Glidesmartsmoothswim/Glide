@@ -1,6 +1,8 @@
 export type VideoTier = "coaching_1_1" | "open";
 export type VideoStatus = "locked" | "pending" | "reviewed";
 
+export type RetentionState = "active" | "archived" | "preserved";
+
 export type VideoRow = {
   id: string;
   swimmer_id: string;
@@ -12,6 +14,11 @@ export type VideoRow = {
   status: VideoStatus;
   paid: boolean;
   created_at: string;
+  deleted_at: string | null;
+  purged_at: string | null;
+  retention_state: RetentionState;
+  archived_at: string | null;
+  program_id: string | null;
 };
 
 export type VideoCommentRow = {

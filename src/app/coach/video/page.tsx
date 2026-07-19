@@ -1,9 +1,11 @@
-import { Video as VideoIcon } from "lucide-react";
+import { Video as VideoIcon, Archive as ArchiveIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Avatar, Pill } from "@/components/ui/card";
 import { CommentForm } from "./comment-form";
 import { markReviewed } from "./actions";
+import { VideoActions } from "@/app/app/video/video-actions";
 import { STATUS_LABEL, type VideoRow, type VideoCommentRow } from "@/lib/video";
+import { daysToPurge } from "@/lib/retention";
 import { fullName, initials, type SwimmerRow } from "@/lib/types";
 
 export const metadata = { title: "Video gare" };
@@ -16,6 +18,7 @@ export default async function CoachVideo() {
   const { data: vData } = await supabase
     .from("race_videos")
     .select("*")
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
   const videos = (vData ?? []) as VideoRow[];
 
@@ -43,8 +46,105 @@ export default async function CoachVideo() {
     : [];
   const urlByPath = new Map(signed.map((s) => [s.path, s.signedUrl]));
 
-  const sorted = [...videos].sort((a, b) => order[a.status] - order[b.status]);
-  const pending = videos.filter((v) => v.status === "pending").length;
+  // Gli archiviati (macrociclo chiuso) escono dalla coda e vanno in fondo.
+  const live = videos.filter((v) => v.retention_state !== "archived");
+  const archived = videos
+    .filter((v) => v.retention_state === "archived")
+    .sort(
+      (a, b) =>
+        new Date(b.archived_at ?? 0).getTime() -
+        new Date(a.archived_at ?? 0).getTime(),
+    );
+  const sorted = [...live].sort((a, b) => order[a.status] - order[b.status]);
+  const pending = live.filter((v) => v.status === "pending").length;
+
+  const renderCard = (v: VideoRow) => {
+    const sw = byId.get(v.swimmer_id);
+    const url = v.storage_path ? urlByPath.get(v.storage_path) : undefined;
+    const vc = comments.filter((c) => c.video_id === v.id);
+    const purgeIn = v.retention_state === "archived" ? daysToPurge(v.archived_at) : null;
+    return (
+      <Card key={v.id} className="flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <Avatar text={sw ? initials(sw as SwimmerRow) : "?"} />
+          <div className="flex-1">
+            <p className="font-semibold text-foreground">
+              {sw ? fullName(sw as SwimmerRow) : "Atleta"}
+            </p>
+            <p className="text-xs text-muted">
+              {v.event}
+              {v.race_date ? ` · ${v.race_date}` : ""}
+            </p>
+          </div>
+          <Pill
+            tone={
+              v.status === "reviewed"
+                ? "ok"
+                : v.status === "pending"
+                  ? "brand"
+                  : "warn"
+            }
+          >
+            {STATUS_LABEL[v.status]}
+          </Pill>
+        </div>
+
+        {purgeIn != null && (
+          <p className="rounded-xl bg-background p-3 text-xs text-muted">
+            Archiviato con la chiusura del programma ·{" "}
+            {purgeIn > 0
+              ? `rimozione tra ${purgeIn} giorni`
+              : "in rimozione a breve"}
+            . Il nuotatore può preservarlo ✦ per non perderlo.
+          </p>
+        )}
+
+        {v.status === "locked" ? (
+          <p className="rounded-xl bg-amber-500/5 p-3 text-sm text-muted">
+            In attesa che l&apos;atleta sblocchi l&apos;analisi (Open · €5).
+          </p>
+        ) : url ? (
+          <video controls src={url} className="w-full rounded-xl bg-black" />
+        ) : (
+          <p className="text-sm text-muted">File non disponibile.</p>
+        )}
+
+        {vc.length > 0 && (
+          <div className="flex flex-col gap-1 rounded-xl bg-background p-3">
+            {vc.map((c) => (
+              <p key={c.id} className="text-sm text-foreground">
+                {c.body}
+              </p>
+            ))}
+          </div>
+        )}
+
+        {v.status !== "locked" && (
+          <div className="flex flex-col gap-2">
+            <CommentForm videoId={v.id} />
+            {v.status !== "reviewed" && (
+              <form action={markReviewed}>
+                <input type="hidden" name="video_id" value={v.id} />
+                <button
+                  type="submit"
+                  className="text-sm text-muted underline hover:text-foreground"
+                >
+                  Segna come analizzato senza commento
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+
+        <VideoActions
+          videoId={v.id}
+          hasAnalysis={vc.length > 0}
+          birraPaid={v.paid && v.tier === "open"}
+          preserved={v.retention_state === "preserved"}
+        />
+      </Card>
+    );
+  };
 
   return (
     <div className="flex max-w-3xl flex-col gap-6">
@@ -58,79 +158,24 @@ export default async function CoachVideo() {
         </div>
       </header>
 
-      {sorted.length === 0 && (
+      {sorted.length === 0 && archived.length === 0 && (
         <Card className="text-muted">Nessun video caricato dagli atleti.</Card>
       )}
 
-      {sorted.map((v) => {
-        const sw = byId.get(v.swimmer_id);
-        const url = v.storage_path ? urlByPath.get(v.storage_path) : undefined;
-        const vc = comments.filter((c) => c.video_id === v.id);
-        return (
-          <Card key={v.id} className="flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <Avatar text={sw ? initials(sw as SwimmerRow) : "?"} />
-              <div className="flex-1">
-                <p className="font-semibold text-foreground">
-                  {sw ? fullName(sw as SwimmerRow) : "Atleta"}
-                </p>
-                <p className="text-xs text-muted">
-                  {v.event}
-                  {v.race_date ? ` · ${v.race_date}` : ""}
-                </p>
-              </div>
-              <Pill
-                tone={
-                  v.status === "reviewed"
-                    ? "ok"
-                    : v.status === "pending"
-                      ? "brand"
-                      : "warn"
-                }
-              >
-                {STATUS_LABEL[v.status]}
-              </Pill>
-            </div>
+      {sorted.map(renderCard)}
 
-            {v.status === "locked" ? (
-              <p className="rounded-xl bg-amber-500/5 p-3 text-sm text-muted">
-                In attesa che l&apos;atleta sblocchi l&apos;analisi (Open · €5).
-              </p>
-            ) : url ? (
-              <video controls src={url} className="w-full rounded-xl bg-black" />
-            ) : (
-              <p className="text-sm text-muted">File non disponibile.</p>
-            )}
-
-            {vc.length > 0 && (
-              <div className="flex flex-col gap-1 rounded-xl bg-background p-3">
-                {vc.map((c) => (
-                  <p key={c.id} className="text-sm text-foreground">
-                    {c.body}
-                  </p>
-                ))}
-              </div>
-            )}
-
-            {v.status !== "locked" && (
-              <div className="flex flex-col gap-2">
-                <CommentForm videoId={v.id} />
-                {v.status !== "reviewed" && (
-                  <form action={markReviewed}>
-                    <input type="hidden" name="video_id" value={v.id} />
-                    <button
-                      type="submit"
-                      className="text-sm text-muted underline hover:text-foreground"
-                    >
-                      Segna come analizzato senza commento
-                    </button>
-                  </form>
-                )}
-              </div>
-            )}
-          </Card>
-        );
-      })}
+      {archived.length > 0 && (
+        <details className="flex flex-col gap-3">
+          <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-muted">
+            <ArchiveIcon size={16} />
+            Archivio · {archived.length}{" "}
+            {archived.length === 1 ? "video" : "video"}
+          </summary>
+          <div className="mt-3 flex flex-col gap-6">
+            {archived.map(renderCard)}
+          </div>
+        </details>
+      )}
     </div>
   );
 }

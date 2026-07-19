@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fullName } from "@/lib/types";
+import { PHASE_LABEL, type PhaseType } from "@/lib/programs";
 
 /**
  * Digest coach (GLIDE FASE 1.5). 4 sezioni, max 3 righe, ogni riga un'azione.
@@ -57,6 +58,39 @@ export async function computeDigest(
     (byS.get(r.swimmer_id) ?? byS.set(r.swimmer_id, []).get(r.swimmer_id)!).push(r);
   }
 
+  // Contesto programma 1:1 attivo: fase corrente + giorni-a-gara (§3.3).
+  const { data: progs } = await supabase
+    .from("programs")
+    .select("id, swimmer_id, goal_race_date")
+    .eq("status", "active");
+  const progIds = (progs ?? []).map((p) => p.id);
+  const { data: phs } = progIds.length
+    ? await supabase
+        .from("program_phases")
+        .select("program_id, phase_type, start_date, end_date")
+        .in("program_id", progIds)
+    : { data: [] };
+  const ctxById = new Map<string, string>();
+  for (const p of progs ?? []) {
+    const phases = (phs ?? []).filter((x) => x.program_id === p.id);
+    const cur = phases.find(
+      (x) =>
+        now >= new Date(x.start_date).getTime() &&
+        now <= new Date(x.end_date).getTime() + DAY,
+    );
+    const days = p.goal_race_date
+      ? Math.ceil((new Date(p.goal_race_date).getTime() - now) / DAY)
+      : null;
+    const parts: string[] = [];
+    if (cur) parts.push(PHASE_LABEL[cur.phase_type as PhaseType]);
+    if (days != null && days >= 0) parts.push(`gara tra ${days} gg`);
+    if (parts.length) ctxById.set(p.swimmer_id as string, parts.join(" · "));
+  }
+  const withCtx = (id: string, text: string) => {
+    const c = ctxById.get(id);
+    return c ? `${text} (${c})` : text;
+  };
+
   const chiamare: DigestRow[] = [];
   const scivola: DigestRow[] = [];
   const corpo: DigestRow[] = [];
@@ -70,7 +104,11 @@ export async function computeDigest(
     const red = list.find(
       (r) => r.red_flag && now - new Date(r.created_at).getTime() <= 7 * DAY,
     );
-    if (red) chiamare.push({ swimmerId: s.id, text: `${name} — segnale salute. Chiamalo.` });
+    if (red)
+      chiamare.push({
+        swimmerId: s.id,
+        text: withCtx(s.id, `${name} — segnale salute. Chiamalo.`),
+      });
 
     // 2) Sta scivolando — ultima fisica buona ma sparito da >= 5 giorni
     const lastPre = list.find((r) => r.phase === "pre" && r.sleep != null);
@@ -81,7 +119,10 @@ export async function computeDigest(
       if (fisica >= 3.5 && days >= 5)
         scivola.push({
           swimmerId: s.id,
-          text: `${name} — fisicamente sta bene ma è sparito da ${days} giorni. È motivazione, non stanchezza: una telefonata.`,
+          text: withCtx(
+            s.id,
+            `${name} — fisicamente sta bene ma è sparito da ${days} giorni. È motivazione, non stanchezza: una telefonata.`,
+          ),
         });
     }
 
@@ -93,7 +134,7 @@ export async function computeDigest(
     if (recurring)
       corpo.push({
         swimmerId: s.id,
-        text: `${name} — dolore ricorrente: ${recurring[0]}. Chiedigliene.`,
+        text: withCtx(s.id, `${name} — dolore ricorrente: ${recurring[0]}. Chiedigliene.`),
       });
 
     // 4) Certificati — in scadenza o assente

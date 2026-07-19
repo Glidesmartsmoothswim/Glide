@@ -13,6 +13,7 @@ export type EventType =
   | "readiness.pre"
   | "readiness.post"
   | "video.uploaded"
+  | "video.deleted"
   | "race.logged"
   | "booking.created"
   | "booking.completed"

@@ -5,7 +5,9 @@ import { clientFeatures } from "@/lib/flags";
 import { Card, Pill } from "@/components/ui/card";
 import { VideoUploader } from "@/components/video/uploader";
 import { unlockVideo } from "./actions";
+import { VideoActions, UndoDelete } from "./video-actions";
 import { STATUS_LABEL, type VideoRow, type VideoCommentRow } from "@/lib/video";
+import { daysToPurge } from "@/lib/retention";
 
 export const metadata = { title: "Video" };
 
@@ -17,8 +19,23 @@ export default async function SwimmerVideo() {
     .from("race_videos")
     .select("*")
     .eq("swimmer_id", profile?.id ?? "")
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
   const videos = (vData ?? []) as VideoRow[];
+
+  // Soft-deleted entro la finestra: consultabili solo per "Annulla".
+  const { data: delData } = await supabase
+    .from("race_videos")
+    .select("id, event, deleted_at")
+    .eq("swimmer_id", profile?.id ?? "")
+    .not("deleted_at", "is", null)
+    .is("purged_at", null)
+    .order("deleted_at", { ascending: false });
+  const deleted = (delData ?? []) as {
+    id: string;
+    event: string;
+    deleted_at: string;
+  }[];
 
   const { data: cData } = await supabase
     .from("video_comments")
@@ -59,8 +76,19 @@ export default async function SwimmerVideo() {
             ? urlByPath.get(v.storage_path)
             : undefined;
           const vc = comments.filter((c) => c.video_id === v.id);
+          const purgeIn =
+            v.retention_state === "archived" ? daysToPurge(v.archived_at) : null;
           return (
             <Card key={v.id} className="flex flex-col gap-3">
+              {purgeIn != null && v.retention_state !== "preserved" && (
+                <p className="rounded-xl bg-background p-3 text-xs text-muted">
+                  Programma chiuso ·{" "}
+                  {purgeIn > 0
+                    ? `questo video verrà rimosso tra ${purgeIn} giorni`
+                    : "questo video sta per essere rimosso"}
+                  . Preservalo ✦ qui sotto per tenerlo.
+                </p>
+              )}
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="font-semibold text-foreground">{v.event}</h3>
@@ -123,10 +151,31 @@ export default async function SwimmerVideo() {
                   ))}
                 </div>
               )}
+
+              <VideoActions
+                videoId={v.id}
+                hasAnalysis={vc.length > 0}
+                birraPaid={v.paid && v.tier === "open"}
+                preserved={v.retention_state === "preserved"}
+              />
             </Card>
           );
         })}
       </section>
+
+      {deleted.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="font-display text-lg text-foreground">
+            Eliminati di recente
+          </h2>
+          {deleted.map((d) => (
+            <Card key={d.id} className="flex flex-col gap-1">
+              <span className="font-semibold text-foreground">{d.event}</span>
+              <UndoDelete videoId={d.id} />
+            </Card>
+          ))}
+        </section>
+      )}
     </div>
   );
 }
