@@ -4,7 +4,9 @@ import { WaveLogo } from "@/components/brand/wave-logo";
 import { ReadinessCheckin } from "@/components/readiness/checkin";
 import { NotifList } from "@/components/notifications/notif-list";
 import { Onboarding } from "@/components/onboarding/onboarding";
+import { ProgramHomeCard } from "@/components/programs/program-home-card";
 import type { NotificationRow } from "@/lib/notifications";
+import type { ProgramRow, PhaseRow } from "@/lib/programs";
 
 export default async function SwimmerToday() {
   const profile = await getCurrentProfile();
@@ -17,6 +19,20 @@ export default async function SwimmerToday() {
     .select("onboarding_done")
     .eq("id", profile?.id ?? "")
     .maybeSingle();
+
+  // Programma 1:1 attivo (RLS: il nuotatore vede solo il proprio active).
+  const { data: activeProg } = await supabase
+    .from("programs")
+    .select("*")
+    .eq("swimmer_id", profile?.id ?? "")
+    .eq("status", "active")
+    .maybeSingle();
+  const { data: progPhases } = activeProg
+    ? await supabase
+        .from("program_phases")
+        .select("*")
+        .eq("program_id", activeProg.id)
+    : { data: [] };
 
   const { data } = await supabase
     .from("notifications")
@@ -50,6 +66,13 @@ export default async function SwimmerToday() {
         </div>
         <WaveLogo height={30} />
       </header>
+
+      {activeProg && (
+        <ProgramHomeCard
+          program={activeProg as ProgramRow}
+          phases={(progPhases ?? []) as PhaseRow[]}
+        />
+      )}
 
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-lg text-foreground">Check-in</h2>

@@ -150,6 +150,14 @@ export async function registerVideo(
   const tier = is11 ? "coaching_1_1" : "open";
 
   const supabase = await createClient();
+  // Tag automatico al programma attivo (retention §2.2 / V.3).
+  const { data: activeProg } = await supabase
+    .from("programs")
+    .select("id")
+    .eq("swimmer_id", profile.id)
+    .eq("status", "active")
+    .maybeSingle();
+
   const { data: inserted, error } = await supabase
     .from("race_videos")
     .insert({
@@ -160,6 +168,7 @@ export async function registerVideo(
       tier,
       status: is11 ? "pending" : "locked",
       paid: is11,
+      program_id: activeProg?.id ?? null,
     })
     .select("id")
     .single();

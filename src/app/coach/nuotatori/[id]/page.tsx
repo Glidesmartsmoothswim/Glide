@@ -21,6 +21,8 @@ import {
   OBIETTIVO_LABEL,
   ATHLETE_LABEL,
 } from "@/lib/profile/intake";
+import { ProgramManager } from "./program-manager";
+import type { ProgramRow, PhaseRow } from "@/lib/programs";
 import { savePersonalWorkout } from "../../workout-actions";
 import { archiveSwimmer } from "../actions";
 import { EditSwimmerForm } from "./edit-form";
@@ -85,6 +87,34 @@ export default async function SwimmerDetail({
       (pbs?.length ?? 0) > 0 ||
       intake,
   );
+
+  // Programmazione 1:1 (coach): programmi + fasi + note.
+  const { data: progData } = await supabase
+    .from("programs")
+    .select("*")
+    .eq("swimmer_id", id)
+    .order("created_at", { ascending: false });
+  const progList = (progData ?? []) as ProgramRow[];
+  const progIds = progList.map((p) => p.id);
+  const { data: phaseData } = progIds.length
+    ? await supabase.from("program_phases").select("*").in("program_id", progIds)
+    : { data: [] };
+  const { data: notesData } = progIds.length
+    ? await supabase
+        .from("program_notes")
+        .select("program_id, notes")
+        .in("program_id", progIds)
+    : { data: [] };
+  const notesByProg = new Map(
+    (notesData ?? []).map((n) => [n.program_id as string, n.notes as string | null]),
+  );
+  const programsFull = progList.map((p) => ({
+    ...p,
+    phases: ((phaseData ?? []) as PhaseRow[])
+      .filter((ph) => ph.program_id === p.id)
+      .sort((a, b) => a.start_date.localeCompare(b.start_date)),
+    notes: notesByProg.get(p.id) ?? null,
+  }));
 
   // Quante volte ogni scheda è stata "svolta" (per l'avviso in modifica).
   const { data: doneEv } = await supabase
@@ -290,6 +320,11 @@ export default async function SwimmerDetail({
           earnedCodes={earned.map((b) => b.code)}
           paused={(swimmer.status ?? "attivo").toLowerCase() !== "attivo"}
         />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-display text-lg text-foreground">Programmazione</h2>
+        <ProgramManager swimmerId={id} programs={programsFull} />
       </section>
 
       <section className="flex flex-col gap-3">

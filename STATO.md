@@ -4,7 +4,22 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-19 — **V.2 Video (cancellazione utente + retention) COMPLETO.**_
+_Ultimo aggiornamento: 2026-07-19 — **V.3 Programmazione 1:1 (macrocicli + fasi + note coach) COMPLETO.**_
+
+## 🗺️ Sprint V.3 — Programmazione 1:1 (2026-07-19)
+- **`migration_018_programs` APPLICATA:** tre tabelle nuove.
+  - **`programs`** (macrociclo): `swimmer_id`, `coach_id`, `title`, `start_date`/`end_date`, `status` (draft/active/closed), obiettivo gara (`goal_race_name`/`_date`/`_pool`/`goal_events`/`goal_time_target`). **Indice unico parziale** `uniq_active_program` → **un solo programma `active` per nuotatore**.
+  - **`program_phases`** (meso/fasi): `name`, `phase_type` (generale/specifico/gara/tapering/scarico/transizione), `start_date`/`end_date`, `focus`.
+  - **`program_notes`** (note tecniche coach): **tabella separata coach-only** — non una colonna, perché coach e nuotatore sono entrambi `authenticated` e una colonna non si può nascondere via RLS.
+- **RLS (verificata con simulazione ruoli, rollback):** `own_active=1 · draft=0 · notes=0 · phases_draft_nascoste · altro_nuotatore=0`.
+  - Nuotatore: legge **solo** il proprio programma `active` e le sue fasi. Bozze/chiusi/altrui → invisibili. `program_notes` → **0 righe** (nessuna policy per lui).
+  - Coach: `ALL` via `is_coach()` su tutte e tre.
+- **`lib/programs.ts`**: tipi + palette fasi (token brand, **niente rosso** — ADR-005) + `validatePhases` (dentro le date del programma, in sequenza, **niente sovrapposizioni** `gap<=0` **né buchi** `gap>1g`) + `currentPhase`/`daysToRace`.
+- **Server actions** (`coach/nuotatori/[id]/program-actions.ts`, tutte `requireRole("coach")`): create/savePhases(validate)/saveProgramNotes(upsert)/**activate** (cattura il vincolo `uniq_active_program`)/**close** (→ `archiveProgramVideos(programId)`: archivia **solo** i video di QUEL programma)/duplicate/delete.
+- **UI coach** (`program-manager.tsx`): lista programmi, barre-fasi colorate, editor fasi (add/remove + Salva), note tecniche, nuovo programma. Innestata nella scheda nuotatore.
+- **UI nuotatore** (`components/programs/program-home-card.tsx`): card sola lettura in home — fase corrente + giorni-a-gara, **niente conto alla rovescia ansiogeno**, niente obiettivo cronometrico se il coach non l'ha messo.
+- **Integrazioni:** upload video → **tag automatico** al programma attivo (`registerVideo` setta `program_id`); **digest coach** arricchito col contesto 1:1 (fase corrente · gara tra N gg) sulle righe "Da chiamare / Sta scivolando / Corpo".
+- **Test:** RLS come sopra; `validatePhases` respinge sovrapposizioni; `close` archivia solo il programma chiuso; `lint`+`tsc`+`next build` verdi.
 
 ## 🎬 Sprint V.2 — Video: cancellazione utente + retention (2026-07-19)
 - **`migration_017_video_retention` APPLICATA:** su `race_videos` → `deleted_at`, `purged_at`, `retention_state` (active/archived/preserved), `archived_at`, `program_id` (+3 indici).
