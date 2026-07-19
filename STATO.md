@@ -4,7 +4,19 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-18 — **Sprint V.0 + V.1 (intake agonista/libero) COMPLETI. 🛑 CANCELLO prima di V.2.**_
+_Ultimo aggiornamento: 2026-07-19 — **V.2 Video (cancellazione utente + retention) COMPLETO.**_
+
+## 🎬 Sprint V.2 — Video: cancellazione utente + retention (2026-07-19)
+- **`migration_017_video_retention` APPLICATA:** su `race_videos` → `deleted_at`, `purged_at`, `retention_state` (active/archived/preserved), `archived_at`, `program_id` (+3 indici).
+- **`lib/storage.ts`** — punto UNICO per lo storage fisico (Supabase Storage oggi; **si cambia solo qui per R2**): `removeVideoObject` (hard delete) + `videoSignedUrl`.
+- **Soft delete** (`softDeleteVideo`): il nuotatore cancella i propri (il coach quelli dei suoi), `deleted_at=now()`, sparisce da ogni vista; **"Annulla" per 7 giorni** (`undoDeleteVideo`). Ownership via RLS-read + write con service-role (la UPDATE su `race_videos` è coach-only). Ledger `video.deleted {by, had_analysis}`. Avvisi differenziati (già commentato / birra pagata).
+- **Hard delete / purge** (`lib/retention.ts::purgeExpiredVideos`, cron `/api/cron/video-purge` giornaliero, `CRON_SECRET`, in `vercel.json`): soft-deleted >7gg, archiviati >90gg, fallback Open >365gg → **rimuove il FILE** e trasforma la riga in **tombstone** (`purged_at`, `storage_path=null`). **La riga NON si cancella**: i commenti del coach (FK CASCADE) devono sopravvivere (reconciliazione della spec "cancella la riga" con "i commenti restano").
+- **Preserva ✦** (`togglePreserve`, max 3/nuotatore) → mai purgato.
+- **Retention params** in `lib/retention.ts` (`RETENTION`: grazia 7/90, max 3, Open 365). **`archiveProgramVideos(programId)`** esposta (il trigger "chiusura macrociclo" arriva in V.3).
+- **UI**: nuotatore (elimina con avviso, annulla, preserva ✦) + coach (stesse azioni sulla coda). Liste filtrate `deleted_at is null`.
+- **Test**: ownership gate verificato (un nuotatore vede **0** video altrui → non può cancellarli); `lint`+`tsc`+`next build` verdi.
+- **Da rifinire (thin)**: vista "Archivio" dei video archiviati sulla scheda coach + notifica in-app all'archiviazione (arrivano naturalmente con la chiusura programma in V.3).
+
 
 ## 🔐 Sprint V.0 — Verifiche di sicurezza (2026-07-18)
 - **C-1 · Role-lock — CHIUSO.** Era vulnerabile: un nuotatore autenticato poteva fare `update profiles set role='coach'` (verificato: passava). Fix `migration_015_role_lock` (**applicata**): trigger `protect_role_column` blocca il cambio di `role` per `anon`/`authenticated` (42501); `service_role`/`postgres` liberi (creazione admin + promozione manuale). **Ri-testato:** nuotatore → cambio ruolo **negato**, aggiornamento dei propri campi (first_name, anno_nascita…) **OK**.

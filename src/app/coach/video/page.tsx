@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, Avatar, Pill } from "@/components/ui/card";
 import { CommentForm } from "./comment-form";
 import { markReviewed } from "./actions";
+import { VideoActions } from "@/app/app/video/video-actions";
 import { STATUS_LABEL, type VideoRow, type VideoCommentRow } from "@/lib/video";
 import { fullName, initials, type SwimmerRow } from "@/lib/types";
 
@@ -16,6 +17,7 @@ export default async function CoachVideo() {
   const { data: vData } = await supabase
     .from("race_videos")
     .select("*")
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
   const videos = (vData ?? []) as VideoRow[];
 
@@ -128,6 +130,13 @@ export default async function CoachVideo() {
                 )}
               </div>
             )}
+
+            <VideoActions
+              videoId={v.id}
+              hasAnalysis={vc.length > 0}
+              birraPaid={v.paid && v.tier === "open"}
+              preserved={v.retention_state === "preserved"}
+            />
           </Card>
         );
       })}
