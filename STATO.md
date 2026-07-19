@@ -21,6 +21,12 @@ _Ultimo aggiornamento: 2026-07-19 — **V.3 Programmazione 1:1 (macrocicli + fas
 - **Integrazioni:** upload video → **tag automatico** al programma attivo (`registerVideo` setta `program_id`); **digest coach** arricchito col contesto 1:1 (fase corrente · gara tra N gg) sulle righe "Da chiamare / Sta scivolando / Corpo".
 - **Test:** RLS come sopra; `validatePhases` respinge sovrapposizioni; `close` archivia solo il programma chiuso; `lint`+`tsc`+`next build` verdi.
 
+## ⚙️ Config manuale (stato al 2026-07-19)
+- **Leaked password protection (HaveIBeenPwned):** ⛔️ **non attivabile su piano Free** — Supabase la offre solo su **Pro Plan e superiori** (errore alla Save confermato dal dashboard). Le altre voci auth: `Secure email change` ON, `Require current password when updating` **OFF** (obbligatorio: il reset arriva via link email, l'utente non ha la vecchia password). **→ Da riattivare al passaggio a Pro** (probabile al go-live, anche per backup/limiti).
+- **URL Configuration (Redirect URLs + Site URL):** da compilare **in un colpo solo alla fine**, con la lista definitiva preview Vercel + dominio prod (evita di rifarli a ogni sprint).
+- **`CRON_SECRET` (Vercel):** necessario perché il cron purge giri in prod. Da impostare al deploy prod.
+- **Checklist mobile Onda 11:** QA finale form auth su schermo stretto — un giro solo, alla fine.
+
 ## 🎬 Sprint V.2 — Video: cancellazione utente + retention (2026-07-19)
 - **`migration_017_video_retention` APPLICATA:** su `race_videos` → `deleted_at`, `purged_at`, `retention_state` (active/archived/preserved), `archived_at`, `program_id` (+3 indici).
 - **`lib/storage.ts`** — punto UNICO per lo storage fisico (Supabase Storage oggi; **si cambia solo qui per R2**): `removeVideoObject` (hard delete) + `videoSignedUrl`.
