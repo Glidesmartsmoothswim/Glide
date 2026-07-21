@@ -4,7 +4,21 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-21 — **ONDA 14 (Performance: diagnosi + interventi mirati) in corso.**_
+_Ultimo aggiornamento: 2026-07-21 — **ONDA 15 (Auth: verifica JWT locale per navigazione) in corso.**_
+
+## 🌊 ONDA 15 — Auth locale per navigazione (branch `claude/onda-15`)
+**Sintomo utenti:** lag "leggero ma ovunque", peggio alla prima apertura. **Causa:** ogni navigazione pagava ~2 chiamate di rete al server Auth — `getUser()` nel **middleware** (a ogni richiesta) + `getUser()` in **`getCurrentProfile()`** (a ogni pagina server) — più il **cold start** alla prima apertura.
+
+**Intervento:**
+- **Middleware** e **`getCurrentProfile()`** ora usano **`getClaims()`** (verifica del JWT **in locale**) invece di `getUser()` (round-trip di rete). Il refresh sessione resta gestito (getClaims → getSession interno). La sicurezza dei dati resta la **RLS**.
+- **Nessuna regressione:** su chiavi legacy **HS256** `getClaims` ripiega su `getUser` (come prima); con chiavi **asimmetriche** la verifica è **locale** → −2 round-trip per navigazione.
+- Gli altri `getUser()` (uploader video/certificato, reset password) restano: sono azioni rare, non per-navigazione.
+
+**🔑 LEVA che sblocca il guadagno (manuale, Alessio):** in Supabase → **Auth → JWT / Signing Keys**, abilitare le **chiavi di firma asimmetriche** (migrazione dei token utente a ES/RS + pubblicazione JWKS). Da quel momento `getClaims` verifica **senza rete** e il lag "leggero ovunque" cala. Finché si resta su HS256, il codice è corretto e pronto ma il guadagno non si materializza.
+
+**Cold start (prima apertura):** mitigabile con Vercel Fluid Compute (piano) o un warm-up schedulato; non incluso qui (cerotto, costo invocazioni) — da valutare se resta percepibile dopo l'abilitazione delle chiavi asimmetriche.
+
+
 
 ## 🌊 ONDA 14 — Performance (branch `claude/onda-14`)
 

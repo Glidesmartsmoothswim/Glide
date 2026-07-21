@@ -20,26 +20,29 @@ export type Profile = {
  */
 export async function getCurrentProfile(): Promise<Profile | null> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  // Onda 15: id utente dai claims (verifica JWT locale con chiavi asimmetriche),
+  // niente getUser() di rete. La sicurezza dei dati resta la RLS.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const claims = claimsData?.claims;
+  const userId = claims?.sub;
+  if (!userId) return null;
+  const email = (claims?.email as string | undefined) ?? null;
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("id, role, first_name, last_name, email, tier")
-    .eq("id", user.id)
+    .eq("id", userId)
     .single();
 
   // Fallback prudente: se il profilo non c'è ancora (trigger in ritardo),
   // trattiamo come swimmer così l'app non si rompe.
   if (!profile) {
     return {
-      id: user.id,
+      id: userId,
       role: "swimmer",
       first_name: null,
       last_name: null,
-      email: user.email ?? null,
+      email,
       tier: "free",
     };
   }
