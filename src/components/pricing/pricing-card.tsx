@@ -1,69 +1,74 @@
-import { Check } from "lucide-react";
+import { Check, X } from "lucide-react";
 import type { ReactNode } from "react";
 
+export type Feature = { label: string; included: boolean };
+
 /**
- * Onda 13.5 — carta prezzo unica, riusata in tutte e quattro le carte.
- * Ogni ritocco futuro si fa in un punto solo. Sobria: nessun countdown/urgenza.
+ * Onda 18 — carta prezzo in stile "banner" (badge circolare + prezzo +
+ * checklist ✓/✗ + CTA colorata). Unica, riusata in tutte le carte: le righe
+ * feature allineate fanno saltare all'occhio le differenze fra i piani.
  */
 export function PricingCard({
   name,
+  color,
   price,
   period,
-  badge,
   saving,
   tagline,
-  includes,
+  badge,
+  features,
   cta,
-  highlighted = false,
 }: {
   name: string;
+  color: string; // hex o var(--…)
   price: string;
   period?: string;
-  badge?: string;
   saving?: string;
   tagline?: string;
-  includes: string[];
+  badge?: string;
+  features: Feature[];
   cta: ReactNode;
-  highlighted?: boolean;
 }) {
   return (
-    <div
-      className={`flex flex-col gap-3 rounded-2xl border p-4 ${
-        highlighted
-          ? "border-turchese bg-turchese/5"
-          : "border-border bg-surface"
-      }`}
-    >
-      <div className="flex items-center gap-2">
-        <h3 className="font-display text-lg text-foreground">{name}</h3>
-        {badge && (
-          <span className="rounded-full bg-turchese/15 px-2 py-0.5 text-[11px] font-semibold text-teal">
-            {badge}
-          </span>
-        )}
+    <div className="relative flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface px-3 pb-4 pt-9 shadow-sm">
+      {badge && (
+        <span
+          className="absolute left-1/2 top-2 -translate-x-1/2 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
+          style={{ background: color }}
+        >
+          {badge}
+        </span>
+      )}
+      <div
+        className="grid h-16 w-16 shrink-0 place-items-center rounded-full px-1 text-center text-sm font-bold leading-tight text-white"
+        style={{ background: color }}
+      >
+        {name}
       </div>
 
-      <div>
-        <p className="font-display text-2xl text-foreground">
-          {price}
-          {period && (
-            <span className="text-sm font-normal text-muted"> /{period}</span>
-          )}
-        </p>
-        {saving && <p className="text-xs font-semibold text-teal">{saving}</p>}
+      <div className="text-center">
+        <p className="font-display text-2xl text-foreground">{price}</p>
+        {period && <p className="text-xs text-muted">{period}</p>}
+        {saving && <p className="mt-0.5 text-xs font-semibold text-teal">{saving}</p>}
         {tagline && <p className="text-xs text-muted">{tagline}</p>}
       </div>
 
-      <ul className="flex flex-1 flex-col gap-1.5">
-        {includes.map((line) => (
-          <li key={line} className="flex items-start gap-2 text-sm text-foreground">
-            <Check size={15} className="mt-0.5 shrink-0 text-teal" />
-            {line}
+      <ul className="flex w-full flex-1 flex-col gap-1.5">
+        {features.map((f) => (
+          <li key={f.label} className="flex items-start gap-2 text-xs">
+            {f.included ? (
+              <Check size={14} className="mt-0.5 shrink-0 text-[#16A34A]" />
+            ) : (
+              <X size={14} className="mt-0.5 shrink-0 text-[#DC2626]" />
+            )}
+            <span className={f.included ? "text-foreground" : "text-muted"}>
+              {f.label}
+            </span>
           </li>
         ))}
       </ul>
 
-      {cta}
+      <div className="w-full">{cta}</div>
     </div>
   );
 }
