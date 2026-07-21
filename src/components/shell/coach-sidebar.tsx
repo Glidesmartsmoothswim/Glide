@@ -16,6 +16,7 @@ import {
   MessageCircle,
   CalendarClock,
   ClipboardList,
+  Activity,
   LogOut,
   Menu,
   X,
@@ -31,7 +32,10 @@ type Group = { title: string; items: Item[] };
 const NAV: Group[] = [
   {
     title: "Panoramica",
-    items: [{ href: "/coach", label: "Dashboard", icon: LayoutDashboard }],
+    items: [
+      { href: "/coach", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/coach/stato", label: "Stato sistema", icon: Activity },
+    ],
   },
   {
     title: "Nuotatori",

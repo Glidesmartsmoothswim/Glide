@@ -4,7 +4,16 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-21 — **ONDA 16 (Personal best · programma gare individuale + passo 0 fra le lezioni) in corso.**_
+_Ultimo aggiornamento: 2026-07-21 — **ONDA 17 (Health-check coach per il lancio) in corso.**_
+
+## 🌊 ONDA 17 — Health-check per il lancio (branch `claude/onda-17`)
+- **`/coach/stato`** (coach-only): schermata unica di controllo pre-lancio.
+  - **Configurazione**: URL app, DB Supabase (connesso), **CRON_SECRET** (cron protetti sì/no), Stripe, webhook Stripe, Resend — semaforo verde/giallo/grigio (grigio = opzionale non attivo, ok per il test).
+  - **Campo pronto**: conteggi nuotatori, programmi 1:1 attivi, Canale Open settimana corrente, libreria pubblicata, servizi prenotabili.
+  - Voce **"Stato sistema"** nella sidebar coach (Panoramica). Copre i controlli tecnici della guida di lancio in un colpo d'occhio.
+- **Nota lancio:** `CRON_SECRET` **impostata** su Vercel (verificato: `/api/cron/digest` → 401). Redirect URLs + Site URL già ok. Leaked-password = Pro (saltato). Resta operativo (tester + smoke test).
+
+
 
 ## 🌊 ONDA 16 — Personal best completi + booking a ruota (branch `claude/onda-16`)
 - **Personal best su tutto il programma INDIVIDUALE (staffette escluse).** `lib/profile/costanti.ts`: `EVENTI_INDIVIDUALI` (SL 50→1500; dorso/rana/delfino 50/100/200; misti 100/200/400, con il **100 misti solo in vasca 25**) + `distanzeValide(stile,vasca)` + `isEventoIndividuale()`. Il selettore ora mostra **solo le distanze valide per lo stile scelto** (niente combinazioni inesistenti tipo 1500 rana o 50 misti). Validazione anche **lato server** in `upsertPersonalBest`.
