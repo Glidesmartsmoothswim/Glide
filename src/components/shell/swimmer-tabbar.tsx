@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Home,
   Waves,
+  BookOpen,
   CalendarPlus,
   Video,
   TrendingUp,
@@ -14,10 +15,11 @@ import {
 
 type Tab = { href: string; label: string; icon: LucideIcon };
 
-// Rispecchia la bottom-tab del prototipo glide-suite.jsx
+// Rispecchia la bottom-tab del prototipo glide-suite.jsx (+ Libreria, Onda 12)
 const TABS: Tab[] = [
   { href: "/app", label: "Oggi", icon: Home },
   { href: "/app/nuoto", label: "Nuoto", icon: Waves },
+  { href: "/app/libreria", label: "Libreria", icon: BookOpen },
   { href: "/app/prenota", label: "Prenota", icon: CalendarPlus },
   { href: "/app/video", label: "Video", icon: Video },
   { href: "/app/progressi", label: "Progressi", icon: TrendingUp },

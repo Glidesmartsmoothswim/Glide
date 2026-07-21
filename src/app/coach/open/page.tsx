@@ -4,7 +4,8 @@ import { Card } from "@/components/ui/card";
 import { WorkoutEditor } from "@/components/workout/editor";
 import { CoachWorkoutCard } from "@/components/workout/coach-workout-card";
 import { saveOpenWorkout } from "../workout-actions";
-import { WEEK_DAYS, type WorkoutRow } from "@/lib/types";
+import { formatWeek, currentMonday } from "@/lib/week";
+import { type WorkoutRow } from "@/lib/types";
 
 export const metadata = { title: "Canale Open" };
 
@@ -28,10 +29,16 @@ export default async function CanaleOpen() {
     if (wid) doneCount[wid] = (doneCount[wid] ?? 0) + 1;
   });
 
-  const byDay = WEEK_DAYS.map((d) => ({
-    day: d,
-    items: workouts.filter((w) => w.week_day === d),
-  })).filter((g) => g.items.length);
+  // Raggruppa per settimana (week_start), la più recente in alto.
+  const cur = currentMonday();
+  const weeks = [...new Set(workouts.map((w) => w.week_start ?? ""))].sort(
+    (a, b) => (a < b ? 1 : a > b ? -1 : 0),
+  );
+  const byWeek = weeks.map((wk) => ({
+    week: wk,
+    isCurrent: wk === cur,
+    items: workouts.filter((w) => (w.week_start ?? "") === wk),
+  }));
 
   return (
     <div className="flex max-w-3xl flex-col gap-6">
@@ -70,8 +77,16 @@ export default async function CanaleOpen() {
             Ancora nessun allenamento pubblicato sul Canale Open.
           </Card>
         ) : (
-          byDay.map((g) => (
-            <div key={g.day} className="flex flex-col gap-3">
+          byWeek.map((g) => (
+            <div key={g.week || "no-week"} className="flex flex-col gap-3">
+              <h3 className="text-sm font-semibold text-muted">
+                {g.week ? formatWeek(g.week) : "Senza settimana"}
+                {g.isCurrent && (
+                  <span className="ml-2 rounded bg-turchese/15 px-1.5 py-0.5 text-xs text-teal">
+                    corrente
+                  </span>
+                )}
+              </h3>
               {g.items.map((w) => (
                 <CoachWorkoutCard
                   key={w.id}

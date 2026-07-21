@@ -9,6 +9,7 @@ import {
   UserPlus,
   Radio,
   Video,
+  BookOpen,
   Share2,
   BarChart3,
   Bell,
@@ -51,6 +52,7 @@ const NAV: Group[] = [
     title: "Contenuti",
     items: [
       { href: "/coach/video", label: "Video gare", icon: Video },
+      { href: "/coach/libreria", label: "Libreria", icon: BookOpen },
       { href: "/coach/social", label: "Social", icon: Share2 },
     ],
   },

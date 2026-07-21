@@ -31,3 +31,51 @@ export async function videoSignedUrl(
     .createSignedUrl(path, expiresIn);
   return data?.signedUrl ?? null;
 }
+
+/**
+ * Bucket Libreria (Onda 12.2). Privato: i file si leggono SOLO via URL
+ * firmati (gate lato server per tier). Oggi Supabase Storage; domani R2 →
+ * si cambia solo qui (stesso pattern dei video).
+ */
+export const LIBRARY_BUCKET = "library";
+
+/** Signed URL di un oggetto libreria. Null se key assente o storage off. */
+export async function librarySignedUrl(
+  key: string | null,
+  expiresIn = 3600,
+): Promise<string | null> {
+  if (!key) return null;
+  const admin = createAdminClient();
+  if (!admin) return null;
+  const { data } = await admin.storage
+    .from(LIBRARY_BUCKET)
+    .createSignedUrl(key, expiresIn);
+  return data?.signedUrl ?? null;
+}
+
+/** Firma un gruppo di key libreria in un colpo (per le cover della griglia). */
+export async function librarySignedUrls(
+  keys: string[],
+  expiresIn = 3600,
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const clean = keys.filter(Boolean);
+  if (!clean.length) return out;
+  const admin = createAdminClient();
+  if (!admin) return out;
+  const { data } = await admin.storage
+    .from(LIBRARY_BUCKET)
+    .createSignedUrls(clean, expiresIn);
+  for (const s of data ?? [])
+    if (s.path && s.signedUrl) out.set(s.path, s.signedUrl);
+  return out;
+}
+
+/** Cancellazione fisica di un oggetto libreria (file o cover). */
+export async function removeLibraryObject(key: string | null): Promise<boolean> {
+  if (!key) return false;
+  const admin = createAdminClient();
+  if (!admin) return false;
+  const { error } = await admin.storage.from(LIBRARY_BUCKET).remove([key]);
+  return !error;
+}

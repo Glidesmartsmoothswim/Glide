@@ -37,6 +37,15 @@ export function EditSwimmerForm({ s }: { s: SwimmerRow }) {
           <option value="coaching_1_1">1:1</option>
           <option value="both">1:1 + Open</option>
         </select>
+        <label className="flex flex-col gap-1 text-xs text-muted">
+          Tier di accesso
+          <select name="tier" defaultValue={s.tier ?? "free"} className={field}>
+            <option value="free">Free</option>
+            <option value="open">Open</option>
+            <option value="open_plus">Open+</option>
+            <option value="one_to_one">1:1 (dedicato)</option>
+          </select>
+        </label>
         <input name="package" defaultValue={s.package ?? ""} placeholder="Pacchetto (es. Elite €129)" className={field} />
         <select name="status" defaultValue={s.status} className={field}>
           <option value="attivo">Attivo</option>

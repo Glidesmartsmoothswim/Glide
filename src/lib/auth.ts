@@ -1,6 +1,7 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import type { Tier } from "@/lib/access";
 
 export type Role = "coach" | "swimmer";
 
@@ -10,6 +11,7 @@ export type Profile = {
   first_name: string | null;
   last_name: string | null;
   email: string | null;
+  tier: Tier;
 };
 
 /**
@@ -25,7 +27,7 @@ export async function getCurrentProfile(): Promise<Profile | null> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, role, first_name, last_name, email")
+    .select("id, role, first_name, last_name, email, tier")
     .eq("id", user.id)
     .single();
 
@@ -38,9 +40,10 @@ export async function getCurrentProfile(): Promise<Profile | null> {
       first_name: null,
       last_name: null,
       email: user.email ?? null,
+      tier: "free",
     };
   }
-  return profile as Profile;
+  return { ...profile, tier: (profile.tier ?? "free") as Tier } as Profile;
 }
 
 /** Home corretta per ruolo. */
