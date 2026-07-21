@@ -4,7 +4,42 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-21 — **ONDA 13 (Performance + Certificato medico + Obiettivi + Videoanalisi 1:1 + Prezzi/Abbonamenti + Token lezione) COMPLETA.**_
+_Ultimo aggiornamento: 2026-07-21 — **ONDA 14 (Performance: diagnosi + interventi mirati) in corso.**_
+
+## 🌊 ONDA 14 — Performance (branch `claude/onda-14`)
+
+### 14.1 — DIAGNOSI · PERF_BASELINE
+**1. Lighthouse mobile** (home atleta / settimana Open / gestionale coach): ⚠️ **non eseguibile dal sandbox** (nessun browser verso il preview). Da catturare sul preview Vercel. Le cause misurabili sotto guidano comunque gli interventi.
+
+**2. Regioni — 🔴 DISALLINEAMENTO (causa #1):**
+- **Supabase:** `eu-central-1` (Francoforte, EU).
+- **Vercel:** nessuna `region` in `vercel.json` → funzioni sulla **region di default** (tipicamente `iad1`, US-East). Ogni fetch SSR paga un round-trip **transatlantico** (~90–100ms) × più query sequenziali per pagina.
+- **STOP GATE:** è una **modifica di configurazione**, non una migrazione (il DB non si sposta) → applicata: **`"regions": ["fra1"]`** in `vercel.json` (Francoforte, stessa zona del DB). Nessuno stop necessario.
+
+**3. Query (pg_stat_statements):** le 10 query più costose sono **tutte di sistema/introspezione** (PostgREST schema cache, `pg_timezone_names`, dashboard/MCP). **Nessuna query applicativa** in classifica → a questo volume dati il layer query **non è un collo di bottiglia**.
+- **FK senza indice:** 1 → `workout_completions.workout_id` (usata nella clausola RLS di `workouts` e nel FK). → indice in 14.2.
+- **RLS `auth.uid()` per riga:** **41 policy** usano `auth.uid()`/`is_coach()`/`my_tier()` non avvolti in `(select …)` → rivalutati per riga. Impatto **attuale ~0** (poche righe), **latente a scala**. Advisor Supabase lo segnala. → riscrittura mirata in 14.2.
+
+**4. Waterfall (await sequenziali indipendenti):** confermato per codice —
+`coach/nuotatori/[id]` ~20 await, `app/profilo` ~10, `app` (home) ~7, `app/nuoto` ~5. Query indipendenti eseguite in serie → moltiplicano il RTT. → `Promise.all` in 14.2.
+
+**5. Bundle (chunk client su disco):**
+| Chunk | KB | Contenuto |
+| --- | --- | --- |
+| 433… | 518 | `@supabase` + **zod** (auth/env, quasi ovunque) |
+| 129… / 03v… | 342 ×2 | **recharts** (già **lazy** da 13.1: chunk async, fuori dall'iniziale) |
+| 3rxl… | 222 | react-dom (framework) |
+| 0cz… / 2u… | 110 / 107 | runtime/app |
+→ recharts già isolato ✅. Candidato: **zod nel bundle client** (via `env.ts`). Da valutare in 14.3.
+
+### 🏁 CLASSIFICA cause per impatto (= ordine interventi)
+1. **Regioni Vercel↔Supabase** (transatlantico su ogni query) — **FIX applicato (fra1)**.
+2. **Waterfall** await sequenziali sulle pagine calde — `Promise.all` (14.2).
+3. **Bundle iniziale** @supabase+zod (recharts già ok) — valutare zod (14.3).
+4. **RLS `auth.uid()` per riga + indice FK** — preventivo scala (14.2).
+5. **Skeleton/percepito** — grosso già fatto in 13.1; completare (14.5).
+
+
 
 ## 🌊 ONDA 13 — Feedback utenti + Prezzi + Token 1:1 (2026-07-21 · branch `claude/onda-13`)
 
