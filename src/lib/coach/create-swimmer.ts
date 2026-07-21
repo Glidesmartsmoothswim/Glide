@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { hasOneToOne, grantMonthlyTokenIfMissing } from "@/lib/entitlements";
 import { serverFeatures } from "@/lib/flags";
 import { getResend, emailFrom } from "@/lib/resend";
 import { publicEnv } from "@/lib/env";
@@ -55,6 +56,12 @@ export async function createSwimmerAccount(input: {
       role: "swimmer",
     })
     .eq("id", swimmerId);
+
+  // Onda 19: se creato già col servizio 1:1, gli spetta subito il token del
+  // mese (la videoanalisi resta invece un evento separato a pagamento).
+  if (hasOneToOne(input.serviceType)) {
+    await grantMonthlyTokenIfMissing(admin, swimmerId);
+  }
 
   if (!serverFeatures().resend) {
     return {
