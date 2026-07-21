@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/lib/auth";
+import { canAccess } from "@/lib/access";
 import { serverFeatures } from "@/lib/flags";
 import { createBirraCheckout } from "@/lib/stripe-checkout";
 import { BIRRA_CENTS } from "@/lib/video";
@@ -140,13 +141,17 @@ export async function registerVideo(
   if (!event) return { error: "Indica la gara (es. 50 SL — Regionali)." };
   if (!storagePath) return { error: "Carica prima il file video." };
 
-  // Servizio → tier
+  // Videoanalisi inclusa (13.4): il tier di accesso one_to_one la include,
+  // senza pagamento. Retro-compatibilità col service_type 1:1/both.
   const { data: full } = await (await createClient())
     .from("profiles")
     .select("service_type")
     .eq("id", profile.id)
     .single();
-  const is11 = full?.service_type === "coaching_1_1" || full?.service_type === "both";
+  const is11 =
+    canAccess(profile.tier, "video:review") ||
+    full?.service_type === "coaching_1_1" ||
+    full?.service_type === "both";
   const tier = is11 ? "coaching_1_1" : "open";
 
   const supabase = await createClient();
