@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/auth";
 import { woMeters, type Block } from "@/lib/workout";
 import { canEditWorkout } from "@/lib/config";
+import { normalizeToMonday, currentMonday } from "@/lib/week";
 import type { WorkoutFormState } from "@/components/workout/editor";
 
 function parseBlocks(raw: string): Block[] {
@@ -71,6 +72,10 @@ export async function saveOpenWorkout(
       focus: String(formData.get("focus") ?? "").trim() || null,
       pool: Number(formData.get("pool") ?? 25),
       week_day: String(formData.get("week_day") ?? "Lun"),
+      // Onda 12.3: settimana di pubblicazione (default: settimana corrente).
+      week_start:
+        normalizeToMonday(String(formData.get("week_start") ?? "")) ??
+        currentMonday(),
       blocks,
       total_meters: woMeters(blocks),
       published_at: new Date().toISOString(),
@@ -122,6 +127,8 @@ export async function updateWorkout(
   };
   if (existing.kind === "open_channel" && formData.get("week_day"))
     patch.week_day = String(formData.get("week_day"));
+  if (existing.kind === "open_channel" && formData.get("week_start"))
+    patch.week_start = normalizeToMonday(String(formData.get("week_start")));
 
   const { error } = await supabase
     .from("workouts")

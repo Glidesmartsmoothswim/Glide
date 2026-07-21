@@ -13,6 +13,7 @@ import {
   type ZoneId,
 } from "@/lib/workout";
 import { WEEK_DAYS } from "@/lib/types";
+import { currentMonday } from "@/lib/week";
 
 export type WorkoutFormState = {
   error?: string;
@@ -38,6 +39,7 @@ export type WorkoutInitial = {
   focus?: string | null;
   pool?: number;
   week_day?: string;
+  week_start?: string | null;
   blocks?: Block[];
 };
 
@@ -154,6 +156,17 @@ function EditorForm({
               </option>
             ))}
           </select>
+        )}
+        {context === "open" && (
+          <label className="flex flex-col gap-1 text-xs text-muted">
+            Settimana (lunedì)
+            <input
+              type="date"
+              name="week_start"
+              defaultValue={initial?.week_start ?? currentMonday()}
+              className="rounded-xl border border-border bg-background px-3 py-2.5 outline-none focus:border-blu"
+            />
+          </label>
         )}
       </div>
 

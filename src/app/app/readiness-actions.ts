@@ -107,16 +107,27 @@ export async function savePost(
   const workoutId = String(formData.get("workout_id") ?? "").trim() || null;
   let sig: string | null = null;
   let blocks: Block[] | null = null;
+  let woMeta:
+    | { title: string; focus: string | null; week_start: string | null; total_meters: number | null; kind: string }
+    | null = null;
   if (workoutId) {
     const { data: w } = await supabase
       .from("workouts")
-      .select("blocks")
+      .select("blocks, title, focus, week_start, total_meters, kind")
       .eq("id", workoutId)
       .single();
     if (w?.blocks) {
       blocks = w.blocks as Block[];
       sig = mainSetSig(blocks);
     }
+    if (w)
+      woMeta = {
+        title: w.title as string,
+        focus: (w.focus as string | null) ?? null,
+        week_start: (w.week_start as string | null) ?? null,
+        total_meters: (w.total_meters as number | null) ?? null,
+        kind: w.kind as string,
+      };
   }
 
   const note = String(formData.get("note") ?? "").trim() || null;
@@ -150,7 +161,26 @@ export async function savePost(
     });
   }
 
+  // Onda 12.3: archivio personale svolti (self-contained: snapshot così
+  // "resta mio" anche se l'allenamento sparisce o il tier scende a free).
+  if (workoutId && woMeta) {
+    await supabase.from("workout_completions").upsert(
+      {
+        swimmer_id: profile.id,
+        workout_id: workoutId,
+        title: woMeta.title,
+        focus: woMeta.focus,
+        week_start: woMeta.week_start,
+        total_meters: woMeta.total_meters,
+        source: woMeta.kind === "open_channel" ? "open_channel" : "personal",
+        completed_at: new Date().toISOString(),
+      },
+      { onConflict: "swimmer_id,workout_id" },
+    );
+  }
+
   revalidatePath("/app");
+  revalidatePath("/app/nuoto");
   revalidatePath("/app/progressi");
   return { info: "Sessione registrata. Onda dopo onda." };
 }

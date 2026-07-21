@@ -4,7 +4,52 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-19 — **V.3 Programmazione 1:1 (macrocicli + fasi + note coach) COMPLETO.**_
+_Ultimo aggiornamento: 2026-07-21 — **ONDA 12 (Tier di accesso + Libreria + Canale Open a ordine libero + Open+) COMPLETA.**_
+
+## 🌊 ONDA 12 — Libreria + Tier di accesso (2026-07-21)
+
+### 12.1 — Modello dei tier di accesso
+- **`migration_019` APPLICATA:** `profiles.tier` (free/open/open_plus/one_to_one, default free) + **guardia** `protect_tier_column` (un nuotatore NON può auto-promuoversi: consentito solo a coach/service_role — verificato). Helper `my_tier()` SECURITY DEFINER.
+- **`lib/access.ts`** — UNICO punto di gating: `canAccess(tier, risorsa)` + **matrice ESPLICITA** (nessuna gerarchia implicita). Applicata **in UI** (nasconde/lucchetto) **e lato server/RLS** (rifiuta). **Test `lib/access.test.ts`: 57 asserzioni verdi** (verificate).
+- **Enforcement DB:** RLS `workouts` riscritta — open vede solo la **settimana corrente**, open_plus **tutto lo storico**, free niente; **"ciò che ho svolto resta mio"** (clausola completions). Simulazione ruoli verde: `open=1 · open_plus=2 · free=0 · free+completion=1`.
+- **Stripe:** prodotto **Open+** (`STRIPE_PRICE_OPEN_PLUS`, **non hardcodato** — prezzo deciso da Alessio). Webhook esteso: abbonamento attivo → tier; `customer.subscription.deleted/updated` (canceled/unpaid) → tier torna **free**. Non tocca mai un `one_to_one` (lo gestisce il coach).
+- **Assegnazione:** il coach imposta il tier dalla scheda nuotatore. **Invito non aggressivo** `UpgradeHint` (una riga + pulsante, niente popup) ovunque ci sia contenuto bloccato.
+
+### 12.2 — Sezione Libreria
+- **`migration_020` APPLICATA:** `library_items` (pdf/video/link, `visibility` per tier, `published`, cover) + **bucket privato `library`** con policy coach. File letti **solo via URL firmati**.
+- **Coach `/coach/libreria`:** upload da browser (PDF + cover), pubblica/nascondi, elimina, visibilità per tier.
+- **Atleta `/app/libreria`:** griglia card. I contenuti di **tier superiore appaiono col lucchetto + invito**. Apertura via route **`/app/libreria/[id]/open`** che applica il **GATE lato server** (URL firmato/redirect solo se `canOpenLibraryItem`). RLS verificata (pubblicati visibili, bozze no).
+- **Nav:** voce **Libreria** in tabbar atleta e sidebar coach.
+
+### 12.3 — Canale Open: settimana a ordine libero + archivio personale
+- **`workouts.week_start`** (lunedì) su `migration_019`; il coach pubblica per settimana (editor + `/coach/open` raggruppato per settimana, "corrente" evidenziata). `lib/week.ts` (lunedì ISO, coerente con `date_trunc('week')`).
+- **Atleta "La tua settimana"** (`/app/nuoto`): allenamenti della settimana corrente, etichette focus, **selezione libera**, copy **"Scegli tu quali e quanti farne: 1, 2 o 3."** — **NIENTE streak/badge/percentuali** (vincolo di prodotto rispettato). Solo un neutro "Svolto".
+- **"I miei allenamenti"** — archivio svolti da **`workout_completions`** (tabella self-contained: snapshot title/focus/week/metri → **resta mio anche a tier sceso a free**). Popolato al POST check-in (flusso sessione esistente). Dettaglio `/app/nuoto/[id]` (RLS-gated).
+
+### 12.4 — Open+: archivio storico completo
+- **`/app/nuoto/archivio`** (solo open_plus): tutti gli Open passati per settimana, **filtro focus + ricerca**, apri/rifai. **Enforcement server**: se il tier non è ammesso non si interrogano i dati, si mostra l'invito (doppio strato: anche la RLS nasconde le settimane passate agli open).
+- **Tier open:** la voce Archivio compare con **lucchetto + invito a Open+**.
+
+### ✅ Collaudo per tier — 4 account di prova
+| Account | Libreria | Canale Open | Archivio Open (12.4) | 1:1 |
+| --- | --- | --- | --- | --- |
+| **free** | solo contenuti `free`; gli altri col lucchetto | — (invito a Open) | — (invito) | — |
+| **open** | free + `open` | **solo settimana corrente** + i propri svolti | lucchetto + invito Open+ | — |
+| **open_plus** | free + open + `open_plus` | settimana corrente + svolti | **tutto lo storico** (filtro/ricerca) | — |
+| **one_to_one** | **completa** (tutte le visibilità) | (per matrice NON accede al Canale Open) | — | percorso dedicato 1:1 invariato |
+_Per ogni account: verificare che il contenuto di tier superiore sia visibile ma bloccato (lucchetto + invito), e che l'apertura del file sia rifiutata lato server._
+
+### 🔑 Variabili d'ambiente nuove (Onda 12)
+- **`STRIPE_PRICE_OPEN_PLUS`** — Price ID del prodotto Open+ (da creare su Stripe; prezzo deciso da Alessio).
+- **R2 / storage libreria:** la Libreria oggi usa **Supabase Storage** (bucket privato `library`), tramite l'astrazione `lib/storage.ts` (unico punto di swap, come i video). Il passaggio a **Cloudflare R2** richiederà le chiavi R2 (endpoint/bucket/access key) e la modifica del solo `lib/storage.ts`: **nessuna key R2 è ancora presente** → per ora si resta su Supabase Storage.
+
+### 🌱 Seed "La Streamline" (manuale)
+Il PDF `libreria-streamline.pdf` non era nel repo al momento della run (pre-step manuale). **Da fare da Alessio:** in `/coach/libreria` carica il PDF come **"Smart Smooth Swim — La Streamline"**, tipo **PDF**, visibilità **Free**, **pubblicato**. (Nessuna riga fittizia creata a DB per non lasciare un contenuto senza file.)
+
+### 🔒 Invariante 1:1
+I workout `kind='personal'` **non sono stati toccati**: `savePersonalWorkout` invariato; la RLS `workouts` mantiene `swimmer_id = auth.uid()` per le schede personali. La programmazione 1:1 (V.3) resta com'era.
+
+_Ultimo aggiornamento V.3: 2026-07-19 — **V.3 Programmazione 1:1 (macrocicli + fasi + note coach) COMPLETO.**_
 
 ## 🗺️ Sprint V.3 — Programmazione 1:1 (2026-07-19)
 - **`migration_018_programs` APPLICATA:** tre tabelle nuove.
