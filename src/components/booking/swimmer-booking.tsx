@@ -58,10 +58,12 @@ export function SwimmerBooking({
   services,
   credit,
   stripeEnabled = false,
+  tokensAvailable = 0,
 }: {
   services: Svc[];
   credit: Credit;
   stripeEnabled?: boolean;
+  tokensAvailable?: number;
 }) {
   const router = useRouter();
   const [days] = useState(next14());
@@ -72,6 +74,7 @@ export function SwimmerBooking({
   const [day, setDay] = useState<string | null>(null);
   const [slot, setSlot] = useState<string | null>(null);
   const [method, setMethod] = useState<"cash" | "stripe">("cash");
+  const [useToken, setUseToken] = useState(tokensAvailable > 0);
   const [msg, setMsg] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -95,14 +98,17 @@ export function SwimmerBooking({
     setSlotsByDay(Object.fromEntries(results));
   }
 
-  const willUseCredit = Boolean(svc) && credit.remaining > 0;
+  const willUseToken = Boolean(svc) && tokensAvailable > 0 && useToken;
+  const willUseCredit = Boolean(svc) && !willUseToken && credit.remaining > 0;
   const priceLabel = !svc
     ? ""
-    : willUseCredit
-      ? "Usi 1 lezione inclusa"
-      : credit.granted > 0
-        ? `Credito esaurito · lezione extra €${Math.round(svc.price_cents / 100)}`
-        : `Lezione extra €${Math.round(svc.price_cents / 100)}`;
+    : willUseToken
+      ? "Usi il tuo token — lezione inclusa"
+      : willUseCredit
+        ? "Usi 1 lezione inclusa"
+        : credit.granted > 0
+          ? `Credito esaurito · lezione extra €${Math.round(svc.price_cents / 100)}`
+          : `Lezione extra €${Math.round(svc.price_cents / 100)}`;
 
   async function confirm() {
     if (!svc || !slot) return;
@@ -114,7 +120,8 @@ export function SwimmerBooking({
       body: JSON.stringify({
         service: svc.code,
         startsAt: slot,
-        method: willUseCredit ? undefined : method,
+        useToken: willUseToken,
+        method: willUseToken || willUseCredit ? undefined : method,
       }),
     });
     const j = await r.json().catch(() => ({}));
@@ -245,7 +252,24 @@ export function SwimmerBooking({
             {svc.mode === "remote" ? "Video call" : "Piscina di Livorno"}
           </p>
           <p className="t-small mt-1 text-muted">{priceLabel}</p>
-          {!willUseCredit && (
+          {tokensAvailable > 0 && (
+            <button
+              onClick={() => setUseToken((v) => !v)}
+              className={`mt-3 w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${
+                willUseToken
+                  ? "border-teal bg-teal/10"
+                  : "border-border bg-surface"
+              }`}
+            >
+              Usa il tuo token — lezione inclusa
+              <span className="block t-small font-normal text-muted">
+                {tokensAvailable === 1
+                  ? "Hai 1 lezione inclusa questo mese."
+                  : `Hai ${tokensAvailable} lezioni incluse.`}
+              </span>
+            </button>
+          )}
+          {!willUseCredit && !willUseToken && (
             <div className="mt-3 flex flex-col gap-2">
               <p className="t-label text-muted">Come paghi</p>
               {stripeEnabled && (

@@ -5,7 +5,21 @@ import { getCurrentProfile } from "@/lib/auth";
 import { clientFeatures } from "@/lib/flags";
 import { signOut } from "@/app/login/actions";
 import { Card, Pill } from "@/components/ui/card";
-import { subscribe } from "./actions";
+import { ObjectivesManager } from "./objectives-manager";
+import { CertificateUploader } from "./certificate-uploader";
+import type { ObjectiveRow } from "@/lib/objectives";
+import {
+  availableCount,
+  isTokenAvailable,
+  type LessonTokenRow,
+} from "@/lib/tokens";
+import {
+  certLight,
+  daysToExpiry,
+  CERT_LIGHT_LABEL,
+  CERT_LIGHT_DOT,
+  type MedicalCertRow,
+} from "@/lib/certificates";
 import { formatTempo } from "@/lib/profile/tempo";
 import { STILE_LABEL, type Stile } from "@/lib/profile/costanti";
 import {
@@ -16,14 +30,6 @@ import {
 } from "@/lib/types";
 
 export const metadata = { title: "Profilo" };
-
-// Onda 12.1: piani self-serve = Open e Open+. Il tier 1:1 lo assegna il coach.
-// Il prezzo di Open+ lo decide Alessio (STRIPE_PRICE_OPEN_PLUS): finché non è
-// fissato mostriamo il piano senza cifra, senza inventarla.
-const PLANS: { tier: "open" | "open_plus"; name: string; price?: string; desc: string }[] = [
-  { tier: "open", name: "Open", price: "€29", desc: "Settimana Canale Open + archivio dei tuoi svolti" },
-  { tier: "open_plus", name: "Open+", desc: "Tutto Open + archivio storico completo" },
-];
 
 export default async function SwimmerProfilo({
   searchParams,
@@ -56,6 +62,34 @@ export default async function SwimmerProfilo({
     .select("anno_nascita, categoria, stili_abituali, distanze_abituali")
     .eq("id", profile?.id ?? "")
     .single();
+
+  const { data: objData } = await supabase
+    .from("objectives")
+    .select("*")
+    .eq("swimmer_id", profile?.id ?? "")
+    .order("status", { ascending: true })
+    .order("created_at", { ascending: false });
+  const objectives = (objData ?? []) as ObjectiveRow[];
+
+  const { data: certData } = await supabase
+    .from("medical_certificates")
+    .select("*")
+    .eq("swimmer_id", profile?.id ?? "")
+    .order("data_scadenza", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const cert = certData as MedicalCertRow | null;
+  const light = certLight(cert?.data_scadenza ?? null);
+  const certDays = daysToExpiry(cert?.data_scadenza ?? null);
+
+  const { data: tokData } = await supabase
+    .from("lesson_tokens")
+    .select("*")
+    .eq("swimmer_id", profile?.id ?? "")
+    .order("granted_at", { ascending: false })
+    .limit(20);
+  const tokens = (tokData ?? []) as LessonTokenRow[];
+  const tokenAvail = availableCount(tokens);
 
   const { data: pbs } = await supabase
     .from("personal_bests")
@@ -161,33 +195,107 @@ export default async function SwimmerProfilo({
       )}
 
       <section className="flex flex-col gap-3">
+        <h2 className="font-display text-lg text-foreground">Certificato medico</h2>
+        {cert && (
+          <Card className="flex items-center gap-3">
+            <span
+              className="h-3 w-3 shrink-0 rounded-full"
+              style={{ background: CERT_LIGHT_DOT[light] }}
+            />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-foreground">
+                {CERT_LIGHT_LABEL[light]}
+              </p>
+              <p className="text-xs text-muted">
+                Scadenza {cert.data_scadenza}
+              </p>
+            </div>
+            <Link
+              href="/app/profilo/certificato"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-semibold text-blu"
+            >
+              Apri
+            </Link>
+          </Card>
+        )}
+        {certDays != null && certDays >= 0 && certDays <= 30 && (
+          <p className="rounded-xl bg-amber-500/5 p-3 text-sm text-muted">
+            Il tuo certificato scade tra {certDays}{" "}
+            {certDays === 1 ? "giorno" : "giorni"}: caricane uno aggiornato quando
+            puoi.
+          </p>
+        )}
+        <Card>
+          <CertificateUploader />
+        </Card>
+      </section>
+
+      {(tokenAvail > 0 || tokens.length > 0) && (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-display text-lg text-foreground">Token lezione</h2>
+          {tokenAvail > 0 ? (
+            <Card className="text-foreground">
+              Hai{" "}
+              <span className="font-semibold">
+                {tokenAvail === 1
+                  ? "1 lezione inclusa"
+                  : `${tokenAvail} lezioni incluse`}
+              </span>{" "}
+              questo mese. La usi in fase di prenotazione.
+            </Card>
+          ) : (
+            <Card className="text-muted">
+              Nessun token disponibile al momento.
+            </Card>
+          )}
+          {tokens.filter((t) => t.redeemed_at || !isTokenAvailable(t)).length >
+            0 && (
+            <div className="flex flex-col gap-1 text-sm text-muted">
+              {tokens
+                .filter((t) => t.redeemed_at || !isTokenAvailable(t))
+                .slice(0, 5)
+                .map((t) => (
+                  <p key={t.id}>
+                    {t.redeemed_at
+                      ? `Usato il ${new Date(t.redeemed_at).toLocaleDateString("it-IT")}`
+                      : "Scaduto"}
+                    {t.source === "coach" ? " · regalo del coach" : ""}
+                  </p>
+                ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-display text-lg text-foreground">I miei obiettivi</h2>
+        <p className="text-sm text-muted">
+          Le direzioni che condividi con il coach. Aggiungine quanti vuoi.
+        </p>
+        <ObjectivesManager items={objectives} />
+      </section>
+
+      <section className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <h2 className="font-display text-lg text-foreground">Abbonamenti</h2>
           {!clientFeatures.stripe && <Pill tone="warn">simulato</Pill>}
         </div>
-        <div className="grid gap-3">
-          {PLANS.map((p) => (
-            <form
-              key={p.tier}
-              action={subscribe}
-              className="flex items-center justify-between rounded-2xl border border-border bg-surface p-4"
-            >
-              <input type="hidden" name="tier" value={p.tier} />
-              <div>
-                <p className="font-semibold text-foreground">{p.name}</p>
-                <p className="text-sm text-muted">
-                  {p.price ? `${p.price} / mese` : p.desc}
-                </p>
-              </div>
-              <button
-                type="submit"
-                className="rounded-xl bg-gradient-to-br from-blu to-navy px-4 py-2.5 text-sm font-semibold text-white"
-              >
-                Attiva
-              </button>
-            </form>
-          ))}
-        </div>
+        <Link
+          href="/app/abbonamenti"
+          className="flex items-center justify-between rounded-2xl border border-border bg-surface p-4 hover:border-blu"
+        >
+          <div>
+            <p className="font-semibold text-foreground">Vedi i piani</p>
+            <p className="text-sm text-muted">
+              Canale Open e Percorso 1:1 — scegli e confronta.
+            </p>
+          </div>
+          <span className="rounded-xl bg-gradient-to-br from-blu to-navy px-4 py-2.5 text-sm font-semibold text-white">
+            Apri
+          </span>
+        </Link>
       </section>
 
       <form action={signOut}>

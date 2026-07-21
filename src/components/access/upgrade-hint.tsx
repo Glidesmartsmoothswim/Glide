@@ -25,7 +25,7 @@ export function UpgradeHint({
         {message ?? `Disponibile con il piano ${label}.`}
       </span>
       <Link
-        href="/app/profilo"
+        href="/app/abbonamenti"
         className="ml-auto rounded-lg bg-navy px-3 py-1.5 text-sm font-semibold text-white hover:bg-navy/90"
       >
         Scopri {label}

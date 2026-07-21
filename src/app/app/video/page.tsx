@@ -58,12 +58,17 @@ export default async function SwimmerVideo() {
       <header>
         <h1 className="font-display text-2xl text-foreground">Video gare</h1>
         <p className="text-sm text-muted">
-          Carica una gara e ricevi l&apos;analisi tecnica del coach.
+          {profile?.tier === "one_to_one"
+            ? "Carica il video: lo revisiono io, è incluso nel tuo percorso."
+            : "Carica una gara e ricevi l'analisi tecnica del coach."}
         </p>
       </header>
 
       <Card>
         <h2 className="mb-3 font-display text-lg text-foreground">Nuovo video</h2>
+        {profile?.tier === "one_to_one" && (
+          <p className="mb-3 text-sm text-teal">Analisi inclusa — nessun costo.</p>
+        )}
         <VideoUploader />
       </Card>
 

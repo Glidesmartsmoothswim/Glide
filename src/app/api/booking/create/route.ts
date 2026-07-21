@@ -35,6 +35,7 @@ export async function POST(req: Request) {
   const code = String(body.service ?? "");
   const startsAtIso = String(body.startsAt ?? "");
   const method = body.method === "cash" ? "cash" : null;
+  const useToken = body.useToken === true;
   const note = String(body.note ?? "").trim().slice(0, 500) || null;
   if (!code || !startsAtIso)
     return Response.json({ error: "dati mancanti" }, { status: 400 });
@@ -76,11 +77,26 @@ export async function POST(req: Request) {
   const endsAt = new Date(startsAt.getTime() + service.duration_min * 60_000);
   const blockUntil = new Date(endsAt.getTime() + service.buffer_min * 60_000);
 
-  // Ordine di consumo (ADR-010): credito → altrimenti il metodo scelto.
-  let payment: "credit" | "pending";
-  let paymentMethod: "credit" | "cash";
+  // Ordine di consumo: token 1:1 (se richiesto) → credito → metodo scelto.
+  let payment: "credit" | "pending" | "token";
+  let paymentMethod: "credit" | "cash" | "token";
   let consumed = false;
-  if (service.credit_cost > 0 && credit.remaining > 0) {
+  let tokenId: string | null = null;
+
+  if (useToken) {
+    // Reserve atomico di un token valido (Onda 13.6): niente doppio utilizzo.
+    const { data: tid } = await admin.rpc("reserve_lesson_token", {
+      p_swimmer: profile.id,
+    });
+    if (!tid)
+      return Response.json(
+        { error: "Nessun token disponibile." },
+        { status: 402 },
+      );
+    tokenId = tid as string;
+    payment = "token";
+    paymentMethod = "token";
+  } else if (service.credit_cost > 0 && credit.remaining > 0) {
     consumed = await consumeCredit(admin, profile.id, credit.periodStart);
     if (consumed) {
       payment = "credit";
@@ -127,11 +143,19 @@ export async function POST(req: Request) {
 
   if (error) {
     if (consumed) await refundCredit(admin, profile.id, credit.periodStart);
+    if (tokenId) await admin.rpc("release_lesson_token", { p_token: tokenId });
     const pgcode = (error as { code?: string }).code;
     if (pgcode === "23P01" || pgcode === "23505")
       return Response.json({ error: "Slot appena occupato." }, { status: 409 });
     return Response.json({ error: error.message }, { status: 500 });
   }
+
+  // Token 1:1: lega il token riservato alla prenotazione andata a buon fine.
+  if (tokenId)
+    await admin.rpc("link_lesson_token", {
+      p_token: tokenId,
+      p_booking: booking!.id,
+    });
 
   await logEvent(admin, profile.id, "booking.created", {
     booking_id: booking!.id,

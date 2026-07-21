@@ -84,6 +84,24 @@ export async function POST(req: Request) {
         status: "succeeded",
         description: `Abbonamento ${meta.tier ?? ""}`.trim(),
       });
+    } else if (meta.type === "season" && meta.swimmer_id) {
+      // 1:1 stagionale (one-off): tier one_to_one fino a fine giugno; poi il
+      // job pg_cron giornaliero lo riporta a free.
+      await admin
+        .from("profiles")
+        .update({
+          tier: "one_to_one",
+          tier_expires_at: meta.season_end ?? null,
+        })
+        .eq("id", meta.swimmer_id);
+      await admin.from("transactions").insert({
+        swimmer_id: meta.swimmer_id,
+        type: "subscription",
+        amount_cents: amount,
+        currency: s.currency ?? "eur",
+        status: "succeeded",
+        description: "Percorso 1:1 stagionale",
+      });
     }
   } else if (
     event.type === "customer.subscription.deleted" ||

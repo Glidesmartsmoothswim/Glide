@@ -23,6 +23,14 @@ import {
 } from "@/lib/profile/intake";
 import { ProgramManager } from "./program-manager";
 import type { ProgramRow, PhaseRow } from "@/lib/programs";
+import {
+  OBJECTIVE_KIND_LABEL,
+  OBJECTIVE_STATUS_LABEL,
+  type ObjectiveRow,
+} from "@/lib/objectives";
+import { certLight, CERT_LIGHT_LABEL, CERT_LIGHT_DOT } from "@/lib/certificates";
+import { availableCount, type LessonTokenRow } from "@/lib/tokens";
+import { GiftToken } from "./gift-token";
 import { savePersonalWorkout } from "../../workout-actions";
 import { archiveSwimmer } from "../actions";
 import { EditSwimmerForm } from "./edit-form";
@@ -115,6 +123,35 @@ export default async function SwimmerDetail({
       .sort((a, b) => a.start_date.localeCompare(b.start_date)),
     notes: notesByProg.get(p.id) ?? null,
   }));
+
+  // Obiettivi multipli (Onda 13.3) — il coach li legge (RLS).
+  const { data: objData } = await supabase
+    .from("objectives")
+    .select("*")
+    .eq("swimmer_id", id)
+    .order("status", { ascending: true })
+    .order("created_at", { ascending: false });
+  const objectives = (objData ?? []) as ObjectiveRow[];
+
+  // Certificato medico (13.2): semaforo dall'ultima scadenza (RLS: coach legge).
+  const { data: certRow } = await supabase
+    .from("medical_certificates")
+    .select("data_scadenza")
+    .eq("swimmer_id", id)
+    .order("data_scadenza", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const certExpiry = (certRow?.data_scadenza as string | null) ?? null;
+  const certL = certLight(certExpiry);
+
+  // Token lezione 1:1 (13.6): saldo disponibile (RLS: coach legge).
+  const { data: tokData } = await supabase
+    .from("lesson_tokens")
+    .select("*")
+    .eq("swimmer_id", id)
+    .order("granted_at", { ascending: false });
+  const tokens = (tokData ?? []) as LessonTokenRow[];
+  const tokenBalance = availableCount(tokens);
 
   // Quante volte ogni scheda è stata "svolta" (per l'avviso in modifica).
   const { data: doneEv } = await supabase
@@ -320,6 +357,74 @@ export default async function SwimmerDetail({
           earnedCodes={earned.map((b) => b.code)}
           paused={(swimmer.status ?? "attivo").toLowerCase() !== "attivo"}
         />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-display text-lg text-foreground">Certificato medico</h2>
+        <Card className="flex items-center gap-3">
+          <span
+            className="h-3 w-3 shrink-0 rounded-full"
+            style={{ background: CERT_LIGHT_DOT[certL] }}
+          />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-foreground">
+              {CERT_LIGHT_LABEL[certL]}
+            </p>
+            {certExpiry && (
+              <p className="text-xs text-muted">Scadenza {certExpiry}</p>
+            )}
+          </div>
+          {certExpiry && (
+            <Link
+              href={`/coach/nuotatori/${id}/certificato`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-semibold text-blu"
+            >
+              Apri documento
+            </Link>
+          )}
+        </Card>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-display text-lg text-foreground">Token lezione</h2>
+        <Card className="flex flex-col gap-3">
+          <p className="text-sm text-foreground">
+            Disponibili:{" "}
+            <span className="font-semibold">{tokenBalance}</span>
+            <span className="text-muted"> · 1 lezione inclusa a token</span>
+          </p>
+          <GiftToken swimmerId={id} />
+        </Card>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-display text-lg text-foreground">Obiettivi</h2>
+        {objectives.length === 0 ? (
+          <Card className="text-muted">
+            Nessun obiettivo indicato dall&apos;atleta.
+          </Card>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {objectives.map((o: ObjectiveRow) => (
+              <Card key={o.id} className="flex items-center gap-3 py-2.5">
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-foreground">
+                    {o.title}
+                  </p>
+                  <p className="text-xs text-muted">
+                    {OBJECTIVE_KIND_LABEL[o.kind]}
+                    {o.target_date ? ` · entro ${o.target_date}` : ""}
+                  </p>
+                </div>
+                <Pill tone={o.status === "raggiunto" ? "ok" : o.status === "attivo" ? "brand" : "warn"}>
+                  {OBJECTIVE_STATUS_LABEL[o.status]}
+                </Pill>
+              </Card>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="flex flex-col gap-3">
