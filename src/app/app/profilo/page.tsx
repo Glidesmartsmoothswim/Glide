@@ -9,6 +9,11 @@ import { ObjectivesManager } from "./objectives-manager";
 import { CertificateUploader } from "./certificate-uploader";
 import type { ObjectiveRow } from "@/lib/objectives";
 import {
+  availableCount,
+  isTokenAvailable,
+  type LessonTokenRow,
+} from "@/lib/tokens";
+import {
   certLight,
   daysToExpiry,
   CERT_LIGHT_LABEL,
@@ -76,6 +81,15 @@ export default async function SwimmerProfilo({
   const cert = certData as MedicalCertRow | null;
   const light = certLight(cert?.data_scadenza ?? null);
   const certDays = daysToExpiry(cert?.data_scadenza ?? null);
+
+  const { data: tokData } = await supabase
+    .from("lesson_tokens")
+    .select("*")
+    .eq("swimmer_id", profile?.id ?? "")
+    .order("granted_at", { ascending: false })
+    .limit(20);
+  const tokens = (tokData ?? []) as LessonTokenRow[];
+  const tokenAvail = availableCount(tokens);
 
   const { data: pbs } = await supabase
     .from("personal_bests")
@@ -217,6 +231,43 @@ export default async function SwimmerProfilo({
           <CertificateUploader />
         </Card>
       </section>
+
+      {(tokenAvail > 0 || tokens.length > 0) && (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-display text-lg text-foreground">Token lezione</h2>
+          {tokenAvail > 0 ? (
+            <Card className="text-foreground">
+              Hai{" "}
+              <span className="font-semibold">
+                {tokenAvail === 1
+                  ? "1 lezione inclusa"
+                  : `${tokenAvail} lezioni incluse`}
+              </span>{" "}
+              questo mese. La usi in fase di prenotazione.
+            </Card>
+          ) : (
+            <Card className="text-muted">
+              Nessun token disponibile al momento.
+            </Card>
+          )}
+          {tokens.filter((t) => t.redeemed_at || !isTokenAvailable(t)).length >
+            0 && (
+            <div className="flex flex-col gap-1 text-sm text-muted">
+              {tokens
+                .filter((t) => t.redeemed_at || !isTokenAvailable(t))
+                .slice(0, 5)
+                .map((t) => (
+                  <p key={t.id}>
+                    {t.redeemed_at
+                      ? `Usato il ${new Date(t.redeemed_at).toLocaleDateString("it-IT")}`
+                      : "Scaduto"}
+                    {t.source === "coach" ? " · regalo del coach" : ""}
+                  </p>
+                ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-lg text-foreground">I miei obiettivi</h2>

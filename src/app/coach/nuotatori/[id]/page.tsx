@@ -29,6 +29,8 @@ import {
   type ObjectiveRow,
 } from "@/lib/objectives";
 import { certLight, CERT_LIGHT_LABEL, CERT_LIGHT_DOT } from "@/lib/certificates";
+import { availableCount, type LessonTokenRow } from "@/lib/tokens";
+import { GiftToken } from "./gift-token";
 import { savePersonalWorkout } from "../../workout-actions";
 import { archiveSwimmer } from "../actions";
 import { EditSwimmerForm } from "./edit-form";
@@ -141,6 +143,15 @@ export default async function SwimmerDetail({
     .maybeSingle();
   const certExpiry = (certRow?.data_scadenza as string | null) ?? null;
   const certL = certLight(certExpiry);
+
+  // Token lezione 1:1 (13.6): saldo disponibile (RLS: coach legge).
+  const { data: tokData } = await supabase
+    .from("lesson_tokens")
+    .select("*")
+    .eq("swimmer_id", id)
+    .order("granted_at", { ascending: false });
+  const tokens = (tokData ?? []) as LessonTokenRow[];
+  const tokenBalance = availableCount(tokens);
 
   // Quante volte ogni scheda è stata "svolta" (per l'avviso in modifica).
   const { data: doneEv } = await supabase
@@ -373,6 +384,18 @@ export default async function SwimmerDetail({
               Apri documento
             </Link>
           )}
+        </Card>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-display text-lg text-foreground">Token lezione</h2>
+        <Card className="flex flex-col gap-3">
+          <p className="text-sm text-foreground">
+            Disponibili:{" "}
+            <span className="font-semibold">{tokenBalance}</span>
+            <span className="text-muted"> · 1 lezione inclusa a token</span>
+          </p>
+          <GiftToken swimmerId={id} />
         </Card>
       </section>
 

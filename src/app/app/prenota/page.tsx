@@ -34,6 +34,16 @@ export default async function PrenotaPage() {
 
   const credit = await getCreditStatus(supabase, profile.id, p?.service_type ?? null);
 
+  // Token lezione 1:1 disponibili (Onda 13.6).
+  const { data: tokRows } = await supabase
+    .from("lesson_tokens")
+    .select("id, redeemed_at, expires_at")
+    .eq("swimmer_id", profile.id)
+    .is("redeemed_at", null);
+  const tokensAvailable = (tokRows ?? []).filter(
+    (t) => !t.expires_at || new Date(t.expires_at as string) > new Date(),
+  ).length;
+
   const { data: svcData } = await supabase
     .from("services")
     .select("code, name, mode, duration_min, price_cents")
@@ -190,6 +200,7 @@ export default async function PrenotaPage() {
         services={services}
         credit={credit}
         stripeEnabled={serverFeatures().stripe}
+        tokensAvailable={tokensAvailable}
       />
 
       <SwimmerEvents events={events} />
