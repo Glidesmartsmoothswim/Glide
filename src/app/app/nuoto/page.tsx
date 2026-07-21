@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { Check, CalendarRange } from "lucide-react";
+import { CalendarRange } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { Card } from "@/components/ui/card";
 import { WorkoutCard } from "@/components/workout/workout-card";
+import { WorkoutHand } from "@/components/workout/workout-hand";
 import { UpgradeHint } from "@/components/access/upgrade-hint";
 import { Archive } from "lucide-react";
 import { canAccess } from "@/lib/access";
@@ -94,18 +95,19 @@ export default async function SwimmerNuoto() {
         ) : (
           <>
             <p className="text-sm text-foreground">
-              Scegli tu quali e quanti farne: 1, 2 o 3.
+              Scegli tu quali e quanti farne: 1, 2 o 3. Toccale come una mano di
+              carte.
             </p>
-            {week.map((w) => (
-              <div key={w.id} className="flex flex-col gap-1">
-                {doneIds.has(w.id) && (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-teal">
-                    <Check size={13} /> Svolto
-                  </span>
-                )}
-                <WorkoutCard w={w} />
-              </div>
-            ))}
+            <WorkoutHand
+              workouts={week.map((w) => ({
+                id: w.id,
+                title: w.title,
+                focus: w.focus,
+                total_meters: w.total_meters,
+                pool: w.pool,
+                done: doneIds.has(w.id),
+              }))}
+            />
           </>
         )}
       </section>
