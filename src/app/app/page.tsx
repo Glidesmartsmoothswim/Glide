@@ -17,7 +17,7 @@ export default async function SwimmerToday() {
   // Onda 14.2: query indipendenti in parallelo. Le fasi dipendono dal
   // programma attivo → restano dopo (unica dipendenza reale).
   const sid = profile?.id ?? "";
-  const [profRes, progRes, notifRes, wRes] = await Promise.all([
+  const [profRes, progRes, notifRes, wRes, lastCheckinRes] = await Promise.all([
     supabase.from("profiles").select("onboarding_done").eq("id", sid).maybeSingle(),
     supabase
       .from("programs")
@@ -37,6 +37,13 @@ export default async function SwimmerToday() {
       .or(`swimmer_id.eq.${sid},kind.eq.open_channel`)
       .order("created_at", { ascending: false })
       .limit(30),
+    supabase
+      .from("readiness")
+      .select("phase, created_at")
+      .eq("swimmer_id", sid)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
   const prof = profRes.data;
   const activeProg = progRes.data;
@@ -47,6 +54,15 @@ export default async function SwimmerToday() {
         .eq("program_id", activeProg.id)
     : { data: [] };
   const notifs = (notifRes.data ?? []) as NotificationRow[];
+
+  // Rientro dopo il pre: se l'ultimo check-in è un "pre" recente (< 18h) e non
+  // è ancora seguito da un "post", proponiamo direttamente il post-sessione.
+  const lastCheckin = lastCheckinRes.data as
+    | { phase: string; created_at: string }
+    | null;
+  const promptPost =
+    lastCheckin?.phase === "pre" &&
+    Date.now() - new Date(lastCheckin.created_at).getTime() < 18 * 60 * 60 * 1000;
   const workouts = (wRes.data ?? []) as {
     id: string;
     title: string;
@@ -77,7 +93,7 @@ export default async function SwimmerToday() {
         <p className="text-sm text-muted">
           Registra come stai prima e dopo la vasca — onda dopo onda.
         </p>
-        <ReadinessCheckin workouts={workouts} />
+        <ReadinessCheckin workouts={workouts} promptPost={promptPost} />
       </section>
 
       {notifs.length > 0 && (
