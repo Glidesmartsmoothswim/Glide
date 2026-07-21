@@ -6,7 +6,9 @@
  *   reps x dist · stroke · @intervallo · attrezzi · Zx · (gambe/braccia) · note
  */
 
-export type ZoneId = "Z1" | "Z2" | "Z3" | "Z4" | "Z5";
+// Z1–Z5 = zone metaboliche accademiche. NM = zona NON codificata a livello
+// accademico: lavoro neuromuscolare (forza/velocità), fuori dalla scala aerobica.
+export type ZoneId = "Z1" | "Z2" | "Z3" | "Z4" | "Z5" | "NM";
 
 export const ZONES: Record<
   ZoneId,
@@ -17,6 +19,7 @@ export const ZONES: Record<
   Z3: { label: "Z3", desc: "Soglia", color: "#FFF200", text: "#8A6D00", tint: "#FFFBDA" },
   Z4: { label: "Z4", desc: "Sovrasoglia · VO₂", color: "#FFC000", text: "#995C00", tint: "#FFF2D4" },
   Z5: { label: "Z5", desc: "Lattacido · gara", color: "#FF0000", text: "#B00000", tint: "#FEE7E7" },
+  NM: { label: "NM", desc: "Neuromuscolare · forza/velocità", color: "#7C3AED", text: "#5B21B6", tint: "#EDE9FE" },
 };
 
 export const STROKES: Record<string, string> = {
@@ -102,6 +105,10 @@ export function parseLine(raw: string): ParsedLine {
       line.zone = ("Z" + tk[1]) as ZoneId;
       continue;
     }
+    if (/^nm$/i.test(tk)) {
+      line.zone = "NM";
+      continue;
+    }
     const iv = parseTime(tk);
     if (iv != null) {
       line.interval = iv;
@@ -162,7 +169,8 @@ export function lineLabel(raw: string): string {
   return bits.join(" · ");
 }
 
-const zoneRank = (z: string) => Number(z[1]) || 0;
+// NM (neuromuscolare) è massimale: lo trattiamo come set chiave (rank alto).
+const zoneRank = (z: string) => (z === "NM" ? 6 : Number(z[1]) || 0);
 
 /**
  * Firma del SET PRINCIPALE di un allenamento → "STILE|DISTANZA|INTERVALLO_SEC|ZONA"
