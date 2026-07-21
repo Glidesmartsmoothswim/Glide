@@ -5,7 +5,6 @@ import { getCurrentProfile } from "@/lib/auth";
 import { clientFeatures } from "@/lib/flags";
 import { signOut } from "@/app/login/actions";
 import { Card, Pill } from "@/components/ui/card";
-import { subscribe } from "./actions";
 import { ObjectivesManager } from "./objectives-manager";
 import { CertificateUploader } from "./certificate-uploader";
 import type { ObjectiveRow } from "@/lib/objectives";
@@ -26,14 +25,6 @@ import {
 } from "@/lib/types";
 
 export const metadata = { title: "Profilo" };
-
-// Onda 12.1: piani self-serve = Open e Open+. Il tier 1:1 lo assegna il coach.
-// Il prezzo di Open+ lo decide Alessio (STRIPE_PRICE_OPEN_PLUS): finché non è
-// fissato mostriamo il piano senza cifra, senza inventarla.
-const PLANS: { tier: "open" | "open_plus"; name: string; price?: string; desc: string }[] = [
-  { tier: "open", name: "Open", price: "€29", desc: "Settimana Canale Open + archivio dei tuoi svolti" },
-  { tier: "open_plus", name: "Open+", desc: "Tutto Open + archivio storico completo" },
-];
 
 export default async function SwimmerProfilo({
   searchParams,
@@ -240,29 +231,20 @@ export default async function SwimmerProfilo({
           <h2 className="font-display text-lg text-foreground">Abbonamenti</h2>
           {!clientFeatures.stripe && <Pill tone="warn">simulato</Pill>}
         </div>
-        <div className="grid gap-3">
-          {PLANS.map((p) => (
-            <form
-              key={p.tier}
-              action={subscribe}
-              className="flex items-center justify-between rounded-2xl border border-border bg-surface p-4"
-            >
-              <input type="hidden" name="tier" value={p.tier} />
-              <div>
-                <p className="font-semibold text-foreground">{p.name}</p>
-                <p className="text-sm text-muted">
-                  {p.price ? `${p.price} / mese` : p.desc}
-                </p>
-              </div>
-              <button
-                type="submit"
-                className="rounded-xl bg-gradient-to-br from-blu to-navy px-4 py-2.5 text-sm font-semibold text-white"
-              >
-                Attiva
-              </button>
-            </form>
-          ))}
-        </div>
+        <Link
+          href="/app/abbonamenti"
+          className="flex items-center justify-between rounded-2xl border border-border bg-surface p-4 hover:border-blu"
+        >
+          <div>
+            <p className="font-semibold text-foreground">Vedi i piani</p>
+            <p className="text-sm text-muted">
+              Canale Open e Percorso 1:1 — scegli e confronta.
+            </p>
+          </div>
+          <span className="rounded-xl bg-gradient-to-br from-blu to-navy px-4 py-2.5 text-sm font-semibold text-white">
+            Apri
+          </span>
+        </Link>
       </section>
 
       <form action={signOut}>
