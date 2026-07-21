@@ -50,19 +50,23 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Onda 15: verifica del token LOCALE (getClaims) invece di getUser(), che
+  // fa una chiamata di rete al server Auth a OGNI navigazione. Con le chiavi
+  // di firma ASIMMETRICHE la verifica è locale (nessun round-trip); su chiavi
+  // legacy HS256 getClaims ripiega su getUser (nessuna regressione). Il refresh
+  // della sessione resta gestito (getClaims usa getSession internamente).
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const isLogged = Boolean(claimsData?.claims?.sub);
 
   const { pathname } = request.nextUrl;
 
-  if (!user && !isPublic(pathname)) {
+  if (!isLogged && !isPublic(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (user && pathname === "/login") {
+  if (isLogged && pathname === "/login") {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);
