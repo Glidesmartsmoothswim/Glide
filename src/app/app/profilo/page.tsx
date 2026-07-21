@@ -7,7 +7,15 @@ import { signOut } from "@/app/login/actions";
 import { Card, Pill } from "@/components/ui/card";
 import { subscribe } from "./actions";
 import { ObjectivesManager } from "./objectives-manager";
+import { CertificateUploader } from "./certificate-uploader";
 import type { ObjectiveRow } from "@/lib/objectives";
+import {
+  certLight,
+  daysToExpiry,
+  CERT_LIGHT_LABEL,
+  CERT_LIGHT_DOT,
+  type MedicalCertRow,
+} from "@/lib/certificates";
 import { formatTempo } from "@/lib/profile/tempo";
 import { STILE_LABEL, type Stile } from "@/lib/profile/costanti";
 import {
@@ -66,6 +74,17 @@ export default async function SwimmerProfilo({
     .order("status", { ascending: true })
     .order("created_at", { ascending: false });
   const objectives = (objData ?? []) as ObjectiveRow[];
+
+  const { data: certData } = await supabase
+    .from("medical_certificates")
+    .select("*")
+    .eq("swimmer_id", profile?.id ?? "")
+    .order("data_scadenza", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const cert = certData as MedicalCertRow | null;
+  const light = certLight(cert?.data_scadenza ?? null);
+  const certDays = daysToExpiry(cert?.data_scadenza ?? null);
 
   const { data: pbs } = await supabase
     .from("personal_bests")
@@ -169,6 +188,44 @@ export default async function SwimmerProfilo({
           le chiavi Stripe (Price ID) in <code>.env.local</code>.
         </Card>
       )}
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-display text-lg text-foreground">Certificato medico</h2>
+        {cert && (
+          <Card className="flex items-center gap-3">
+            <span
+              className="h-3 w-3 shrink-0 rounded-full"
+              style={{ background: CERT_LIGHT_DOT[light] }}
+            />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-foreground">
+                {CERT_LIGHT_LABEL[light]}
+              </p>
+              <p className="text-xs text-muted">
+                Scadenza {cert.data_scadenza}
+              </p>
+            </div>
+            <Link
+              href="/app/profilo/certificato"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-semibold text-blu"
+            >
+              Apri
+            </Link>
+          </Card>
+        )}
+        {certDays != null && certDays >= 0 && certDays <= 30 && (
+          <p className="rounded-xl bg-amber-500/5 p-3 text-sm text-muted">
+            Il tuo certificato scade tra {certDays}{" "}
+            {certDays === 1 ? "giorno" : "giorni"}: caricane uno aggiornato quando
+            puoi.
+          </p>
+        )}
+        <Card>
+          <CertificateUploader />
+        </Card>
+      </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-lg text-foreground">I miei obiettivi</h2>

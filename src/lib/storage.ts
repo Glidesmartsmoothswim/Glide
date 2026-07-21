@@ -79,3 +79,32 @@ export async function removeLibraryObject(key: string | null): Promise<boolean> 
   const { error } = await admin.storage.from(LIBRARY_BUCKET).remove([key]);
   return !error;
 }
+
+/**
+ * Bucket certificati medici (Onda 13.2) — DATO SANITARIO, privato. Letto
+ * solo via URL firmati a breve scadenza, mai esposto in liste/anteprime.
+ */
+export const MEDICAL_BUCKET = "medical";
+
+/** Signed URL breve di un certificato medico. */
+export async function medicalSignedUrl(
+  key: string | null,
+  expiresIn = 300,
+): Promise<string | null> {
+  if (!key) return null;
+  const admin = createAdminClient();
+  if (!admin) return null;
+  const { data } = await admin.storage
+    .from(MEDICAL_BUCKET)
+    .createSignedUrl(key, expiresIn);
+  return data?.signedUrl ?? null;
+}
+
+/** Cancellazione fisica di un certificato medico. */
+export async function removeMedicalObject(key: string | null): Promise<boolean> {
+  if (!key) return false;
+  const admin = createAdminClient();
+  if (!admin) return false;
+  const { error } = await admin.storage.from(MEDICAL_BUCKET).remove([key]);
+  return !error;
+}

@@ -28,6 +28,7 @@ import {
   OBJECTIVE_STATUS_LABEL,
   type ObjectiveRow,
 } from "@/lib/objectives";
+import { certLight, CERT_LIGHT_LABEL, CERT_LIGHT_DOT } from "@/lib/certificates";
 import { savePersonalWorkout } from "../../workout-actions";
 import { archiveSwimmer } from "../actions";
 import { EditSwimmerForm } from "./edit-form";
@@ -129,6 +130,17 @@ export default async function SwimmerDetail({
     .order("status", { ascending: true })
     .order("created_at", { ascending: false });
   const objectives = (objData ?? []) as ObjectiveRow[];
+
+  // Certificato medico (13.2): semaforo dall'ultima scadenza (RLS: coach legge).
+  const { data: certRow } = await supabase
+    .from("medical_certificates")
+    .select("data_scadenza")
+    .eq("swimmer_id", id)
+    .order("data_scadenza", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const certExpiry = (certRow?.data_scadenza as string | null) ?? null;
+  const certL = certLight(certExpiry);
 
   // Quante volte ogni scheda è stata "svolta" (per l'avviso in modifica).
   const { data: doneEv } = await supabase
@@ -334,6 +346,34 @@ export default async function SwimmerDetail({
           earnedCodes={earned.map((b) => b.code)}
           paused={(swimmer.status ?? "attivo").toLowerCase() !== "attivo"}
         />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-display text-lg text-foreground">Certificato medico</h2>
+        <Card className="flex items-center gap-3">
+          <span
+            className="h-3 w-3 shrink-0 rounded-full"
+            style={{ background: CERT_LIGHT_DOT[certL] }}
+          />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-foreground">
+              {CERT_LIGHT_LABEL[certL]}
+            </p>
+            {certExpiry && (
+              <p className="text-xs text-muted">Scadenza {certExpiry}</p>
+            )}
+          </div>
+          {certExpiry && (
+            <Link
+              href={`/coach/nuotatori/${id}/certificato`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-semibold text-blu"
+            >
+              Apri documento
+            </Link>
+          )}
+        </Card>
       </section>
 
       <section className="flex flex-col gap-3">
