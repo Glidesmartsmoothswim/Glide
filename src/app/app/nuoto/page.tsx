@@ -8,6 +8,7 @@ import { WorkoutHand } from "@/components/workout/workout-hand";
 import { UpgradeHint } from "@/components/access/upgrade-hint";
 import { Archive } from "lucide-react";
 import { canAccess } from "@/lib/access";
+import { mainZone } from "@/lib/workout";
 import { currentMonday, formatWeek } from "@/lib/week";
 import type { WorkoutRow } from "@/lib/types";
 
@@ -105,6 +106,7 @@ export default async function SwimmerNuoto() {
                 focus: w.focus,
                 total_meters: w.total_meters,
                 pool: w.pool,
+                zone: mainZone(w.blocks),
                 done: doneIds.has(w.id),
               }))}
             />

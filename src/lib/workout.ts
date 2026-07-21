@@ -173,6 +173,29 @@ export function lineLabel(raw: string): string {
 const zoneRank = (z: string) => (z === "NM" ? 6 : Number(z[1]) || 0);
 
 /**
+ * Zona di RIFERIMENTO di un allenamento = quella del blocco a rank più alto
+ * (il set che lo caratterizza). Serve a colorare l'allenamento con la sua zona.
+ */
+export function mainZone(blocks: Block[]): ZoneId | null {
+  if (!Array.isArray(blocks) || blocks.length === 0) return null;
+  const main = blocks.reduce((best, b) =>
+    zoneRank(b.z) > zoneRank(best.z) ? b : best,
+  );
+  return main.z ?? null;
+}
+
+/** Testo leggibile (ink o bianco) da mettere SOPRA un colore pieno. */
+export function onColor(hex: string): string {
+  const h = hex.replace("#", "");
+  if (h.length < 6) return "#ffffff";
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum > 0.62 ? "#0b1220" : "#ffffff";
+}
+
+/**
  * Firma del SET PRINCIPALE di un allenamento → "STILE|DISTANZA|INTERVALLO_SEC|ZONA"
  * (es. "SL|100|100|Z3"). Serve a confrontare l'RPE a parità di prescrizione
  * (Curva di efficienza). Blocco principale = zona più alta; riga = prima con
