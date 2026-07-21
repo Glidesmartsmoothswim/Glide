@@ -8,7 +8,7 @@ import {
   STILI,
   STILE_LABEL,
   DISTANZE_ABITUALI,
-  DISTANZE_PB,
+  distanzeValide,
   VASCHE,
   type Stile,
 } from "@/lib/profile/costanti";
@@ -770,9 +770,10 @@ function PBList({ pbs, setPbs }: { pbs: PB[]; setPbs: (v: PB[]) => void }) {
 }
 
 function PBAdd({ onAdded }: { onAdded: (pb: PB) => void }) {
-  const [dist, setDist] = useState<number>(100);
   const [stile, setStile] = useState<Stile>("SL");
   const [vasca, setVasca] = useState<string>("25");
+  const distanze = distanzeValide(stile, vasca);
+  const [dist, setDist] = useState<number>(distanze[0]);
   const [t, setT] = useState({ min: "", sec: "", cent: "" });
   const [data, setData] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -780,6 +781,18 @@ function PBAdd({ onAdded }: { onAdded: (pb: PB) => void }) {
 
   const cc = parseTempo(t.min, t.sec, t.cent);
   const today = new Date().toISOString().slice(0, 10);
+
+  // Se stile/vasca cambiano e la distanza non è più valida, la riporto valida.
+  function pickStile(s: Stile) {
+    setStile(s);
+    const d = distanzeValide(s, vasca);
+    if (!d.includes(dist)) setDist(d[0]);
+  }
+  function pickVasca(v: string) {
+    setVasca(v);
+    const d = distanzeValide(stile, v);
+    if (!d.includes(dist)) setDist(d[0]);
+  }
 
   async function add() {
     setErr(null);
@@ -810,30 +823,30 @@ function PBAdd({ onAdded }: { onAdded: (pb: PB) => void }) {
     <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
       <div className="grid grid-cols-3 gap-2">
         <select
+          value={stile}
+          onChange={(e) => pickStile(e.target.value as Stile)}
+          className="rounded-lg border border-border bg-background px-2 py-2 text-sm"
+        >
+          {STILI.map((s) => (
+            <option key={s} value={s}>
+              {STILE_LABEL[s]}
+            </option>
+          ))}
+        </select>
+        <select
           value={dist}
           onChange={(e) => setDist(Number(e.target.value))}
           className="rounded-lg border border-border bg-background px-2 py-2 text-sm"
         >
-          {DISTANZE_PB.map((d) => (
+          {distanze.map((d) => (
             <option key={d} value={d}>
               {d} m
             </option>
           ))}
         </select>
         <select
-          value={stile}
-          onChange={(e) => setStile(e.target.value as Stile)}
-          className="rounded-lg border border-border bg-background px-2 py-2 text-sm"
-        >
-          {STILI.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <select
           value={vasca}
-          onChange={(e) => setVasca(e.target.value)}
+          onChange={(e) => pickVasca(e.target.value)}
           className="rounded-lg border border-border bg-background px-2 py-2 text-sm"
         >
           {VASCHE.map((v) => (

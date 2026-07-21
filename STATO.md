@@ -4,7 +4,16 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-21 — **ONDA 15 (Auth: verifica JWT locale per navigazione) in corso.**_
+_Ultimo aggiornamento: 2026-07-21 — **ONDA 16 (Personal best · programma gare individuale + passo 0 fra le lezioni) in corso.**_
+
+## 🌊 ONDA 16 — Personal best completi + booking a ruota (branch `claude/onda-16`)
+- **Personal best su tutto il programma INDIVIDUALE (staffette escluse).** `lib/profile/costanti.ts`: `EVENTI_INDIVIDUALI` (SL 50→1500; dorso/rana/delfino 50/100/200; misti 100/200/400, con il **100 misti solo in vasca 25**) + `distanzeValide(stile,vasca)` + `isEventoIndividuale()`. Il selettore ora mostra **solo le distanze valide per lo stile scelto** (niente combinazioni inesistenti tipo 1500 rana o 50 misti). Validazione anche **lato server** in `upsertPersonalBest`.
+- **Gestione PB anche dal Profilo (non solo in creazione):** nuovo `pb-manager.tsx` su `/app/profilo` → l'atleta aggiunge/aggiorna/rimuove i propri tempi quando vuole (upsert unico per distanza+stile+vasca). Il wizard di creazione usa lo stesso programma valido.
+- **Passo 0 fra le lezioni (`migration_026`, APPLICATA):** `services.buffer_min` azzerato (le lezioni in vasca avevano 10 min) → prenotazioni **a ruota** (la successiva parte a fine della precedente). Default colonna già 0 per i nuovi servizi.
+- **Duplica la settimana (agenda coach):** azione `duplicateWeekToNext` + pulsante in *Disponibilità* → copia le **aperture extra** (`availability_exceptions` kind 'extra') della settimana corrente su quella successiva (giorno+7), **idempotente** (salta i doppioni). Le finestre **ricorrenti** (`availability_rules`) si ripetono già da sole ogni settimana, quindi non vengono toccate.
+- **Nuova zona NM · Neuromuscolare (forza/velocità):** aggiunta a `lib/workout.ts` (`ZoneId` + `ZONES`, colore viola #7C3AED) — **non codificata accademicamente**, fuori dalla scala aerobica Z1–Z5. Selezionabile nell'editor (il picker legge `Object.keys(ZONES)`), riconosciuta anche nella notazione riga (`… NM`), e trattata come set chiave nel `mainSetSig`. `blocks` è jsonb → nessun vincolo DB.
+
+
 
 ## 🌊 ONDA 15 — Auth locale per navigazione (branch `claude/onda-15`)
 **Sintomo utenti:** lag "leggero ma ovunque", peggio alla prima apertura. **Causa:** ogni navigazione pagava ~2 chiamate di rete al server Auth — `getUser()` nel **middleware** (a ogni richiesta) + `getUser()` in **`getCurrentProfile()`** (a ogni pagina server) — più il **cold start** alla prima apertura.

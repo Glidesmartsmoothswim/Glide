@@ -6,6 +6,7 @@ import {
   addRule,
   deleteRule,
   duplicateRuleAllWeek,
+  duplicateWeekToNext,
   closeDay,
   addExtra,
   deleteException,
@@ -193,6 +194,10 @@ export function CoachAgenda({
 // ---------------- Disponibilità ----------------
 function AvailabilityTab({ rules, exceptions }: { rules: Rule[]; exceptions: Exc[] }) {
   const [state, action] = useActionState<AgendaState, FormData>(addRule, {});
+  const [dupState, dupAction] = useActionState<AgendaState, FormData>(
+    duplicateWeekToNext,
+    {},
+  );
   const [start, setStart] = useState("12:00");
   const [end, setEnd] = useState("14:30");
   const [step, setStep] = useState(15);
@@ -331,6 +336,29 @@ function AvailabilityTab({ rules, exceptions }: { rules: Rule[]; exceptions: Exc
           </form>
         </Card>
       </div>
+
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="t-h3">Duplica la settimana</h2>
+            <p className="t-small text-muted">
+              Copia le aperture extra di questa settimana su quella successiva.
+              Le finestre ricorrenti si ripetono già da sole.
+            </p>
+          </div>
+          <form action={dupAction}>
+            <button className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-ink hover:bg-background">
+              Duplica sulla settimana successiva
+            </button>
+          </form>
+        </div>
+        {dupState.info && (
+          <p className="mt-2 t-small text-teal">{dupState.info}</p>
+        )}
+        {dupState.error && (
+          <p className="mt-2 t-small text-[#DC2626]">{dupState.error}</p>
+        )}
+      </Card>
 
       {exceptions.length > 0 && (
         <Card>
