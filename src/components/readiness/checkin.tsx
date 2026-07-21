@@ -1,7 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   PRE_QUESTIONS,
   RPE_ANCHORS,
@@ -74,6 +76,7 @@ const anchorsFromArray = (a: readonly string[]): Record<number, string> =>
   Object.fromEntries(a.map((s, i) => [i + 1, s]));
 
 function PreForm() {
+  const router = useRouter();
   const [state, action] = useActionState(savePre, {} as ReadinessState);
   const [vals, setVals] = useState<Record<string, number>>({});
   const [pains, setPains] = useState<string[]>([]);
@@ -84,10 +87,45 @@ function PreForm() {
 
   const corpo = vals["corpo"] ?? 0;
 
+  // Pre salvato con successo (e nessun red flag): diamo un feedback e portiamo
+  // il nuotatore alla scelta degli allenamenti.
+  const done = Boolean(state.info) && !state.redFlag;
+  useEffect(() => {
+    if (!done) return;
+    const t = setTimeout(() => router.push("/app/nuoto"), 1800);
+    return () => clearTimeout(t);
+  }, [done, router]);
+
   if (state.redFlag) {
     return (
       <div className="rounded-xl border-2 border-turchese bg-background p-4">
         <p className="t-body font-bold text-foreground">{state.info}</p>
+      </div>
+    );
+  }
+
+  if (done) {
+    const nums = Object.values(vals);
+    const avg = nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : 3;
+    const fb =
+      avg >= 4
+        ? { e: "💪", m: "Che carica. Si vola." }
+        : avg >= 2.6
+          ? { e: "🌊", m: "Bene così. Si scende in acqua." }
+          : { e: "🙂", m: "Un passo alla volta. Ci siamo." };
+    return (
+      <div className="flex flex-col items-center gap-3 py-6 text-center">
+        <div className="text-5xl" aria-hidden>
+          {fb.e}
+        </div>
+        <p className="t-body font-bold text-foreground">{fb.m}</p>
+        <p className="t-small text-muted">Registrato. Alessio lo vede stasera.</p>
+        <Link
+          href="/app/nuoto"
+          className="mt-1 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-br from-blu to-navy px-5 py-2.5 font-bold text-white"
+        >
+          Scegli l&apos;allenamento →
+        </Link>
       </div>
     );
   }
@@ -212,10 +250,40 @@ export type WorkoutOpt = {
   kind: string;
 };
 
-export function ReadinessCheckin({ workouts }: { workouts: WorkoutOpt[] }) {
-  const [tab, setTab] = useState<"pre" | "post">("pre");
+export function ReadinessCheckin({
+  workouts,
+  promptPost = false,
+}: {
+  workouts: WorkoutOpt[];
+  /** Rientro dopo il pre: apriamo direttamente il post, con possibilità di saltare. */
+  promptPost?: boolean;
+}) {
+  const [tab, setTab] = useState<"pre" | "post">(promptPost ? "post" : "pre");
+  // Il promptato resta attivo finché il nuotatore non lo salta.
+  const [prompted, setPrompted] = useState(promptPost);
+
   return (
     <div className="rounded-2xl border border-border bg-surface p-5">
+      {prompted && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-blu/40 bg-background p-3">
+          <span className="text-2xl" aria-hidden>
+            🏊
+          </span>
+          <p className="flex-1 t-small font-bold text-foreground">
+            Com&apos;è andata la seduta? Registrala qui.
+          </p>
+          <button
+            onClick={() => {
+              setPrompted(false);
+              setTab("pre");
+            }}
+            className="shrink-0 rounded-lg px-3 py-1.5 t-small font-bold text-muted hover:text-foreground"
+          >
+            Salta
+          </button>
+        </div>
+      )}
+
       <div className="mb-4 flex rounded-xl border border-border bg-background p-1 t-small">
         {(
           [
@@ -225,7 +293,10 @@ export function ReadinessCheckin({ workouts }: { workouts: WorkoutOpt[] }) {
         ).map(([id, label]) => (
           <button
             key={id}
-            onClick={() => setTab(id)}
+            onClick={() => {
+              setTab(id);
+              setPrompted(false);
+            }}
             className={`flex-1 rounded-lg py-2 font-bold transition-colors ${
               tab === id ? "bg-navy text-white" : "text-muted"
             }`}
