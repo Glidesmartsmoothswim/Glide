@@ -50,43 +50,104 @@ export default async function SwimmerDetail({
   const { id } = await params;
   const supabase = await createClient();
 
+  // Onda 14.2: una sola lettura profili (con le colonne "atleta"), poi tutte
+  // le query indipendenti in parallelo (Promise.all) invece che a cascata.
   const { data: s } = await supabase
     .from("profiles")
     .select(
-      "id, role, first_name, last_name, email, phone, service_type, level, package, status, cert_status, cert_expiry, member_since",
+      "id, role, first_name, last_name, email, phone, service_type, tier, level, package, status, cert_status, cert_expiry, member_since, athlete_type, anno_nascita, categoria, stili_abituali, distanze_abituali",
     )
     .eq("id", id)
     .single();
 
   if (!s) notFound();
   const swimmer = s as SwimmerRow;
+  const ath = s as {
+    athlete_type: string | null;
+    anno_nascita: number | null;
+    categoria: string | null;
+    stili_abituali: string[];
+    distanze_abituali: string[];
+  };
 
-  const { data: wData } = await supabase
-    .from("workouts")
-    .select("*")
-    .eq("swimmer_id", id)
-    .eq("kind", "personal")
-    .order("created_at", { ascending: false });
-  const workouts = (wData ?? []) as WorkoutRow[];
+  const [
+    wRes,
+    pbRes,
+    intakeRes,
+    progRes,
+    objRes,
+    certRes,
+    tokRes,
+    doneRes,
+    rRes,
+    effRes,
+    scoreRowRes,
+  ] = await Promise.all([
+    supabase
+      .from("workouts")
+      .select("*")
+      .eq("swimmer_id", id)
+      .eq("kind", "personal")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("personal_bests")
+      .select("id, distanza_m, stile, vasca, tempo_cc")
+      .eq("swimmer_id", id)
+      .order("stile", { ascending: true })
+      .order("distanza_m", { ascending: true }),
+    supabase.from("intake").select("*").eq("user_id", id).maybeSingle(),
+    supabase
+      .from("programs")
+      .select("*")
+      .eq("swimmer_id", id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("objectives")
+      .select("*")
+      .eq("swimmer_id", id)
+      .order("status", { ascending: true })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("medical_certificates")
+      .select("data_scadenza")
+      .eq("swimmer_id", id)
+      .order("data_scadenza", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("lesson_tokens")
+      .select("*")
+      .eq("swimmer_id", id)
+      .order("granted_at", { ascending: false }),
+    supabase
+      .from("activity_events")
+      .select("payload")
+      .eq("user_id", id)
+      .eq("type", "workout.completed"),
+    supabase
+      .from("v_readiness")
+      .select("*")
+      .eq("swimmer_id", id)
+      .order("created_at", { ascending: false })
+      .limit(60),
+    supabase
+      .from("v_efficiency_points")
+      .select("main_set_sig, rpe, created_at")
+      .eq("swimmer_id", id)
+      .order("created_at", { ascending: false })
+      .limit(200),
+    supabase
+      .from("glide_scores")
+      .select("score, onda")
+      .eq("swimmer_id", id)
+      .order("week", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
-  // Profilo atleta dichiarato (sola lettura lato coach).
-  const { data: ath } = await supabase
-    .from("profiles")
-    .select("athlete_type, anno_nascita, categoria, stili_abituali, distanze_abituali")
-    .eq("id", id)
-    .single();
-  const { data: pbs } = await supabase
-    .from("personal_bests")
-    .select("id, distanza_m, stile, vasca, tempo_cc")
-    .eq("swimmer_id", id)
-    .order("stile", { ascending: true })
-    .order("distanza_m", { ascending: true });
-  const { data: intake } = await supabase
-    .from("intake")
-    .select("*")
-    .eq("user_id", id)
-    .maybeSingle();
-  // Livello (deterministico) SOLO per il percorso libero; mai mostrato al nuotatore.
+  const workouts = (wRes.data ?? []) as WorkoutRow[];
+  const pbs = pbRes.data;
+  const intake = intakeRes.data;
   const livello =
     intake && ath?.athlete_type === "libero" ? livelloLibero(intake) : null;
   const hasAthProfile = Boolean(
@@ -96,23 +157,22 @@ export default async function SwimmerDetail({
       intake,
   );
 
-  // Programmazione 1:1 (coach): programmi + fasi + note.
-  const { data: progData } = await supabase
-    .from("programs")
-    .select("*")
-    .eq("swimmer_id", id)
-    .order("created_at", { ascending: false });
-  const progList = (progData ?? []) as ProgramRow[];
+  // Programmazione 1:1: le fasi/note dipendono dai programmi → dopo (unica cascata).
+  const progList = (progRes.data ?? []) as ProgramRow[];
   const progIds = progList.map((p) => p.id);
-  const { data: phaseData } = progIds.length
-    ? await supabase.from("program_phases").select("*").in("program_id", progIds)
-    : { data: [] };
-  const { data: notesData } = progIds.length
-    ? await supabase
-        .from("program_notes")
-        .select("program_id, notes")
-        .in("program_id", progIds)
-    : { data: [] };
+  const [phaseRes, notesRes] = await Promise.all([
+    progIds.length
+      ? supabase.from("program_phases").select("*").in("program_id", progIds)
+      : Promise.resolve({ data: [] as PhaseRow[] }),
+    progIds.length
+      ? supabase
+          .from("program_notes")
+          .select("program_id, notes")
+          .in("program_id", progIds)
+      : Promise.resolve({ data: [] as { program_id: string; notes: string | null }[] }),
+  ]);
+  const phaseData = phaseRes.data;
+  const notesData = notesRes.data;
   const notesByProg = new Map(
     (notesData ?? []).map((n) => [n.program_id as string, n.notes as string | null]),
   );
@@ -124,71 +184,23 @@ export default async function SwimmerDetail({
     notes: notesByProg.get(p.id) ?? null,
   }));
 
-  // Obiettivi multipli (Onda 13.3) — il coach li legge (RLS).
-  const { data: objData } = await supabase
-    .from("objectives")
-    .select("*")
-    .eq("swimmer_id", id)
-    .order("status", { ascending: true })
-    .order("created_at", { ascending: false });
-  const objectives = (objData ?? []) as ObjectiveRow[];
-
-  // Certificato medico (13.2): semaforo dall'ultima scadenza (RLS: coach legge).
-  const { data: certRow } = await supabase
-    .from("medical_certificates")
-    .select("data_scadenza")
-    .eq("swimmer_id", id)
-    .order("data_scadenza", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const certExpiry = (certRow?.data_scadenza as string | null) ?? null;
+  // Obiettivi / certificato / token / svolti / readiness / efficienza / score:
+  // tutti già letti in parallelo sopra (Onda 14.2).
+  const objectives = (objRes.data ?? []) as ObjectiveRow[];
+  const certExpiry = (certRes.data?.data_scadenza as string | null) ?? null;
   const certL = certLight(certExpiry);
-
-  // Token lezione 1:1 (13.6): saldo disponibile (RLS: coach legge).
-  const { data: tokData } = await supabase
-    .from("lesson_tokens")
-    .select("*")
-    .eq("swimmer_id", id)
-    .order("granted_at", { ascending: false });
-  const tokens = (tokData ?? []) as LessonTokenRow[];
+  const tokens = (tokRes.data ?? []) as LessonTokenRow[];
   const tokenBalance = availableCount(tokens);
 
-  // Quante volte ogni scheda è stata "svolta" (per l'avviso in modifica).
-  const { data: doneEv } = await supabase
-    .from("activity_events")
-    .select("payload")
-    .eq("user_id", id)
-    .eq("type", "workout.completed");
   const doneCount: Record<string, number> = {};
-  (doneEv ?? []).forEach((e) => {
+  (doneRes.data ?? []).forEach((e) => {
     const wid = (e.payload as { workout_id?: string } | null)?.workout_id;
     if (wid) doneCount[wid] = (doneCount[wid] ?? 0) + 1;
   });
 
-  // Il coach legge la vista scomposta (fisica + mentale). Mai una media unica.
-  const { data: rData } = await supabase
-    .from("v_readiness")
-    .select("*")
-    .eq("swimmer_id", id)
-    .order("created_at", { ascending: false })
-    .limit(60);
-  const readiness = (rData ?? []) as VReadinessRow[];
-
-  const { data: effData } = await supabase
-    .from("v_efficiency_points")
-    .select("main_set_sig, rpe, created_at")
-    .eq("swimmer_id", id)
-    .order("created_at", { ascending: false })
-    .limit(200);
-  const effPoints = (effData ?? []) as EffPoint[];
-
-  const { data: lastScore } = await supabase
-    .from("glide_scores")
-    .select("score, onda")
-    .eq("swimmer_id", id)
-    .order("week", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const readiness = (rRes.data ?? []) as VReadinessRow[];
+  const effPoints = (effRes.data ?? []) as EffPoint[];
+  const lastScore = scoreRowRes.data;
   const score = await computeScore(
     supabase,
     id,

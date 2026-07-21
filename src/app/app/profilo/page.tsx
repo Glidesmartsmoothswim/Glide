@@ -40,63 +40,66 @@ export default async function SwimmerProfilo({
   const profile = await getCurrentProfile();
   const supabase = await createClient();
 
-  const { data: full } = await supabase
-    .from("profiles")
-    .select(
-      "id, role, first_name, last_name, email, phone, service_type, level, package, status, cert_status, cert_expiry, member_since",
-    )
-    .eq("id", profile?.id ?? "")
-    .single();
-  const me = full as SwimmerRow | null;
+  // Onda 14.2: un solo read profili (full+ath erano la stessa riga) e tutte le
+  // query indipendenti in parallelo (Promise.all), non a cascata.
+  const sid = profile?.id ?? "";
+  const [profRes, subRes, objRes, certRes, tokRes, pbRes] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select(
+        "id, role, first_name, last_name, email, phone, service_type, level, package, status, cert_status, cert_expiry, member_since, anno_nascita, categoria, stili_abituali, distanze_abituali",
+      )
+      .eq("id", sid)
+      .single(),
+    supabase
+      .from("subscriptions")
+      .select("tier, status, current_period_end")
+      .eq("swimmer_id", sid)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("objectives")
+      .select("*")
+      .eq("swimmer_id", sid)
+      .order("status", { ascending: true })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("medical_certificates")
+      .select("*")
+      .eq("swimmer_id", sid)
+      .order("data_scadenza", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("lesson_tokens")
+      .select("*")
+      .eq("swimmer_id", sid)
+      .order("granted_at", { ascending: false })
+      .limit(20),
+    supabase
+      .from("personal_bests")
+      .select("id, distanza_m, stile, vasca, tempo_cc, data_conseguimento")
+      .eq("swimmer_id", sid)
+      .order("stile", { ascending: true })
+      .order("distanza_m", { ascending: true }),
+  ]);
 
-  const { data: sub } = await supabase
-    .from("subscriptions")
-    .select("tier, status, current_period_end")
-    .eq("swimmer_id", profile?.id ?? "")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const { data: ath } = await supabase
-    .from("profiles")
-    .select("anno_nascita, categoria, stili_abituali, distanze_abituali")
-    .eq("id", profile?.id ?? "")
-    .single();
-
-  const { data: objData } = await supabase
-    .from("objectives")
-    .select("*")
-    .eq("swimmer_id", profile?.id ?? "")
-    .order("status", { ascending: true })
-    .order("created_at", { ascending: false });
-  const objectives = (objData ?? []) as ObjectiveRow[];
-
-  const { data: certData } = await supabase
-    .from("medical_certificates")
-    .select("*")
-    .eq("swimmer_id", profile?.id ?? "")
-    .order("data_scadenza", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const cert = certData as MedicalCertRow | null;
+  const me = profRes.data as SwimmerRow | null;
+  const ath = profRes.data as {
+    anno_nascita: number | null;
+    categoria: string | null;
+    stili_abituali: string[];
+    distanze_abituali: string[];
+  } | null;
+  const sub = subRes.data;
+  const objectives = (objRes.data ?? []) as ObjectiveRow[];
+  const cert = certRes.data as MedicalCertRow | null;
   const light = certLight(cert?.data_scadenza ?? null);
   const certDays = daysToExpiry(cert?.data_scadenza ?? null);
-
-  const { data: tokData } = await supabase
-    .from("lesson_tokens")
-    .select("*")
-    .eq("swimmer_id", profile?.id ?? "")
-    .order("granted_at", { ascending: false })
-    .limit(20);
-  const tokens = (tokData ?? []) as LessonTokenRow[];
+  const tokens = (tokRes.data ?? []) as LessonTokenRow[];
   const tokenAvail = availableCount(tokens);
-
-  const { data: pbs } = await supabase
-    .from("personal_bests")
-    .select("id, distanza_m, stile, vasca, tempo_cc, data_conseguimento")
-    .eq("swimmer_id", profile?.id ?? "")
-    .order("stile", { ascending: true })
-    .order("distanza_m", { ascending: true });
+  const pbs = pbRes.data;
 
   const hasProfile = Boolean(
     ath?.anno_nascita ||
