@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { categoriaMaster } from "@/lib/profile/categoria";
-import { isStile, isVasca, DISTANZE_PB } from "@/lib/profile/costanti";
+import { isStile, isVasca, isEventoIndividuale } from "@/lib/profile/costanti";
 import {
   createSubscriptionCheckout,
   type SubTier,
@@ -70,10 +70,11 @@ export async function upsertPersonalBest(input: {
   const profile = await getCurrentProfile();
   if (!profile) return { error: "Sessione scaduta." };
 
-  if (!(DISTANZE_PB as readonly number[]).includes(input.distanza_m))
-    return { error: "Distanza non valida." };
   if (!isStile(input.stile)) return { error: "Stile non valido." };
   if (!isVasca(input.vasca)) return { error: "Vasca non valida." };
+  // Solo gare INDIVIDUALI ufficiali (staffette e combinazioni inesistenti fuori).
+  if (!isEventoIndividuale(input.stile, input.distanza_m, input.vasca))
+    return { error: "Questa gara non è nel programma individuale." };
   if (!Number.isInteger(input.tempo_cc) || input.tempo_cc <= 0)
     return { error: "Tempo non valido." };
   if (input.data_conseguimento) {

@@ -7,6 +7,7 @@ import { signOut } from "@/app/login/actions";
 import { Card, Pill } from "@/components/ui/card";
 import { ObjectivesManager } from "./objectives-manager";
 import { CertificateUploader } from "./certificate-uploader";
+import { PbManager, type Pb } from "./pb-manager";
 import type { ObjectiveRow } from "@/lib/objectives";
 import {
   availableCount,
@@ -271,6 +272,14 @@ export default async function SwimmerProfilo({
           )}
         </section>
       )}
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-display text-lg text-foreground">I miei tempi</h2>
+        <p className="text-sm text-muted">
+          I tuoi personal best su tutte le gare individuali.
+        </p>
+        <PbManager items={(pbs ?? []) as Pb[]} />
+      </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-lg text-foreground">I miei obiettivi</h2>
