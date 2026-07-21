@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Waves, Check, ArrowRight } from "lucide-react";
+import { ZONES, onColor, type ZoneId } from "@/lib/workout";
 
 type HandWorkout = {
   id: string;
@@ -10,11 +11,15 @@ type HandWorkout = {
   focus: string | null;
   total_meters: number | null;
   pool: number | null;
+  zone: ZoneId | null;
   done: boolean;
 };
 
-// Colori "seme" delle carte (dai token brand): variano per posizione.
-const SUITS = ["var(--blu)", "var(--turchese)", "var(--navy)", "var(--teal)"];
+// Colore "seme" della carta = colore della ZONA di riferimento dell'allenamento.
+// Se la zona non è riconoscibile, un navy sobrio (mai il turchese neon).
+function suitColor(zone: ZoneId | null): string {
+  return zone ? ZONES[zone].color : "#203979";
+}
 
 /**
  * Onda 18 — gli allenamenti della settimana come una "mano" di carte da gioco.
@@ -43,7 +48,8 @@ export function WorkoutHand({ workouts }: { workouts: HandWorkout[] }) {
           const rot = isSel ? 0 : off * stepDeg;
           const tx = off * stepX;
           const ty = isSel ? -26 : Math.abs(off) * 10;
-          const suit = SUITS[i % SUITS.length];
+          const suit = suitColor(w.zone);
+          const suitText = onColor(suit);
           return (
             <button
               key={w.id}
@@ -57,13 +63,13 @@ export function WorkoutHand({ workouts }: { workouts: HandWorkout[] }) {
                 opacity: sel != null && !isSel ? 0.55 : 1,
               }}
             >
-              {/* testata "seme" */}
+              {/* testata "seme" = colore della zona di riferimento */}
               <div
-                className="flex h-9 items-center justify-between rounded-t-xl px-2 text-white"
-                style={{ background: suit }}
+                className="flex h-9 items-center justify-between rounded-t-xl px-2"
+                style={{ background: suit, color: suitText }}
               >
                 <span className="text-[10px] font-bold uppercase tracking-wide">
-                  {w.focus ? w.focus.slice(0, 10) : "Open"}
+                  {w.zone ?? (w.focus ? w.focus.slice(0, 10) : "Open")}
                 </span>
                 <Waves size={13} />
               </div>

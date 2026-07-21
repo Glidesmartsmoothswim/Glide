@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Tema controllato da noi, non dal sistema: la variante `dark:` di Tailwind
+   scatta solo con data-theme="dark" (mai impostato per ora → app sempre light).
+   Così l'app non "diventa scura" seguendo il tema del telefono. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* ============================================================
    GLIDE — design tokens
    "onda dopo onda" · voce "tu" · tono Esploratore
@@ -7,6 +12,8 @@
    ============================================================ */
 
 :root {
+  color-scheme: light; /* niente auto-dark dei controlli nativi sul telefono */
+
   /* Palette ufficiale — chiusa (ADR-009 §6). Nessun colore nuovo, nessun rosso. */
   --ink: #0b1220; /* fondale scuro                 */
   --turchese: #00ffe6; /* accento: bordi, un dato, un'azione */
@@ -24,14 +31,15 @@
   --border: #dfe7ef;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #070c15;
-    --surface: #0f1826;
-    --foreground: #e9f1f7;
-    --muted: #9fb0bc; /* grigio chiaro ma sempre >= 70% su fondo scuro */
-    --border: #1d2a3b;
-  }
+/* Tokens dark, PRESERVATI ma opt-in: si attivano solo con data-theme="dark"
+   (per un futuro toggle manuale). Non più agganciati al tema di sistema. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #070c15;
+  --surface: #0f1826;
+  --foreground: #e9f1f7;
+  --muted: #9fb0bc; /* grigio chiaro ma sempre >= 70% su fondo scuro */
+  --border: #1d2a3b;
 }
 
 /* Niente grassetti/corsivi sintetici: usiamo solo i pesi reali 400/700. */
@@ -73,10 +81,8 @@ body {
 .splash-bg {
   background: linear-gradient(160deg, #274488 0%, #1b3169 55%, #142551 100%);
 }
-@media (prefers-color-scheme: dark) {
-  .splash-bg {
-    background: #070c15;
-  }
+:root[data-theme="dark"] .splash-bg {
+  background: #070c15;
 }
 
 h1,
