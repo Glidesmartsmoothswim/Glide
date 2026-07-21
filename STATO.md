@@ -39,6 +39,35 @@ _Ultimo aggiornamento: 2026-07-21 — **ONDA 14 (Performance: diagnosi + interve
 4. **RLS `auth.uid()` per riga + indice FK** — preventivo scala (14.2).
 5. **Skeleton/percepito** — grosso già fatto in 13.1; completare (14.5).
 
+### 14.2 — DB e query (applicato)
+- **`Promise.all`** sui 4 waterfall confermati: `coach/nuotatori/[id]` (~15 query indipendenti da serie → **2 ondate**; unita anche la doppia lettura `profiles`), `app/profilo` (6+ in parallelo, `profiles` letto una volta), `app` home (4), `app/nuoto` (3). Su rete EU (post-fra1) ogni query risparmiata è ~pochi ms, ma il **numero di RTT in serie crolla** → TTFB molto più basso.
+- **`migration_025` (da applicare al deploy):** indice `workout_completions(workout_id)` (FK usata dalla RLS di `workouts`) + policy **`workouts: lettura`** riscritta con **initplan `(select …)`** su `is_coach()`/`my_tier()`/`auth.uid()`. Le altre policy `auth.uid()`-per-riga: **saltate ora** (impatto misurato ~0), rinviate a migrazione di manutenzione.
+
+### 14.3 — Bundle client (applicato, misurato)
+- **zod fuori dal bundle client.** `supabase/client.ts` importava `@/lib/env` (che esegue `zod.parse` a import) → zod finiva nel chunk `@supabase` caricato su OGNI pagina client-interattiva. Ora `client.ts` legge le `NEXT_PUBLIC_*` inlined + normalizza l'URL inline, **senza importare env**.
+- **Misura chunk (raw KB):** chunk `@supabase` **518 → 240 KB** (`zod=0`), **−278 KB** sull'iniziale. recharts (341 KB ×2) già **async** (dynamic ssr:false, 13.1) → fuori dall'iniziale.
+- **Saltato:** nessuna dipendenza duplicata/inutile emersa oltre a questa.
+
+### 14.4 — Cache dati client — **SALTATO (con motivo)**
+- I colli di bottiglia **misurati** erano server-side (regione + waterfall), **già risolti**. Il **Router Cache** di Next App Router serve già la **navigazione indietro senza refetch** (payload RSC in cache client). Il **prefetch dei Link** della nav è attivo di default in produzione.
+- Introdurre **TanStack Query** = dipendenza + rearchitettura del layer dati non giustificata dalla diagnosi → **rinviata** a un'onda dedicata se il *percepito* lo richiederà. UI ottimistica idem (cambio ampio, nessun problema misurato). *Niente ottimizzazioni alla cieca (REGOLA DELL'ONDA).*
+
+### 14.5 — Velocità percepita (applicato)
+- **`loading.tsx` skeleton** aggiunti alle route con fetch ancora scoperte (agenda, lead, notifiche, social, videoanalisi, videoanalisi/[id], nuoto/[id], profilo/crea) → con i 16 di 13.1, **copertura completa** delle route che caricano dati. Il layout (nav/header) resta stabile mentre cambia il contenuto (lo skeleton vive dentro il layout di sezione).
+- **Immagini/cover:** già in contenitori a proporzione fissa (nessun layout shift). `next/image` sulle cover libreria **rinviato**: sono URL firmati remoti (servirebbe `remotePatterns`), e non c'è CLS da correggere → non è un problema reale ora.
+
+### 🏁 CHIUSURA — prima/dopo
+| Dimensione | Prima | Dopo | Nota |
+| --- | --- | --- | --- |
+| **Region funzioni** | default (US, iad1) | **fra1 (EU)** | co-locate col DB eu-central-1 |
+| **RTT in serie** (coach scheda) | ~15 sequenziali | **2 ondate** (Promise.all) | idem profilo/home/nuoto |
+| **Chunk `@supabase`** | 518 KB (con zod) | **240 KB** | −278 KB, zod rimosso |
+| **recharts** | — | async (fuori iniziale) | già 13.1 |
+| **loading.tsx** | 16 route | **24 route** | copertura completa fetch |
+| **Lighthouse (LCP/TBT/CLS/Perf)** | — | ⚠️ **da catturare sul preview** | non eseguibile dal sandbox |
+- **Nessuna metrica peggiorata** (build verde; comportamento invariato, solo orchestrazione/bundle).
+- **Da applicare al deploy:** `migration_025` (indice FK + RLS initplan).
+
 
 
 ## 🌊 ONDA 13 — Feedback utenti + Prezzi + Token 1:1 (2026-07-21 · branch `claude/onda-13`)
