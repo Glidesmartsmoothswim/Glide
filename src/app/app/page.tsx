@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { WaveLogo } from "@/components/brand/wave-logo";
+import { HomeGreeting } from "@/components/home/home-greeting";
 import { ReadinessCheckin } from "@/components/readiness/checkin";
 import { NotifList } from "@/components/notifications/notif-list";
 import { Onboarding } from "@/components/onboarding/onboarding";
@@ -17,8 +18,13 @@ export default async function SwimmerToday() {
   // Onda 14.2: query indipendenti in parallelo. Le fasi dipendono dal
   // programma attivo → restano dopo (unica dipendenza reale).
   const sid = profile?.id ?? "";
-  const [profRes, progRes, notifRes, wRes, lastCheckinRes] = await Promise.all([
-    supabase.from("profiles").select("onboarding_done").eq("id", sid).maybeSingle(),
+  const [profRes, progRes, notifRes, wRes, lastCheckinRes, bookingRes] =
+    await Promise.all([
+    supabase
+      .from("profiles")
+      .select("onboarding_done, status")
+      .eq("id", sid)
+      .maybeSingle(),
     supabase
       .from("programs")
       .select("*")
@@ -44,6 +50,15 @@ export default async function SwimmerToday() {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("bookings")
+      .select("starts_at, mode")
+      .eq("swimmer_id", sid)
+      .neq("status", "cancelled")
+      .gte("starts_at", new Date().toISOString())
+      .order("starts_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
   ]);
   const prof = profRes.data;
   const activeProg = progRes.data;
@@ -63,6 +78,23 @@ export default async function SwimmerToday() {
   const promptPost =
     lastCheckin?.phase === "pre" &&
     Date.now() - new Date(lastCheckin.created_at).getTime() < 18 * 60 * 60 * 1000;
+
+  // Saluto: stato pausa + eventuale sessione di OGGI (ora + vasca/video).
+  const isPaused = (prof as { status?: string } | null)?.status === "in_pausa";
+  const nextBooking = bookingRes.data as
+    | { starts_at: string; mode: string }
+    | null;
+  const romeDay = (d: Date) =>
+    new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome" }).format(d);
+  let sessionLabel: string | null = null;
+  if (nextBooking && romeDay(new Date(nextBooking.starts_at)) === romeDay(new Date())) {
+    const ora = new Intl.DateTimeFormat("it-IT", {
+      timeZone: "Europe/Rome",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(nextBooking.starts_at));
+    sessionLabel = `${ora} · ${nextBooking.mode === "remote" ? "Video" : "Vasca"}`;
+  }
   const workouts = (wRes.data ?? []) as {
     id: string;
     title: string;
@@ -73,12 +105,15 @@ export default async function SwimmerToday() {
   return (
     <div className="flex flex-col gap-6">
       <Onboarding done={Boolean(prof?.onboarding_done)} />
-      <header className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-muted">Ciao {name},</p>
-          <h1 className="font-display text-2xl text-foreground">Oggi</h1>
+      <header>
+        <div className="mb-1 flex justify-end">
+          <WaveLogo height={24} />
         </div>
-        <WaveLogo height={30} />
+        <HomeGreeting
+          firstName={name}
+          isPaused={isPaused}
+          sessionLabel={sessionLabel}
+        />
       </header>
 
       {activeProg && (

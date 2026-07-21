@@ -15,6 +15,23 @@ export function formatTempo(cc: number): string {
   return min > 0 ? `${min}:${pad2(sec)}.${pad2(cent)}` : `${sec}.${pad2(cent)}`;
 }
 
+/** Da centesimi → campi separati min/sec/cent, per pre-riempire un form. */
+export function splitTempo(cc: number): {
+  min: string;
+  sec: string;
+  cent: string;
+} {
+  const t = Math.max(0, Math.round(cc));
+  const min = Math.floor(t / 6000);
+  const sec = Math.floor((t % 6000) / 100);
+  const cent = t % 100;
+  return {
+    min: min ? String(min) : "",
+    sec: String(sec),
+    cent: pad2(cent),
+  };
+}
+
 /** true se il valore è un intero (accetta anche stringhe numeriche). */
 function asInt(v: string | number | null | undefined): number | null {
   if (v === null || v === undefined || v === "") return 0;
