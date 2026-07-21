@@ -4,7 +4,54 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-21 — **ONDA 12 (Tier di accesso + Libreria + Canale Open a ordine libero + Open+) COMPLETA.**_
+_Ultimo aggiornamento: 2026-07-21 — **ONDA 13 (Performance + Certificato medico + Obiettivi + Videoanalisi 1:1 + Prezzi/Abbonamenti + Token lezione) COMPLETA.**_
+
+## 🌊 ONDA 13 — Feedback utenti + Prezzi + Token 1:1 (2026-07-21 · branch `claude/onda-13`)
+
+### 13.1 — Performance / lag fra le pagine
+- **`loading.tsx` con skeleton su 16 route** (tutte quelle con fetch, atleta + coach): mai più schermo bianco durante la transizione. `components/ui/skeleton.tsx` (Skeleton + PageSkeleton).
+- **Grafici recharts lazy** (`next/dynamic` ssr:false + skeleton): `readiness/chart.tsx` e `business/revenue-chart.tsx` spostati in `*-impl.tsx` e caricati fuori dal bundle iniziale / dopo il primo paint.
+- **Prefetch**: i `<Link>` di tabbar atleta e sidebar coach prefetchano di default (Next App Router in produzione).
+- **Fetch nei Server Components**: già la norma; il client riceve dati pronti.
+- **Immagini**: cover libreria in contenitori a proporzione fissa (`aspect-[3/4]`, `h-16 w-16`) → nessun layout shift.
+- **⚠️ Misure Lighthouse:** non eseguibili dal sandbox (niente browser verso il preview). **Da catturare sul preview Vercel** su home atleta / settimana Open / gestionale coach (prima/dopo). Interventi sopra mirati a TBT/LCP (meno JS iniziale) e CLS (skeleton + ratio fissi).
+
+### 13.2 — Certificato medico (DATO SANITARIO)
+- **`migration_022`**: `medical_certificates` + **bucket privato `medical`**. RLS: legge solo proprietario e coach; scrive/cancella solo il proprietario; storage limitato alla cartella-proprietario. File **solo via URL firmati brevi (300s)**; mai in liste/anteprime.
+- **Atleta (Profilo)**: upload da fotocamera/galleria/PDF (`capture`), **compressione client >2MB** (canvas→JPEG), scadenza obbligatoria; semaforo + **promemoria non invasivo a 30gg**.
+- **Coach (scheda)**: semaforo verde/giallo/rosso + apertura documento (route dedicata). Sync legacy `profiles.cert_status/cert_expiry`.
+
+### 13.3 — Obiettivi multipli
+- **`migration_021`**: `objectives` (gara|tecnica|benessere|evento, stato attivo|raggiunto|archiviato). **Nessuna percentuale/barra**. Migrati i goal singoli da `intake` (deprecato, non cancellato). RLS: nuotatore gestisce i propri, coach legge. Atleta gestisce dal Profilo; coach in scheda (sola lettura).
+
+### 13.4 — Videoanalisi inclusa 1:1
+- **`lib/access.ts`**: risorsa `video:review` → solo `one_to_one`. `registerVideo` include l'upload senza pagamento per il tier 1:1 (retro-compat `service_type`); gli altri restano sul flusso a pagamento. UI dedicata 1:1 senza riferimenti a costi; coda coach invariata.
+
+### 13.5 — Prezzi definitivi + pagina /abbonamenti
+- **Prezzi via env (mai hardcodati):** Open **12,90**, Open+ **19,90**, 1:1 mensile **79** (`STRIPE_PRICE_ONE_TO_ONE_MONTHLY`), 1:1 stagionale **690 one-off** (`STRIPE_PRICE_ONE_TO_ONE_SEASON`, valido fino a fine giugno).
+- **Webhook**: 1:1 mensile → tier `one_to_one`; stagionale (one-off) → tier + `tier_expires_at`; cancellazioni → free.
+- **`migration_023` (da applicare al deploy)**: `profiles.tier_expires_at` + **pg_cron `expire-seasonal-tiers`** giornaliero (stagionale scaduto → free).
+- **Pagina `/app/abbonamenti`** a **coppie di carte** (Open|Open+, Mensile|Stagionale) + fascia free; **componente unico `PricingCard`**; **mobile 2 colonne affiancate**; brand sobrio (no urgency); `allow_promotion_codes` attivo. `UpgradeHint`/Profilo puntano qui.
+
+### 13.6 — Token lezione 1:1
+- **`migration_024`**: `lesson_tokens` (source mensile|coach; `redeemed_booking_id` unico). Funzioni **SECURITY DEFINER**: `grant_monthly_tokens` (**pg_cron 1/mese**, scade fine mese, no accumulo) + **reserve/link/release atomici** (`FOR UPDATE SKIP LOCKED` → niente doppio utilizzo). **Core (tabella+RLS+funzioni) APPLICATO**; lo **`cron.schedule` è nel file, da eseguire al deploy**.
+- **Booking**: opzione `useToken` → reserve atomico, nessun pagamento, link alla prenotazione; release su fallimento. Atleta: "Usa il tuo token — lezione inclusa"; coach: saldo + "Regala token" (nota, non scade). `lesson_credits` (entitlement di piano) resta separato.
+
+### 🔑 Variabili d'ambiente / prodotti Stripe da creare
+- **Env nuove:** `STRIPE_PRICE_ONE_TO_ONE_MONTHLY`, `STRIPE_PRICE_ONE_TO_ONE_SEASON`. **Aggiornare** `STRIPE_PRICE_OPEN` (12,90) e `STRIPE_PRICE_OPEN_PLUS` (19,90).
+- **Stripe Dashboard:** creare/aggiornare i 4 prezzi (12,90 / 19,90 mensili · 79 mensile · 690 one-off) e, se vuoi, i primi **Promotion Codes**.
+
+### 🗄️ Migrazioni da applicare al deploy
+- **`migration_023_pricing_cron`** (tier_expires_at + pg_cron) e la parte **`cron.schedule` di `migration_024`** (grant-monthly-tokens): applicare sul progetto (richiedono `create extension pg_cron`). Tabelle/funzioni core di 021/022/024 e RLS già applicate in questa sessione.
+
+### ✅ Collaudo per sprint
+- **13.2**: da telefono, carica un certificato con foto (verifica compressione) → semaforo verde; il coach apre il documento; a <30gg compare il promemoria.
+- **13.3**: aggiungi 2 obiettivi, marcane uno "raggiunto" → il coach li vede in scheda.
+- **13.4**: come 1:1 carica un video → nessun passaggio di pagamento; arriva nella coda coach.
+- **13.5**: `/app/abbonamenti` — 4 carte affiancate su mobile; checklist allineate; codice promo nel checkout; acquisto **stagionale in test mode** → tier one_to_one con scadenza a fine giugno.
+- **13.6**: prenota una lezione **spendendo il token** → prenotazione senza pagamento, token marcato usato; il coach regala un token e l'atleta lo vede.
+
+## 🌊 ONDA 12 — Libreria + Tier di accesso (2026-07-21)
 
 ## 🌊 ONDA 12 — Libreria + Tier di accesso (2026-07-21)
 
