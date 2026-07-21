@@ -5,12 +5,28 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile, type Profile } from "@/lib/auth";
 import { logEvent } from "@/lib/ledger";
 import { romeWallToUtc } from "@/lib/booking/slots";
+import { romeDateStr } from "@/lib/booking/credits";
 
 export type AgendaState = { error?: string; info?: string };
 
 async function coachOnly(): Promise<Profile | null> {
   const p = await getCurrentProfile();
   return p && p.role === "coach" ? p : null;
+}
+
+/** Somma n giorni a una data 'YYYY-MM-DD' (aritmetica su date pura). */
+function addDays(day: string, n: number): string {
+  const d = new Date(day + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Lunedì della settimana di 'YYYY-MM-DD'. */
+function mondayOfStr(day: string): string {
+  const d = new Date(day + "T00:00:00Z");
+  const dow = (d.getUTCDay() + 6) % 7; // 0 = lunedì
+  d.setUTCDate(d.getUTCDate() - dow);
+  return d.toISOString().slice(0, 10);
 }
 
 /** "YYYY-MM-DDTHH:MM" (datetime-local, ora di Roma) → ISO UTC. */
@@ -83,6 +99,74 @@ export async function duplicateRuleAllWeek(fd: FormData): Promise<void> {
   }));
   await supabase.from("availability_rules").insert(rows);
   revalidatePath("/coach/agenda");
+}
+
+/**
+ * Duplica gli orari della settimana corrente sulla settimana successiva.
+ * Le finestre RICORRENTI (availability_rules) si ripetono già ogni settimana:
+ * qui si copiano le **aperture extra** per-data (availability_exceptions kind
+ * 'extra') su giorno+7. Idempotente: salta quelle già presenti.
+ */
+export async function duplicateWeekToNext(
+  _prev: AgendaState,
+  _fd: FormData,
+): Promise<AgendaState> {
+  const c = await coachOnly();
+  if (!c) return { error: "Non autorizzato." };
+  const supabase = await createClient();
+
+  const monday = mondayOfStr(romeDateStr());
+  const sunday = addDays(monday, 6);
+
+  const { data: exts } = await supabase
+    .from("availability_exceptions")
+    .select("day, start_time, end_time, modes, note")
+    .eq("coach_id", c.id)
+    .eq("kind", "extra")
+    .gte("day", monday)
+    .lte("day", sunday);
+  if (!exts || exts.length === 0)
+    return {
+      info: "Nessuna apertura extra in questa settimana. Le finestre ricorrenti si ripetono già ogni settimana.",
+    };
+
+  const nextMon = addDays(monday, 7);
+  const nextSun = addDays(sunday, 7);
+  const { data: existing } = await supabase
+    .from("availability_exceptions")
+    .select("day, start_time, end_time")
+    .eq("coach_id", c.id)
+    .eq("kind", "extra")
+    .gte("day", nextMon)
+    .lte("day", nextSun);
+  const has = new Set(
+    (existing ?? []).map((e) => `${e.day}|${e.start_time}|${e.end_time}`),
+  );
+
+  const rows = exts
+    .map((e) => ({
+      coach_id: c.id,
+      day: addDays(e.day as string, 7),
+      kind: "extra",
+      start_time: e.start_time,
+      end_time: e.end_time,
+      modes: e.modes,
+      note: e.note,
+    }))
+    .filter((r) => !has.has(`${r.day}|${r.start_time}|${r.end_time}`));
+
+  if (rows.length === 0)
+    return { info: "La settimana successiva ha già questi orari." };
+
+  const { error } = await supabase
+    .from("availability_exceptions")
+    .insert(rows);
+  if (error) return { error: error.message };
+
+  revalidatePath("/coach/agenda");
+  return {
+    info: `Duplicati ${rows.length} orari sulla settimana successiva.`,
+  };
 }
 
 export async function closeDay(fd: FormData): Promise<void> {
