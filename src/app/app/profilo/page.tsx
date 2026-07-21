@@ -6,6 +6,8 @@ import { clientFeatures } from "@/lib/flags";
 import { signOut } from "@/app/login/actions";
 import { Card, Pill } from "@/components/ui/card";
 import { subscribe } from "./actions";
+import { ObjectivesManager } from "./objectives-manager";
+import type { ObjectiveRow } from "@/lib/objectives";
 import { formatTempo } from "@/lib/profile/tempo";
 import { STILE_LABEL, type Stile } from "@/lib/profile/costanti";
 import {
@@ -56,6 +58,14 @@ export default async function SwimmerProfilo({
     .select("anno_nascita, categoria, stili_abituali, distanze_abituali")
     .eq("id", profile?.id ?? "")
     .single();
+
+  const { data: objData } = await supabase
+    .from("objectives")
+    .select("*")
+    .eq("swimmer_id", profile?.id ?? "")
+    .order("status", { ascending: true })
+    .order("created_at", { ascending: false });
+  const objectives = (objData ?? []) as ObjectiveRow[];
 
   const { data: pbs } = await supabase
     .from("personal_bests")
@@ -159,6 +169,14 @@ export default async function SwimmerProfilo({
           le chiavi Stripe (Price ID) in <code>.env.local</code>.
         </Card>
       )}
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-display text-lg text-foreground">I miei obiettivi</h2>
+        <p className="text-sm text-muted">
+          Le direzioni che condividi con il coach. Aggiungine quanti vuoi.
+        </p>
+        <ObjectivesManager items={objectives} />
+      </section>
 
       <section className="flex flex-col gap-3">
         <div className="flex items-center gap-2">

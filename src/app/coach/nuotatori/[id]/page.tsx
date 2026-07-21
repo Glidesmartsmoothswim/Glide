@@ -23,6 +23,11 @@ import {
 } from "@/lib/profile/intake";
 import { ProgramManager } from "./program-manager";
 import type { ProgramRow, PhaseRow } from "@/lib/programs";
+import {
+  OBJECTIVE_KIND_LABEL,
+  OBJECTIVE_STATUS_LABEL,
+  type ObjectiveRow,
+} from "@/lib/objectives";
 import { savePersonalWorkout } from "../../workout-actions";
 import { archiveSwimmer } from "../actions";
 import { EditSwimmerForm } from "./edit-form";
@@ -115,6 +120,15 @@ export default async function SwimmerDetail({
       .sort((a, b) => a.start_date.localeCompare(b.start_date)),
     notes: notesByProg.get(p.id) ?? null,
   }));
+
+  // Obiettivi multipli (Onda 13.3) — il coach li legge (RLS).
+  const { data: objData } = await supabase
+    .from("objectives")
+    .select("*")
+    .eq("swimmer_id", id)
+    .order("status", { ascending: true })
+    .order("created_at", { ascending: false });
+  const objectives = (objData ?? []) as ObjectiveRow[];
 
   // Quante volte ogni scheda è stata "svolta" (per l'avviso in modifica).
   const { data: doneEv } = await supabase
@@ -320,6 +334,34 @@ export default async function SwimmerDetail({
           earnedCodes={earned.map((b) => b.code)}
           paused={(swimmer.status ?? "attivo").toLowerCase() !== "attivo"}
         />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-display text-lg text-foreground">Obiettivi</h2>
+        {objectives.length === 0 ? (
+          <Card className="text-muted">
+            Nessun obiettivo indicato dall&apos;atleta.
+          </Card>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {objectives.map((o: ObjectiveRow) => (
+              <Card key={o.id} className="flex items-center gap-3 py-2.5">
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-foreground">
+                    {o.title}
+                  </p>
+                  <p className="text-xs text-muted">
+                    {OBJECTIVE_KIND_LABEL[o.kind]}
+                    {o.target_date ? ` · entro ${o.target_date}` : ""}
+                  </p>
+                </div>
+                <Pill tone={o.status === "raggiunto" ? "ok" : o.status === "attivo" ? "brand" : "warn"}>
+                  {OBJECTIVE_STATUS_LABEL[o.status]}
+                </Pill>
+              </Card>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="flex flex-col gap-3">
