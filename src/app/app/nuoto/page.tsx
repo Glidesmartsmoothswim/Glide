@@ -27,37 +27,37 @@ export default async function SwimmerNuoto() {
   const tier = profile?.tier ?? "free";
   const supabase = await createClient();
 
-  // Schede personali 1:1 (RLS: solo le proprie).
-  const { data: personalData } = await supabase
-    .from("workouts")
-    .select("*")
-    .eq("kind", "personal")
-    .eq("swimmer_id", profile?.id ?? "")
-    .order("created_at", { ascending: false });
-  const personal = (personalData ?? []) as WorkoutRow[];
-
-  // La tua settimana: Canale Open della settimana CORRENTE. La RLS già gata
-  // per tier (open/open_plus la vedono, free no); qui restringiamo alla
-  // settimana corrente (open_plus vede lo storico dall'Archivio, 12.4).
+  // Onda 14.2: le tre query sono indipendenti → in parallelo (Promise.all),
+  // non più a cascata. La RLS gata comunque il Canale Open per tier.
   const weekAccess = canAccess(tier, "open:week");
-  const { data: openData } = weekAccess
-    ? await supabase
-        .from("workouts")
-        .select("*")
-        .eq("kind", "open_channel")
-        .eq("week_start", currentMonday())
-        .order("focus", { ascending: true })
-    : { data: [] };
-  const week = (openData ?? []) as WorkoutRow[];
-
-  // Archivio personale svolti (sempre visibile al proprietario).
-  const { data: doneData } = await supabase
-    .from("workout_completions")
-    .select("id, workout_id, title, focus, week_start, total_meters, completed_at")
-    .eq("swimmer_id", profile?.id ?? "")
-    .order("completed_at", { ascending: false })
-    .limit(60);
-  const done = (doneData ?? []) as CompletionRow[];
+  const sid = profile?.id ?? "";
+  const [personalRes, openRes, doneRes] = await Promise.all([
+    supabase
+      .from("workouts")
+      .select("*")
+      .eq("kind", "personal")
+      .eq("swimmer_id", sid)
+      .order("created_at", { ascending: false }),
+    weekAccess
+      ? supabase
+          .from("workouts")
+          .select("*")
+          .eq("kind", "open_channel")
+          .eq("week_start", currentMonday())
+          .order("focus", { ascending: true })
+      : Promise.resolve({ data: [] as WorkoutRow[] }),
+    supabase
+      .from("workout_completions")
+      .select(
+        "id, workout_id, title, focus, week_start, total_meters, completed_at",
+      )
+      .eq("swimmer_id", sid)
+      .order("completed_at", { ascending: false })
+      .limit(60),
+  ]);
+  const personal = (personalRes.data ?? []) as WorkoutRow[];
+  const week = (openRes.data ?? []) as WorkoutRow[];
+  const done = (doneRes.data ?? []) as CompletionRow[];
   const doneIds = new Set(done.map((d) => d.workout_id).filter(Boolean));
 
   return (

@@ -14,42 +14,40 @@ export default async function SwimmerToday() {
 
   const supabase = await createClient();
 
-  const { data: prof } = await supabase
-    .from("profiles")
-    .select("onboarding_done")
-    .eq("id", profile?.id ?? "")
-    .maybeSingle();
-
-  // Programma 1:1 attivo (RLS: il nuotatore vede solo il proprio active).
-  const { data: activeProg } = await supabase
-    .from("programs")
-    .select("*")
-    .eq("swimmer_id", profile?.id ?? "")
-    .eq("status", "active")
-    .maybeSingle();
+  // Onda 14.2: query indipendenti in parallelo. Le fasi dipendono dal
+  // programma attivo → restano dopo (unica dipendenza reale).
+  const sid = profile?.id ?? "";
+  const [profRes, progRes, notifRes, wRes] = await Promise.all([
+    supabase.from("profiles").select("onboarding_done").eq("id", sid).maybeSingle(),
+    supabase
+      .from("programs")
+      .select("*")
+      .eq("swimmer_id", sid)
+      .eq("status", "active")
+      .maybeSingle(),
+    supabase
+      .from("notifications")
+      .select("*")
+      .eq("user_id", sid)
+      .order("created_at", { ascending: false })
+      .limit(10),
+    supabase
+      .from("workouts")
+      .select("id, title, week_day, kind")
+      .or(`swimmer_id.eq.${sid},kind.eq.open_channel`)
+      .order("created_at", { ascending: false })
+      .limit(30),
+  ]);
+  const prof = profRes.data;
+  const activeProg = progRes.data;
   const { data: progPhases } = activeProg
     ? await supabase
         .from("program_phases")
         .select("*")
         .eq("program_id", activeProg.id)
     : { data: [] };
-
-  const { data } = await supabase
-    .from("notifications")
-    .select("*")
-    .eq("user_id", profile?.id ?? "")
-    .order("created_at", { ascending: false })
-    .limit(10);
-  const notifs = (data ?? []) as NotificationRow[];
-
-  // Allenamenti selezionabili nel check-in post (per la firma del set).
-  const { data: wData } = await supabase
-    .from("workouts")
-    .select("id, title, week_day, kind")
-    .or(`swimmer_id.eq.${profile?.id ?? ""},kind.eq.open_channel`)
-    .order("created_at", { ascending: false })
-    .limit(30);
-  const workouts = (wData ?? []) as {
+  const notifs = (notifRes.data ?? []) as NotificationRow[];
+  const workouts = (wRes.data ?? []) as {
     id: string;
     title: string;
     week_day: string | null;
