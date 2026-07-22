@@ -111,6 +111,58 @@ export async function upsertPersonalBest(input: {
   return { updated: Boolean(existing) };
 }
 
+/**
+ * Modifica un personal best ESISTENTE per id (Onda 22): permette di correggere
+ * un dato — anche la gara — senza cancellarlo e reinserirlo da capo. Se la nuova
+ * combinazione gara/vasca coincide con un altro tempo già salvato, lo segnala.
+ */
+export async function editPersonalBest(
+  id: string,
+  input: {
+    distanza_m: number;
+    stile: string;
+    vasca: string;
+    tempo_cc: number;
+    data_conseguimento?: string | null;
+  },
+): Promise<{ error?: string }> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { error: "Sessione scaduta." };
+
+  if (!isStile(input.stile)) return { error: "Stile non valido." };
+  if (!isVasca(input.vasca)) return { error: "Vasca non valida." };
+  if (!isEventoIndividuale(input.stile, input.distanza_m, input.vasca))
+    return { error: "Questa gara non è nel programma individuale." };
+  if (!Number.isInteger(input.tempo_cc) || input.tempo_cc <= 0)
+    return { error: "Tempo non valido." };
+  if (input.data_conseguimento) {
+    const d = new Date(input.data_conseguimento);
+    if (Number.isNaN(d.getTime()) || d.getTime() > Date.now())
+      return { error: "La data non può essere nel futuro." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("personal_bests")
+    .update({
+      distanza_m: input.distanza_m,
+      stile: input.stile,
+      vasca: input.vasca,
+      tempo_cc: input.tempo_cc,
+      data_conseguimento: input.data_conseguimento || null,
+    })
+    .eq("id", id)
+    .eq("swimmer_id", profile.id);
+  if (error) {
+    if (error.code === "23505")
+      return { error: "Hai già un tempo per quella gara: modifica quello." };
+    return { error: error.message };
+  }
+
+  revalidatePath("/app/profilo");
+  return {};
+}
+
 /** Rimuove un personal best (RLS: solo i propri). */
 export async function deletePersonalBest(id: string): Promise<{ error?: string }> {
   const profile = await getCurrentProfile();
