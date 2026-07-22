@@ -1,7 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MessageCircleQuestion, Send, X } from "lucide-react";
+
+const FAB = 48; // lato del bottone flottante (px)
+const POS_KEY = "glide-assist-pos";
 
 type Msg = { from: "me" | "glide"; text: string; safety?: string | null };
 
@@ -20,6 +23,76 @@ export function AssistantWidget() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+
+  // Bottone flottante TRASCINABILE: non resta mai incollato a un CTA. Si aggancia
+  // al bordo più vicino quando lo lasci e ricorda dove l'hai messo.
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const drag = useRef<{
+    sx: number;
+    sy: number;
+    ox: number;
+    oy: number;
+    moved: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(POS_KEY);
+      if (saved) {
+        setPos(JSON.parse(saved));
+        return;
+      }
+    } catch {}
+    // Default: in basso a destra, sopra la tabbar.
+    setPos({
+      x: window.innerWidth - FAB - 16,
+      y: window.innerHeight - FAB - 96,
+    });
+  }, []);
+
+  const clampPos = (x: number, y: number) => ({
+    x: Math.max(8, Math.min(window.innerWidth - FAB - 8, x)),
+    y: Math.max(8, Math.min(window.innerHeight - FAB - 8, y)),
+  });
+
+  const onDragStart = (e: React.PointerEvent) => {
+    if (!pos) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    drag.current = {
+      sx: e.clientX,
+      sy: e.clientY,
+      ox: e.clientX - pos.x,
+      oy: e.clientY - pos.y,
+      moved: false,
+    };
+  };
+  const onDragMove = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d) return;
+    if (Math.abs(e.clientX - d.sx) > 5 || Math.abs(e.clientY - d.sy) > 5)
+      d.moved = true;
+    setPos(clampPos(e.clientX - d.ox, e.clientY - d.oy));
+  };
+  const onDragEnd = () => {
+    const d = drag.current;
+    drag.current = null;
+    if (!d) return;
+    if (!d.moved) {
+      // Tap senza trascinamento = apri l'assistente.
+      setOpen(true);
+      return;
+    }
+    // Aggancio al bordo verticale più vicino.
+    setPos((p) => {
+      if (!p) return p;
+      const toLeft = p.x + FAB / 2 < window.innerWidth / 2;
+      const snapped = clampPos(toLeft ? 16 : window.innerWidth - FAB - 16, p.y);
+      try {
+        localStorage.setItem(POS_KEY, JSON.stringify(snapped));
+      } catch {}
+      return snapped;
+    });
+  };
 
   const send = async () => {
     const text = input.trim();
@@ -59,9 +132,18 @@ export function AssistantWidget() {
   if (!open) {
     return (
       <button
-        onClick={() => setOpen(true)}
-        aria-label="Apri l'assistente"
-        className="fixed bottom-24 right-4 z-40 grid h-12 w-12 place-items-center rounded-full bg-gradient-to-br from-blu to-navy text-white shadow-lg"
+        onPointerDown={onDragStart}
+        onPointerMove={onDragMove}
+        onPointerUp={onDragEnd}
+        aria-label="Apri l'assistente — trascinalo per spostarlo"
+        style={
+          pos
+            ? { left: pos.x, top: pos.y, touchAction: "none" }
+            : { touchAction: "none" }
+        }
+        className={`fixed z-40 grid h-12 w-12 cursor-grab touch-none place-items-center rounded-full bg-gradient-to-br from-blu to-navy text-white shadow-lg active:cursor-grabbing ${
+          pos ? "" : "bottom-24 right-4"
+        }`}
       >
         <MessageCircleQuestion size={22} />
       </button>
