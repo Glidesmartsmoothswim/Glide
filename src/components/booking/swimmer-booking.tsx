@@ -130,8 +130,8 @@ export function SwimmerBooking({
       setOk(true);
       setMsg(
         j.paymentMethod === "cash" && j.amountCents != null
-          ? `Prenotazione confermata. Il pagamento (€${Math.round(j.amountCents / 100)}) lo sistemi direttamente con Alessio in vasca.`
-          : "Prenotato. La trovi qui sopra fra le tue lezioni.",
+          ? `Richiesta inviata: in attesa di conferma del coach. Il pagamento (€${Math.round(j.amountCents / 100)}) lo sistemi direttamente con Alessio in vasca.`
+          : "Richiesta inviata: in attesa di conferma del coach. La trovi qui sopra fra le tue lezioni.",
       );
       setSlot(null);
       setSvc(null);
@@ -306,7 +306,7 @@ export function SwimmerBooking({
             disabled={busy}
             className="mt-3 w-full rounded-xl bg-gradient-to-br from-blu to-navy px-4 py-3 font-bold text-white disabled:opacity-60"
           >
-            {busy ? "Prenoto…" : "Prenota"}
+            {busy ? "Invio…" : "Invia richiesta"}
           </button>
         </Card>
       )}

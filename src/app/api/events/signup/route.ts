@@ -1,6 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/lib/auth";
 import { logEvent } from "@/lib/ledger";
+import { notifyCoaches } from "@/lib/notify";
+import { fullName } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,11 +29,20 @@ export async function POST(req: Request) {
 
   const { data: ev } = await admin
     .from("events")
-    .select("id, kind, capacity, audience, status")
+    .select("id, title, kind, capacity, audience, status")
     .eq("id", eventId)
     .maybeSingle();
   if (!ev || ev.status !== "published")
     return Response.json({ error: "evento non disponibile" }, { status: 404 });
+
+  // Iscrizione già esistente? Serve a notificare il coach solo alla PRIMA volta
+  // (non a ogni modifica dei test scelti).
+  const { data: prevSignup } = await admin
+    .from("event_signups")
+    .select("id")
+    .eq("event_id", eventId)
+    .eq("swimmer_id", profile.id)
+    .maybeSingle();
 
   const { data: p } = await admin
     .from("profiles")
@@ -75,6 +86,14 @@ export async function POST(req: Request) {
     event_id: eventId,
     kind: ev.kind,
   });
+
+  // Notifica al coach solo alla prima iscrizione (Onda 24).
+  if (!prevSignup)
+    await notifyCoaches(
+      "booking",
+      "Nuova iscrizione evento",
+      `${fullName(profile)} — ${ev.title}${status === "waitlist" ? " · lista d'attesa" : ""}`,
+    );
 
   return Response.json({ ok: true, status });
 }

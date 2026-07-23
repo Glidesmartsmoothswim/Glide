@@ -57,7 +57,7 @@ export default async function PrenotaPage() {
     .from("bookings")
     .select("id, starts_at, ends_at, mode, status, payment, service_id")
     .eq("swimmer_id", profile.id)
-    .eq("status", "confirmed")
+    .in("status", ["pending", "confirmed"])
     .gte("starts_at", new Date().toISOString())
     .order("starts_at");
   const serviceIds = [...new Set((upData ?? []).map((b) => b.service_id))];
@@ -73,6 +73,7 @@ export default async function PrenotaPage() {
     starts_at: b.starts_at,
     mode: b.mode,
     payment: b.payment,
+    status: b.status,
   }));
 
   const tier = p?.service_type ?? null;

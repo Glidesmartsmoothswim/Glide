@@ -46,17 +46,23 @@ export default async function CoachVideo() {
     : [];
   const urlByPath = new Map(signed.map((s) => [s.path, s.signedUrl]));
 
-  // Gli archiviati (macrociclo chiuso) escono dalla coda e vanno in fondo.
-  const live = videos.filter((v) => v.retention_state !== "archived");
-  const archived = videos
-    .filter((v) => v.retention_state === "archived")
+  // Onda 24: coda = solo i video DA analizzare (in attesa o da sbloccare).
+  // I video già commentati (analizzati) e quelli archiviati col macrociclo
+  // escono dalla coda e finiscono nella sezione a scomparsa "Analizzati".
+  const toReview = videos.filter(
+    (v) => v.retention_state !== "archived" && v.status !== "reviewed",
+  );
+  const done = videos
+    .filter(
+      (v) => v.retention_state === "archived" || v.status === "reviewed",
+    )
     .sort(
       (a, b) =>
-        new Date(b.archived_at ?? 0).getTime() -
-        new Date(a.archived_at ?? 0).getTime(),
+        new Date(b.archived_at ?? b.created_at ?? 0).getTime() -
+        new Date(a.archived_at ?? a.created_at ?? 0).getTime(),
     );
-  const sorted = [...live].sort((a, b) => order[a.status] - order[b.status]);
-  const pending = live.filter((v) => v.status === "pending").length;
+  const sorted = [...toReview].sort((a, b) => order[a.status] - order[b.status]);
+  const pending = toReview.filter((v) => v.status === "pending").length;
 
   const renderCard = (v: VideoRow) => {
     const sw = byId.get(v.swimmer_id);
@@ -158,22 +164,25 @@ export default async function CoachVideo() {
         </div>
       </header>
 
-      {sorted.length === 0 && archived.length === 0 && (
+      {sorted.length === 0 && done.length === 0 && (
         <Card className="text-muted">Nessun video caricato dagli atleti.</Card>
+      )}
+
+      {sorted.length === 0 && done.length > 0 && (
+        <Card className="text-muted">
+          Nessun video in coda: sono tutti analizzati. Li trovi qui sotto.
+        </Card>
       )}
 
       {sorted.map(renderCard)}
 
-      {archived.length > 0 && (
+      {done.length > 0 && (
         <details className="flex flex-col gap-3">
           <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-muted">
             <ArchiveIcon size={16} />
-            Archivio · {archived.length}{" "}
-            {archived.length === 1 ? "video" : "video"}
+            Analizzati · {done.length} video
           </summary>
-          <div className="mt-3 flex flex-col gap-6">
-            {archived.map(renderCard)}
-          </div>
+          <div className="mt-3 flex flex-col gap-6">{done.map(renderCard)}</div>
         </details>
       )}
     </div>

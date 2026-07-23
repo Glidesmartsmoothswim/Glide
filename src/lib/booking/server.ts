@@ -79,7 +79,8 @@ export async function computeDaySlots(
       .from("bookings")
       .select("starts_at,block_until")
       .eq("coach_id", coachId)
-      .eq("status", "confirmed")
+      // pending + confirmed occupano lo slot (una richiesta blocca già l'orario).
+      .in("status", ["pending", "confirmed"])
       .lt("starts_at", dayEnd.toISOString())
       .gt("block_until", dayStart.toISOString()),
     db
