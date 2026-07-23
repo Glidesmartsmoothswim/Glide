@@ -10,6 +10,7 @@ type Lesson = {
   starts_at: string;
   mode: string;
   payment: string;
+  status?: string;
 };
 
 const fullLabel = (iso: string) =>
@@ -54,12 +55,18 @@ export function UpcomingLessons({ lessons }: { lessons: Lesson[] }) {
           <li key={l.id} className="rounded-xl border border-border bg-background p-3">
             <div className="flex items-center gap-2">
               <p className="flex-1 font-semibold">{l.service}</p>
+              {l.status === "pending" && <Pill tone="warn">In attesa</Pill>}
               {l.mode === "remote" ? (
                 <Pill tone="ok">Video</Pill>
               ) : (
                 <Pill tone="brand">Vasca</Pill>
               )}
             </div>
+            {l.status === "pending" && (
+              <p className="t-small mt-0.5 text-muted">
+                In attesa di conferma del coach.
+              </p>
+            )}
             <p className="t-small mt-0.5 capitalize text-ink">{fullLabel(l.starts_at)}</p>
             <p className="t-small text-muted">
               {l.mode === "remote"

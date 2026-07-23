@@ -16,6 +16,8 @@ export type EventType =
   | "video.deleted"
   | "race.logged"
   | "booking.created"
+  | "booking.confirmed"
+  | "booking.rejected"
   | "booking.completed"
   | "booking.cancelled"
   | "booking.no_show"

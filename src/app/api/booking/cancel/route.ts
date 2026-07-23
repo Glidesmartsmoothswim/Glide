@@ -37,7 +37,7 @@ export async function POST(req: Request) {
   const isOwner = b.swimmer_id === profile.id;
   if (!isOwner && profile.role !== "coach")
     return new Response("forbidden", { status: 403 });
-  if (b.status !== "confirmed")
+  if (b.status !== "confirmed" && b.status !== "pending")
     return Response.json({ error: "Prenotazione non attiva." }, { status: 409 });
 
   const hoursTo = (new Date(b.starts_at).getTime() - Date.now()) / 3_600_000;

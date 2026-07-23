@@ -131,7 +131,7 @@ export async function POST(req: Request) {
       ends_at: endsAt.toISOString(),
       block_until: blockUntil.toISOString(),
       mode: service.mode,
-      status: "confirmed",
+      status: "pending",
       payment,
       payment_method: paymentMethod,
       payment_status: isCash ? "da_incassare" : null,
@@ -165,8 +165,8 @@ export async function POST(req: Request) {
   });
   await notifyCoaches(
     "booking",
-    "Nuova prenotazione",
-    `${fullName(profile)} — ${service.name}${
+    "Nuova richiesta di prenotazione",
+    `${fullName(profile)} — ${service.name} · da confermare${
       isCash ? ` · da incassare €${(service.price_cents / 100).toFixed(0)}` : ""
     }`,
   );

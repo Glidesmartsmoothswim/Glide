@@ -12,6 +12,8 @@ import {
   deleteException,
   completeBooking,
   noShowBooking,
+  confirmBooking,
+  rejectBooking,
   markCollected,
   createEvent,
   cancelEvent,
@@ -416,6 +418,7 @@ function BookingsTab({ bookings }: { bookings: Booking[] }) {
             <div className="ml-auto flex flex-wrap items-center gap-1">
               <ModeBadge m={b.mode} />
               <PayBadge b={b} />
+              {b.status === "pending" && <Pill tone="warn">Da confermare</Pill>}
               {b.status === "completed" && <Pill tone="ok">Fatta</Pill>}
               {b.status === "no_show" && <Pill tone="bad">Assente</Pill>}
             </div>
@@ -428,23 +431,51 @@ function BookingsTab({ bookings }: { bookings: Booking[] }) {
           {b.coach_note && (
             <p className="mt-2 t-small text-muted">Nota tua: {b.coach_note}</p>
           )}
+
+          {/* Da confermare: prima il coach accetta (o rifiuta) la richiesta. */}
+          {b.status === "pending" && (
+            <div className="mt-3 flex flex-col gap-2 rounded-xl border border-navy/20 bg-navy/5 p-3">
+              <p className="t-small text-muted">
+                Richiesta da confermare. Confermala per bloccare l&apos;orario;
+                dopo la lezione segnerai presente o assente.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <form action={confirmBooking}>
+                  <input type="hidden" name="id" value={b.id} />
+                  <button className="w-full rounded-lg bg-blu px-3 py-2.5 text-sm font-semibold text-white">
+                    Conferma lezione
+                  </button>
+                </form>
+                <form action={rejectBooking}>
+                  <input type="hidden" name="id" value={b.id} />
+                  <button className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm font-semibold text-[#DC2626] hover:bg-background">
+                    Rifiuta
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Confermata: presente/assente, blocco pulito e leggibile. */}
           {b.status === "confirmed" && (
-            <form action={completeBooking} className="mt-3 flex flex-wrap items-center gap-2">
+            <form action={completeBooking} className="mt-3 flex flex-col gap-2">
               <input type="hidden" name="id" value={b.id} />
               <input
                 name="coach_note"
-                placeholder="Nota post-lezione (si aggancia allo storico)"
-                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                placeholder="Nota post-lezione (facoltativa, si aggancia allo storico)"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm"
               />
-              <button className="rounded-lg bg-blu px-3 py-2 text-sm font-semibold text-white">
-                Presente
-              </button>
-              <button
-                formAction={noShowBooking}
-                className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-muted hover:bg-background"
-              >
-                Assente
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button className="w-full rounded-lg bg-blu px-3 py-2.5 text-sm font-semibold text-white">
+                  Presente
+                </button>
+                <button
+                  formAction={noShowBooking}
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm font-semibold text-muted hover:bg-background"
+                >
+                  Assente
+                </button>
+              </div>
             </form>
           )}
           {b.payment_method === "cash" && b.payment_status === "da_incassare" && (
