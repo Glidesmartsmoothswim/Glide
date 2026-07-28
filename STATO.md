@@ -4,7 +4,13 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-21 — **ONDA 17 (Health-check coach per il lancio) in corso.**_
+_Ultimo aggiornamento: 2026-07-28 — **Security Baseline Step 1: S-0 eseguito, S-0.5 al gate.**_
+
+## 🔒 SECURITY — Baseline Step 1 · S-0 (branch `claude/security-baseline-s0`)
+- **Setup AIOS Level 1**: creato `.aios/` (PROJECT · CURRENT_STATE · MEMORY · HANDOFF) + `PROMPT_CODE_SEC.md` e `GLIDE_SECURITY_AUDIT_v1.md` in root. **ADR-006 NON scritto** (hard-stop: attende OK).
+- **S-0 (solo lettura) → `SECURITY_AUDIT.md`.** Esito: il repo è molto più avanti del modello dell'audit. **Già chiusi:** C-3 regione UE (`eu-central-1`), C-4 (nessun segreto in `NEXT_PUBLIC_`), C-5 (bucket video privato + signed URL), A-1 (tutte le tabelle RLS+policy), C-2 firma webhook Stripe (raw body + `constructEvent`). **Mitigato:** C-1 role escalation (trigger `protect_role_column` presente; manca solo il column-check in policy). **Aperti:** A-7 security headers (`next.config.ts` vuoto), idempotenza Stripe (`stripe_events`).
+- **S-0.5 fermato al gate (STOP AIOS).** Motivi: (a) niente CLI Supabase → `db pull` non eseguibile; (b) ledger **già tracciato** 001→029 (non vuoto); (c) **`coach_id` NON esiste su `profiles`** (modello coach-unico `is_coach()`, non multi-tenant); (d) `migration_004_consents` non esiste in questo repo (il 004 è `backfill_ledger`).
+- **Impatto su S-1:** la policy role-lock del runbook referenzia `coach_id` (assente) → quella riga va omessa. Da decidere con Alessio prima di scrivere `migration_006`. **In attesa di OK.**
 
 ## 🌊 ONDA 17 — Health-check per il lancio (branch `claude/onda-17`)
 - **`/coach/stato`** (coach-only): schermata unica di controllo pre-lancio.
