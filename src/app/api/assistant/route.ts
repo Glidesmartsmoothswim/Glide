@@ -1,6 +1,7 @@
 import { getCurrentProfile } from "@/lib/auth";
 import { fullName } from "@/lib/types";
 import { handleMessage } from "@/lib/assistant/router";
+import { rateLimitOk } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,6 +14,13 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   const profile = await getCurrentProfile();
   if (!profile) return new Response("unauthorized", { status: 401 });
+
+  // Rate limit (S-3): protegge l'endpoint AI da abuso/costi. No-op senza Upstash.
+  if (!(await rateLimitOk("ai", profile.id)))
+    return Response.json(
+      { error: "Troppe richieste, riprova tra poco." },
+      { status: 429 },
+    );
 
   const body = await req.json().catch(() => ({}));
   const message = String(body.message ?? "").trim();

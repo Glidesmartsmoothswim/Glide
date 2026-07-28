@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { purgeExpiredVideos } from "@/lib/retention";
+import { cronAuthorized } from "@/lib/cron-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,10 +18,7 @@ export async function GET(req: Request) {
 }
 
 async function run(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.get("authorization") !== `Bearer ${secret}`) {
-    return new Response("unauthorized", { status: 401 });
-  }
+  if (!cronAuthorized(req)) return new Response("unauthorized", { status: 401 });
   const admin = createAdminClient();
   if (!admin) return new Response("no admin", { status: 200 });
 
