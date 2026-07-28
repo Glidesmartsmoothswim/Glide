@@ -1,0 +1,22 @@
+version: 2
+updates:
+  # Igiene dipendenze (S-3): Dependabot apre PR per gli aggiornamenti di sicurezza.
+  # Regola: HIGH/CRITICAL si mergiano; i MAJOR si valutano a mano (questo Next è
+  # una build modificata — vedi AGENTS.md — non bumpare alla cieca).
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    # Evita bump automatici di framework rischiosi: solo PR, revisione umana.
+    ignore:
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+    labels:
+      - "dependencies"
+      - "security"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
