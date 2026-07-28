@@ -4,6 +4,7 @@ import { computeAndStore } from "@/lib/score/compute";
 import { detectAndAward } from "@/lib/badges/detect";
 import { getResend, emailFrom } from "@/lib/resend";
 import { serverFeatures } from "@/lib/flags";
+import { publicEnv } from "@/lib/env";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,27 +56,30 @@ async function run(req: Request) {
   const to = (coaches ?? []).map((c) => c.email).filter(Boolean) as string[];
   if (to.length === 0) return Response.json({ sent: false, reason: "nessun coach" });
 
+  // S-3 · regola email "notifica, non contiene": in email vanno SOLO conteggi,
+  // mai testo con dati sanitari (nomi + zone di dolore + readiness). I dettagli
+  // restano dentro l'app, dove il coach li apre in un contesto protetto.
+  const appUrl = publicEnv.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
   const html = `
     <div style="font-family:Arial,sans-serif;color:#0B1220">
       <h2 style="color:#0E5EAB">GLIDE — il tuo lunedì</h2>
-      ${sections
-        .map(
-          (s) => `
-        <h3 style="text-transform:uppercase;letter-spacing:.09em;font-size:14px;color:#4b5a68">${s.title}</h3>
-        ${
-          s.rows.length
-            ? `<ul>${s.rows.map((r) => `<li style="margin:6px 0">${r.text}</li>`).join("")}</ul>`
-            : `<p style="color:#4b5a68">—</p>`
-        }`,
-        )
-        .join("")}
-      <p style="color:#4b5a68;font-size:13px">Osservazioni, non prescrizioni. Il carico resta tuo.</p>
+      <p>Ci sono <b>${total}</b> ${total === 1 ? "segnalazione" : "segnalazioni"} da guardare questa settimana.</p>
+      <ul>
+        ${sections
+          .map(
+            (s) =>
+              `<li style="margin:6px 0">${s.title}: <b>${s.rows.length}</b></li>`,
+          )
+          .join("")}
+      </ul>
+      <p><a href="${appUrl}/coach" style="background:#0E5EAB;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block">Apri GLIDE</a></p>
+      <p style="color:#4b5a68;font-size:13px">I dettagli restano nell'app: l'email non contiene dati sensibili. Osservazioni, non prescrizioni — il carico resta tuo.</p>
     </div>`;
 
   const { error } = await resend!.emails.send({
     from: emailFrom(),
     to,
-    subject: "GLIDE — il tuo lunedì",
+    subject: `GLIDE — il tuo lunedì · ${total} da guardare`,
     html,
   });
   return Response.json({ sent: !error, total, error: error?.message ?? null });

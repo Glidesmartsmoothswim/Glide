@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { publicEnv } from "@/lib/env";
+import { rateLimitOk } from "@/lib/ratelimit";
 
 /**
  * Esito delle azioni auth. Nessun redirect DENTRO l'azione: è il client a
@@ -21,6 +22,9 @@ export async function signIn(formData: FormData): Promise<AuthResult> {
   const password = String(formData.get("password") ?? "");
   if (!email || !password)
     return { ok: false, error: "Inserisci email e password." };
+  // Rate limit (S-3): frena il brute-force. No-op senza Upstash.
+  if (!(await rateLimitOk("auth", email.toLowerCase())))
+    return { ok: false, error: "Troppi tentativi. Riprova tra un minuto." };
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -39,6 +43,8 @@ export async function signUp(formData: FormData): Promise<AuthResult> {
     return { ok: false, error: "Inserisci email e password." };
   if (password.length < 8)
     return { ok: false, error: "La password deve avere almeno 8 caratteri." };
+  if (!(await rateLimitOk("auth", email.toLowerCase())))
+    return { ok: false, error: "Troppi tentativi. Riprova tra un minuto." };
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
