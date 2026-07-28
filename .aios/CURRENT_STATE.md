@@ -18,8 +18,11 @@
   role-lock già presente via trigger, bucket video già privato, no segreti in NEXT_PUBLIC_).
 
 ## In sviluppo
-- Esecuzione del runbook via Claude Code. **S-0.5 fermato al gate**: baseline non
-  applicabile come da runbook (vedi sotto). In attesa di OK per riorientare S-1.
+- **Runbook S-0 → S-4 COMPLETATO** (PR `claude/security-baseline-s0`). Fix di codice
+  applicati + test (`npm test`, 26 verdi). Migration 030/031 applicate. ADR-006 accepted.
+- Restano i **gate umani** (non codice): test manuale role-escalation, env Upstash su
+  Vercel, promozione CSP a enforcing, MFA/leaked-password/backup, scansione git history,
+  bump `next@16.2.12`, limiti upload video (M-6).
 
 ## Problemi aperti / blocchi
 - **Divergenza runbook↔repo:** il runbook assume "ledger vuoto + `003_tenancy` con `coach_id`".
