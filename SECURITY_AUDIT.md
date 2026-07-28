@@ -77,6 +77,32 @@ Naming reale ≠ runbook (es. `001_activity_ledger` non `001_events`; `003_effic
 
 ---
 
-## Cosa NON ho toccato (vincoli ⛔ rispettati)
+## Cosa NON ho toccato in S-0 (vincoli ⛔ rispettati)
 Nessun fix, nessuna migration applicata, nessun drop, nessuna modifica alla config Supabase,
 nessun testo consenso/retention/DPIA, nessun vocabolario clinico. Solo lettura + questo file.
+
+---
+
+## Stato finale dei finding (dopo S-1 → S-4)
+
+| Finding | Stato | Dettaglio |
+|---|---|---|
+| **C-1** escalation ruolo | ✅ **chiuso** | trigger `protect_role_column` + policy che congela `role` nel self (`migration_030`). Test SQL + gate manuale. |
+| **C-2** webhook Stripe | ✅ **chiuso** | firma su raw body (già) + idempotenza `stripe_events` (`migration_031`). |
+| **C-3** regione UE | ✅ | `eu-central-1`. |
+| **C-4** service_role client | ✅ | nessun segreto in `NEXT_PUBLIC_`; guardia `scripts/check-secrets.sh`. |
+| **C-5** video privato | ✅ | bucket privato + signed URL 1h. |
+| **A-1** copertura RLS | ✅ | tutte le tabelle RLS+policy; `stripe_events` deny-all; `scripts/rls-audit.sql` → 0. |
+| **A-2 / A-2bis** cron | ✅ | `cronAuthorized` fail-closed su digest + video-purge (`src/lib/cron-auth.ts`) + test. Gate: `CRON_SECRET` su Vercel (già impostata). |
+| **A-4** health router | ✅ **enforce** | matcher deterministico server-side prima dell'LLM; nessun percorso lo salta; verso l'LLM va **solo** il messaggio (mai nome/email). Test `safety.test.ts`. Vocabolario ADR-004 invariato. |
+| **A-6** segreti | 🟡 parziale | `.env*` gitignored, `check-secrets.sh` sul bundle. **Umano:** scansione git history (gitleaks) + rotazione se esposti. |
+| **A-7** security headers | 🟡 | header "duri" **enforced**; **CSP in Report-Only** (da promuovere a enforcing dopo verifica violazioni + checkout Stripe). |
+| **M-1 / M-2** baseline migrazioni | ✅ N/A | il ledger è già tracciato (001→031): non serve baseline. |
+| **M-3** leads separati | ✅ | sito e app su tabelle/progetti distinti (invariato). |
+| **M-4** rate limiting | ✅ | Upstash (`src/lib/ratelimit.ts`) su `/api/assistant` e auth. Gate: env Upstash su Vercel. |
+| **M-5** validazione input | 🟡 parziale | le server action validano; audit completo dei form resta da fare. |
+| **M-6** upload video | 🟡 parziale | bucket privato ok; **aperto:** limiti MIME/dimensione/durata sull'upload. |
+| **Email "notifica non contiene"** | ✅ | digest coach → solo conteggi + "Apri GLIDE" (niente dati sanitari in email). |
+| **npm audit HIGH (postcss/sharp)** | 🟡 aperto | fix = `next@16.2.12` (patch); bump **a parte e verificato** (Next modificato, `AGENTS.md`). Dependabot attivo. |
+
+**Gate umani residui (non è codice):** test manuale role-escalation · MFA coach · leaked-password (Pro) · backup PITR+restore · promozione CSP a enforcing · scansione git history · limiti upload video · bump `next` · env Upstash su Vercel.

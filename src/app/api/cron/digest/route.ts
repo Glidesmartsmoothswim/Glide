@@ -5,6 +5,7 @@ import { detectAndAward } from "@/lib/badges/detect";
 import { getResend, emailFrom } from "@/lib/resend";
 import { serverFeatures } from "@/lib/flags";
 import { publicEnv } from "@/lib/env";
+import { cronAuthorized } from "@/lib/cron-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,11 +23,8 @@ export async function GET(req: Request) {
 }
 
 async function run(req: Request) {
-  // Protezione cron: se CRON_SECRET è impostato, Vercel manda l'header.
-  const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.get("authorization") !== `Bearer ${secret}`) {
-    return new Response("unauthorized", { status: 401 });
-  }
+  // Protezione cron (A-2bis): header assente/errato o secret non configurato → 401.
+  if (!cronAuthorized(req)) return new Response("unauthorized", { status: 401 });
 
   const admin = createAdminClient();
   if (!admin) return new Response("no admin", { status: 200 });
