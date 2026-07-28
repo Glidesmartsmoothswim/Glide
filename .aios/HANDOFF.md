@@ -1,4 +1,4 @@
-# Handoff — 28 luglio 2026 (sera)
+# Handoff — Gestionale GLIDE · 28 luglio 2026 (sera)
 
 ## Sessione appena chiusa
 - **Task:** Security Baseline Step 1 — esecuzione del runbook `PROMPT_CODE_SEC.md` (S-0 → S-4) su Claude Code.
