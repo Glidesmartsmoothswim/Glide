@@ -35,6 +35,19 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   if (!admin) return new Response("no admin", { status: 500 });
 
+  // Idempotenza (C-2): registra l'event.id PRIMA di processare. Se è già stato
+  // gestito (Stripe ritenta), l'insert fallisce per chiave duplicata → 200 e
+  // stop, così non si raddoppia un abbonamento o uno sblocco "birra".
+  const { error: dupErr } = await admin
+    .from("stripe_events")
+    .insert({ id: event.id, type: event.type });
+  if (dupErr) {
+    // 23505 = unique_violation → evento già processato. Qualsiasi altro errore:
+    // non blocchiamo il pagamento, ma non deduplichiamo (fail-open sul dedup).
+    if ((dupErr as { code?: string }).code === "23505")
+      return new Response("già processato", { status: 200 });
+  }
+
   if (event.type === "checkout.session.completed") {
     const s = event.data.object as Stripe.Checkout.Session;
     const meta = s.metadata ?? {};
