@@ -14,4 +14,9 @@ create table if not exists public.stripe_events (
 );
 
 alter table public.stripe_events enable row level security;
--- Nessuna policy: vi scrive/legge solo la service_role (webhook), che bypassa la RLS.
+-- Deny-all esplicito: nessun accesso da client. Ci scrive/legge solo la
+-- service_role (webhook), che bypassa la RLS. La policy rende l'intento chiaro
+-- e fa tornare pulito l'audit RLS (RLS attiva senza policy = ambiguo).
+drop policy if exists "stripe_events: nessun accesso client" on public.stripe_events;
+create policy "stripe_events: nessun accesso client" on public.stripe_events
+  for all to public using (false) with check (false);
