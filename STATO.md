@@ -4,7 +4,16 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-28 — **Security Baseline Step 1: S-0 eseguito, S-0.5 al gate.**_
+_Ultimo aggiornamento: 2026-07-30 — **Onda 25 (riepilogo Open) mergiata · aperto il binario privacy/GDPR (mappa dei trattamenti).**_
+
+## 🔐 PRIVACY / GDPR — binario aperto (30 lug)
+- **`GLIDE_DATA_MAP.md`** (nuovo): inventario **tecnico** dei trattamenti ricavato dallo schema reale — tabella per tabella (dati, categoria, accesso RLS), bucket (`medical`, video), sub-responsabili (Supabase UE / Stripe / Resend / R2 / Vercel / LLM), flusso verso l'LLM, gap G1–G12. **Colonne legali (base giuridica, retention, DPIA) lasciate vuote di proposito** → decisione legale, non codice.
+- Fatti chiave emersi: la chat assistente **non è persistita** (solo testo, nessuna tabella `messages`); `medical_certificates` archivia il **file** PDF (non solo la scadenza → nodo minimizzazione G9); `glide_scores` è **profilazione/scoring** → pesa sulla DPIA (G6).
+- **Prossimo passo NON codice:** DPIA + testi consenso con un legale; poi si sblocca `migration_004_consents`. Vincolo confermato: informative/consensi/retention/DPIA non li tocca Code.
+
+## 🌊 ONDA 25 — Riepilogo Open per il coach (branch `claude/onda-25`, PR #28 mergiata)
+- Scheda coach del nuotatore (`/coach/nuotatori/[id]`), **solo tier `open`/`open_plus`**: sezione "Riepilogo Open" (fase di test) — 3 stat (svolti, metri totali, feedback post), **torta** del feedback post-sessione (RPE in fasce Facile 1–3 / Medio 4–6 / Duro 7–10) con RPE e umore medi, e lista degli ultimi 6 feedback.
+- Dati da `workout_completions` e `v_readiness` (righe `rpe != null` = post). recharts **lazy** (`ssr:false`) via `open-recap-pie.tsx` → `open-recap-pie-impl.tsx` (pattern `revenue-chart.tsx`). **Nessuna nuova tabella, nessuna migration, nessun dato in più raccolto.** `tsc` + `next build` verdi. Preview Vercel Ready.
 
 ## 🔒 SECURITY — Baseline Step 1 · S-0 (branch `claude/security-baseline-s0`)
 - **Setup AIOS Level 1**: creato `.aios/` (PROJECT · CURRENT_STATE · MEMORY · HANDOFF) + `PROMPT_CODE_SEC.md` e `GLIDE_SECURITY_AUDIT_v1.md` in root. **ADR-006 NON scritto** (hard-stop: attende OK).
