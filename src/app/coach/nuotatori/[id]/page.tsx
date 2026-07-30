@@ -483,16 +483,6 @@ export default async function SwimmerDetail({
               <p className="text-xs text-muted">Scadenza {certExpiry}</p>
             )}
           </div>
-          {certExpiry && (
-            <Link
-              href={`/coach/nuotatori/${id}/certificato`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-semibold text-blu"
-            >
-              Apri documento
-            </Link>
-          )}
         </Card>
       </section>
 

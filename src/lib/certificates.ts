@@ -3,9 +3,11 @@
 export type MedicalCertRow = {
   id: string;
   swimmer_id: string;
-  file_key: string;
+  /** Deprecato (Onda 26): non si archivia più il file. Nullable per le righe storiche. */
+  file_key: string | null;
   mime_type: string | null;
   data_scadenza: string;
+  dichiarato: boolean;
   note: string | null;
   uploaded_at: string;
 };

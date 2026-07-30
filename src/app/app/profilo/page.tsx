@@ -6,7 +6,7 @@ import { clientFeatures } from "@/lib/flags";
 import { signOut } from "@/app/login/actions";
 import { Card, Pill } from "@/components/ui/card";
 import { ObjectivesManager } from "./objectives-manager";
-import { CertificateUploader } from "./certificate-uploader";
+import { CertificateDeclaration } from "./certificate-declaration";
 import { PbManager, type Pb } from "./pb-manager";
 import type { ObjectiveRow } from "@/lib/objectives";
 import {
@@ -214,25 +214,17 @@ export default async function SwimmerProfilo({
                 Scadenza {cert.data_scadenza}
               </p>
             </div>
-            <Link
-              href="/app/profilo/certificato"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-semibold text-blu"
-            >
-              Apri
-            </Link>
           </Card>
         )}
         {certDays != null && certDays >= 0 && certDays <= 30 && (
           <p className="rounded-xl bg-amber-500/5 p-3 text-sm text-muted">
             Il tuo certificato scade tra {certDays}{" "}
-            {certDays === 1 ? "giorno" : "giorni"}: caricane uno aggiornato quando
-            puoi.
+            {certDays === 1 ? "giorno" : "giorni"}: aggiorna la scadenza quando lo
+            rinnovi.
           </p>
         )}
         <Card>
-          <CertificateUploader />
+          <CertificateDeclaration />
         </Card>
       </section>
 
