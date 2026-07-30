@@ -21,7 +21,7 @@ Legenda categoria: **ID** identificativo/anagrafico · **A9** categoria particol
 | `objectives` | obiettivi dell'atleta | ID | self + coach | → legale | → legale |
 | `readiness` | RPE, energia, corpo, umore (pre/post seduta) | **A9** | self + coach | → legale | → legale |
 | `v_readiness` (view) | derivata da `readiness` | **A9** | come sopra | → legale | (segue sorgente) |
-| `medical_certificates` | `file_key` (PDF nel bucket `medical`), `mime_type`, `data_scadenza`, `note` | **A9** | legge proprietario+coach; scrive/cancella solo proprietario; bucket privato, coach via URL firmato server-side | → legale | → legale (vedi G9: si archivia il **file**, non solo la scadenza) |
+| `medical_certificates` | **solo** `data_scadenza` + `dichiarato` (autodichiarazione) + `note` — **il file NON si archivia più** (Onda 26, minimizzazione). `file_key` deprecato/nullable per righe storiche | **A9** | legge proprietario+coach; scrive/cancella solo proprietario | → legale | → legale (G9 **risolto go-forward**: scadenza + flag; purga PDF storici = step manuale) |
 | `race_videos` | video del nuotatore (persona identificabile) + metadata; purge tramite `src/lib/retention.ts` | **A9?** (immagine) | self + coach; bucket privato + signed URL | → legale | logica purge presente in codice; **durata → legale** |
 | `video_comments` | commenti del coach sul video | ID | self + coach | → legale | → legale |
 | `workouts` | allenamenti assegnati | ID | self + coach | → legale | → legale |
@@ -89,7 +89,7 @@ Da completare con evidenza DPA firmata e region reale (`→ legale/infra`).
 | G6 | **DPIA (Art. 35)** — probabile obbligo (dati sanitari su larga scala + scoring `glide_scores`) | **Aperto** (→ legale) |
 | G7 | Registro trattamenti Art. 30 | **Alimentabile** da questo inventario, da formalizzare |
 | G8 | Diritti interessato (export/oblio/revoca/unsubscribe) | **Parziale** — oblio via pseudonimizzazione previsto (ADR-003); export/revoca da implementare |
-| G9 | Retention & minimizzazione | **Aperto** — certificato: si archivia il file (decidere se basta la scadenza); leads: auto-purge (→ legale) |
+| G9 | Retention & minimizzazione | **Parziale** — certificato: **deciso** (Onda 26) — solo scadenza + flag, niente file; resta purga PDF storici + leads auto-purge (→ legale) |
 | G10 | Age-gate adulti-only | Da confermare l'assunzione |
 | G11 | Consenso al punto di raccolta del Test (leads) | **Aperto** (→ legale) |
 | G12 | Cookie/analytics | Decisione aperta (raccomandato cookieless) |

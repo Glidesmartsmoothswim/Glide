@@ -4,7 +4,14 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-30 — **Onda 25 (riepilogo Open) mergiata · aperto il binario privacy/GDPR (mappa dei trattamenti).**_
+_Ultimo aggiornamento: 2026-07-30 — **Onda 26 (certificato: solo scadenza + flag, niente file) · Onda 25 · binario privacy/GDPR aperto.**_
+
+## 🌊 ONDA 26 — Certificato medico: minimizzazione (branch `claude/onda-26-medcert`)
+- **Decisione del titolare (GDPR, minimizzazione Art. 5(1)(c)):** del certificato medico si conserva **solo la scadenza + un flag di validità autodichiarato**. Il documento **non si carica e non si archivia più**.
+- **`migration_032_medcert_no_file.sql`** (non distruttiva): `file_key` → nullable/deprecato, aggiunto `dichiarato boolean`. Bucket `medical` e righe storiche **non toccati** (la purga dei PDF già caricati è uno step manuale separato, non eseguito: cancellare dati sanitari è irreversibile e va confermato).
+- **UI atleta:** l'uploader diventa **autodichiarazione** (`certificate-declaration.tsx`): data di scadenza + checkbox "dichiaro di possedere un certificato valido", nessun file. Rimossi i link "Apri" (atleta) e "Apri documento" (coach) e le due route `.../certificato` che servivano il file firmato.
+- Sync `profiles.cert_status/cert_expiry` invariato (digest/scheda/elenco continuano a funzionare). `tsc` verde.
+- **Aggiornata `GLIDE_DATA_MAP.md`:** riga certificati + G9 (da "Aperto" a "Parziale — deciso go-forward").
 
 ## 🔐 PRIVACY / GDPR — binario aperto (30 lug)
 - **`GLIDE_DATA_MAP.md`** (nuovo): inventario **tecnico** dei trattamenti ricavato dallo schema reale — tabella per tabella (dati, categoria, accesso RLS), bucket (`medical`, video), sub-responsabili (Supabase UE / Stripe / Resend / R2 / Vercel / LLM), flusso verso l'LLM, gap G1–G12. **Colonne legali (base giuridica, retention, DPIA) lasciate vuote di proposito** → decisione legale, non codice.
