@@ -1,39 +1,28 @@
-# Handoff — Gestionale GLIDE · 28 luglio 2026 (sera)
+# Handoff — Gestionale GLIDE · 30 luglio 2026
 
 ## Sessione appena chiusa
-- **Task:** Security Baseline Step 1 — esecuzione del runbook `PROMPT_CODE_SEC.md` (S-0 → S-4) su Claude Code.
-- **Stato:** ✅ **completato e mergiato** (PR #21 → `main`). Migration 030/031 applicate al DB di produzione. 26 test verdi (`npm test`).
-- **Scoperta chiave:** il repo reale era molto più avanti del modello dell'audit. Già a posto prima di iniziare: regione UE (`eu-central-1`), bucket video privato, firma webhook, ledger tracciato (001→029), role-lock via trigger. **`coach_id` NON esiste su `profiles`** (modello coach-unico `is_coach()`, non multi-tenant) → riga `coach_id` di D1 omessa. `migration_004_consents` non esiste in questo repo (il 004 è `backfill_ledger`).
+- **Task 1 — Onda 25 (riepilogo Open).** Nella scheda coach del nuotatore, solo per i tier `open`/`open_plus`, sezione "Riepilogo Open" (fase di test): stat svolti/metri/feedback, **torta** del feedback post-sessione (RPE in fasce) con RPE e umore medi, ultimi feedback. Dati da `workout_completions` + `v_readiness`. recharts lazy (`ssr:false`). Nessuna migration, nessun dato nuovo raccolto. → **PR #28 mergiata in `main`**, preview Vercel Ready.
+- **Task 2 — apertura binario privacy/GDPR.** Prodotto **`GLIDE_DATA_MAP.md`**: mappa *tecnica* dei trattamenti ricavata dallo schema reale. Solo fatti dal codice; le colonne legali (base giuridica, retention, DPIA) sono lasciate vuote di proposito.
 
-### File toccati (in `main`)
-- **DB:** `migration_030_role_lock.sql`, `migration_031_stripe_events.sql` (applicate).
-- **Codice:** `next.config.ts` (headers + CSP Report-Only), `src/app/api/stripe/webhook/route.ts` (idempotenza), `src/app/api/cron/{digest,video-purge}/route.ts` (`cronAuthorized`), `src/lib/cron-auth.ts` (nuovo), `src/lib/ratelimit.ts` (nuovo, Upstash), `src/app/api/assistant/route.ts` + `src/app/login/actions.ts` (rate limit), `src/app/api/cron/digest/route.ts` (digest email → notifica).
-- **Test:** `src/lib/cron-auth.test.ts`, `src/lib/assistant/safety.test.ts`; runner `tsx` + script `npm test`; deps `@upstash/ratelimit`, `@upstash/redis`, `tsx`.
-- **Script:** `scripts/rls-audit.sql`, `scripts/check-secrets.sh`; `test/security/{role-lock,stripe-idempotency}.sql`.
-- **Doc:** `SECURITY_AUDIT.md` (S-0 + stato finale finding), setup `.aios/` (PROJECT/CURRENT_STATE/MEMORY/HANDOFF), `PROMPT_CODE_SEC.md`, `GLIDE_SECURITY_AUDIT_v1.md`, **ADR-006** (accepted), `AIOS.md` (root, PR #20).
+### File toccati
+- **Onda 25 (in `main`, PR #28):** `src/components/coach/open-recap-pie-impl.tsx`, `src/components/coach/open-recap-pie.tsx` (nuovi), `src/app/coach/nuotatori/[id]/page.tsx`.
+- **Privacy:** `GLIDE_DATA_MAP.md` (nuovo), `STATO.md` e `.aios/HANDOFF.md` (aggiornati). Branch `claude/gdpr-data-map`.
 
-### Decisioni prese
-- **ADR-006 — Security Baseline Step 1** (accepted): D1 role-lock cintura+bretelle (policy congela `role` + trigger), D2 webhook firma+idempotenza, D3 baseline prima di nuove migration, D4 enforcement router server-side, D5 cron autenticati fail-closed, D6 forget_subject rinviato (dipende da consensi/DPIA).
-- CSP in **Report-Only** (non enforcing) per non rischiare i pagamenti Stripe live.
-- Digest coach → **notifica** (niente dati sanitari in email).
-- Rate limiting via **Upstash** (no-op finché non si impostano le env).
+### Cosa dice la mappa (fatti utili alla prossima sessione)
+- **Categoria particolare (Art. 9)** già classificata dal progetto: `readiness`/`v_readiness`, `medical_certificates`, contenuto chat. `race_videos` = immagine di persona identificabile.
+- **Chat assistente NON persistita:** `/api/assistant` ritorna solo testo, nessuna tabella `messages`. Il contenuto sanitario transita ma non si archivia; verso l'LLM va solo il messaggio, mai l'identità (ADR-004, `safety.test.ts`).
+- **`medical_certificates` archivia il file PDF** (bucket privato `medical`) + scadenza + note → nodo minimizzazione G9 (decidere se basta la scadenza).
+- **`glide_scores` = scoring/profilazione** → pesa sull'obbligo DPIA (G6).
+- **Sub-responsabili:** Supabase `eu-central-1` (UE ✓); da confermare region/DPA di Stripe (USA/SCC), Resend, Cloudflare R2, Vercel, e il **provider LLM** dell'assistente.
 
 ## Prossimo passo
-- **Gate umani (non codice), da chiudere prima del primo utente pagante reale:**
-  1. Test manuale role-escalation: da account nuotatore, `update profiles set role='coach'` **deve fallire**.
-  2. Impostare `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` su Vercel (senza, rate limit no-op).
-  3. Promuovere la **CSP** a enforcing dopo aver verificato i report di violazione + checkout Stripe sulla preview.
-  4. MFA account coach · leaked-password protection (Pro) · backup PITR + restore di prova.
-  5. Scansione git history (`gitleaks`/`trufflehog`) + rotazione chiavi se mai esposte.
-  6. Bump `next@16.2.12` (chiude i 12 HIGH `postcss`/`sharp`) — a parte e verificato (Next modificato, vedi `AGENTS.md`).
-- **Codice aperto (build items 🟡):** M-6 limiti upload video (MIME/dimensione/durata), M-5 audit validazione input dei form.
-- **Step 2 (binario legale, NON Code):** `migration_004_consents` + architettura consensi (Art. 9), informativa, DPA, **DPIA**, retention/oblio. Bloccante fino a testi legali. Code lo tocca solo quando Alessio lo sblocca.
+- **NON codice (legale/Alessio):** DPIA (Art. 35 — probabile obbligo per dati sanitari su larga scala + scoring) + testi di consenso Art. 9. Solo dopo si sblocca `migration_004_consents`. Compilare le colonne "base giuridica"/"retention" della mappa e il §3 trasferimenti.
+- **Codice, quando sbloccato:** architettura tecnica dei consensi (schema `004`, oggi bloccato), diritti dell'interessato (export dati, oblio via pseudonimizzazione ADR-003, revoca consenso), auto-purge retention.
+- **Gate umani ancora aperti (dashboard, non codice):** MFA account coach · leaked-password (Pro) · backup PITR + **restore provato** · env Upstash su Vercel · promozione CSP a enforcing dopo verifica report + checkout Stripe · scansione git history (gitleaks).
 
 ## Blocchi
-- `004_consents` bloccato su DPIA + testi consenso (decisione legale, non tecnica).
-- Rate limit e CSP-enforcing dipendono da azioni umane (env Upstash, verifica preview) prima di essere pienamente attivi.
-- Infra: 3 progetti Vercel **duplicati** (`glide-cufw/n36e/suhv`) senza env falliscono i check su ogni PR — rumore, non codice. Da eliminare su Vercel.
+- `004_consents` bloccato su DPIA + testi consenso (decisione legale).
+- Confine confermato: informative/consensi/retention/DPIA non li tocca Code; la mappa fornisce solo la base fattuale.
 
-## Note libere
-- `npm test` ora esiste (prima i test c'erano ma non giravano: import senza estensione → serve `tsx`).
-- La riga `coach_id` nel role-lock è stata omessa apposta: se un giorno si va multi-tenant, va introdotta `003_tenancy` + reintrodotto `coach_id` nella policy.
+## Note di sessione
+- **git push nativo rotto** in questa sessione (proxy: "Unauthorized"). Workaround usato: **GitHub MCP** (create/merge PR) — è la via da usare per le operazioni remote finché il proxy non è ripristinato.
