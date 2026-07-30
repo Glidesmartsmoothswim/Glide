@@ -8,6 +8,7 @@ import { CoachWorkoutCard } from "@/components/workout/coach-workout-card";
 import { ReadinessProgress } from "@/components/readiness/progress";
 import { EfficiencyCurves, type EffPoint } from "@/components/readiness/efficiency";
 import { OndaCard, GlideScoreCard } from "@/components/score/score-cards";
+import { OpenRecapPie, type PieSlice } from "@/components/coach/open-recap-pie";
 import { computeScore } from "@/lib/score/compute";
 import { BadgeShelf, type EarnedBadge } from "@/components/badges/badge-shelf";
 import { ConferBadges } from "@/components/badges/confer-badges";
@@ -200,6 +201,41 @@ export default async function SwimmerDetail({
 
   const readiness = (rRes.data ?? []) as VReadinessRow[];
   const effPoints = (effRes.data ?? []) as EffPoint[];
+
+  // Riepilogo Open (fase di test): allenamenti svolti + feedback post-sessione.
+  const isOpen = swimmer.tier === "open" || swimmer.tier === "open_plus";
+  const { data: compData } = isOpen
+    ? await supabase
+        .from("workout_completions")
+        .select("total_meters, completed_at")
+        .eq("swimmer_id", id)
+        .order("completed_at", { ascending: false })
+        .limit(300)
+    : { data: [] as { total_meters: number | null; completed_at: string }[] };
+  const svolti = compData ?? [];
+  const metriTot = svolti.reduce((n, c) => n + (c.total_meters ?? 0), 0);
+  // Feedback post = righe readiness con RPE (l'RPE si dà solo nel post).
+  const postRows = readiness.filter((r) => r.rpe != null);
+  const nPost = postRows.length;
+  const media = (xs: number[]) =>
+    xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
+  const rpeMedio = media(postRows.map((r) => r.rpe as number));
+  const umoreMedio = media(
+    postRows.filter((r) => r.umore_post != null).map((r) => r.umore_post as number),
+  );
+  const bucket = (lo: number, hi: number) =>
+    postRows.filter((r) => (r.rpe as number) >= lo && (r.rpe as number) <= hi).length;
+  const pieData: PieSlice[] = [
+    { label: "Facile (1–3)", value: bucket(1, 3), color: "#22C55E" },
+    { label: "Medio (4–6)", value: bucket(4, 6), color: "#F59E0B" },
+    { label: "Duro (7–10)", value: bucket(7, 10), color: "#0E5EAB" },
+  ];
+  const fmtDate = (iso: string) =>
+    new Intl.DateTimeFormat("it-IT", {
+      timeZone: "Europe/Rome",
+      day: "2-digit",
+      month: "short",
+    }).format(new Date(iso));
   const lastScore = scoreRowRes.data;
   const score = await computeScore(
     supabase,
@@ -341,6 +377,67 @@ export default async function SwimmerDetail({
               </div>
             )}
           </Card>
+        </section>
+      )}
+
+      {isOpen && (
+        <section className="flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <h2 className="font-display text-lg text-foreground">Riepilogo Open</h2>
+            <Pill tone="brand">test</Pill>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <Card className="flex flex-col items-center py-3">
+              <span className="font-display text-2xl text-foreground">
+                {svolti.length}
+              </span>
+              <span className="text-xs text-muted">allenamenti svolti</span>
+            </Card>
+            <Card className="flex flex-col items-center py-3">
+              <span className="font-display text-2xl text-foreground">
+                {metriTot.toLocaleString("it-IT")}
+              </span>
+              <span className="text-xs text-muted">metri totali</span>
+            </Card>
+            <Card className="flex flex-col items-center py-3">
+              <span className="font-display text-2xl text-foreground">{nPost}</span>
+              <span className="text-xs text-muted">feedback post</span>
+            </Card>
+          </div>
+
+          <Card className="flex flex-col gap-1">
+            <p className="text-sm font-semibold text-foreground">
+              Come sono andate le sedute
+            </p>
+            <OpenRecapPie data={pieData} />
+            {nPost > 0 && (
+              <p className="text-center text-xs text-muted">
+                RPE medio {rpeMedio.toFixed(1)}/10 · umore post{" "}
+                {umoreMedio.toFixed(1)}/5
+              </p>
+            )}
+          </Card>
+
+          {postRows.length > 0 && (
+            <Card className="flex flex-col gap-1.5">
+              <p className="text-sm font-semibold text-foreground">
+                Ultimi feedback
+              </p>
+              {postRows.slice(0, 6).map((r, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between border-b border-border/60 py-1 text-sm last:border-0"
+                >
+                  <span className="text-muted">{fmtDate(r.created_at)}</span>
+                  <span className="text-foreground">
+                    RPE {r.rpe}/10
+                    {r.umore_post != null ? ` · umore ${r.umore_post}/5` : ""}
+                  </span>
+                </div>
+              ))}
+            </Card>
+          )}
         </section>
       )}
 
