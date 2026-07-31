@@ -1,6 +1,52 @@
-import { ZONES, lineLabel, parseLine, blockMeters } from "@/lib/workout";
+import { ZONES, lineLabel, parseLine, blockMeters, type Block } from "@/lib/workout";
 import type { WorkoutRow } from "@/lib/types";
 import { Card, Pill } from "@/components/ui/card";
+
+/** Elenco blocchi a zone + metri. Estratto da WorkoutCard per essere riusato
+ * dalla personalizzazione Open (Onda 27.3), che mostra blocchi RISCALATI. */
+export function BlockList({ blocks }: { blocks: Block[] }) {
+  return (
+    <div className="flex flex-col gap-2">
+      {blocks.map((b, i) => (
+        <div
+          key={i}
+          className="rounded-xl bg-background p-3"
+          style={{ borderLeft: `4px solid ${ZONES[b.z]?.color ?? "#ccc"}` }}
+        >
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-sm font-semibold text-foreground">
+              {b.rounds > 1 ? `${b.rounds}× ` : ""}
+              {b.name || b.z}
+            </span>
+            <span className="text-xs text-muted">{blockMeters(b)} m</span>
+          </div>
+          <ul className="flex flex-col gap-0.5">
+            {b.lines
+              .filter((l) => l.trim())
+              .map((l, k) => {
+                const p = parseLine(l);
+                const z = p.zone ?? b.z;
+                return (
+                  <li key={k} className="text-sm text-foreground/80">
+                    <span
+                      className="mr-1.5 inline-block rounded px-1 text-xs font-semibold"
+                      style={{
+                        background: ZONES[z]?.tint,
+                        color: ZONES[z]?.text,
+                      }}
+                    >
+                      {z}
+                    </span>
+                    {lineLabel(l)}
+                  </li>
+                );
+              })}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 /** Visualizza un allenamento salvato (blocchi a zone + metri). */
 export function WorkoutCard({ w }: { w: WorkoutRow }) {
@@ -27,45 +73,7 @@ export function WorkoutCard({ w }: { w: WorkoutRow }) {
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        {blocks.map((b, i) => (
-          <div
-            key={i}
-            className="rounded-xl bg-background p-3"
-            style={{ borderLeft: `4px solid ${ZONES[b.z]?.color ?? "#ccc"}` }}
-          >
-            <div className="mb-1 flex items-center justify-between">
-              <span className="text-sm font-semibold text-foreground">
-                {b.rounds > 1 ? `${b.rounds}× ` : ""}
-                {b.name || b.z}
-              </span>
-              <span className="text-xs text-muted">{blockMeters(b)} m</span>
-            </div>
-            <ul className="flex flex-col gap-0.5">
-              {b.lines
-                .filter((l) => l.trim())
-                .map((l, k) => {
-                  const p = parseLine(l);
-                  const z = p.zone ?? b.z;
-                  return (
-                    <li key={k} className="text-sm text-foreground/80">
-                      <span
-                        className="mr-1.5 inline-block rounded px-1 text-xs font-semibold"
-                        style={{
-                          background: ZONES[z]?.tint,
-                          color: ZONES[z]?.text,
-                        }}
-                      >
-                        {z}
-                      </span>
-                      {lineLabel(l)}
-                    </li>
-                  );
-                })}
-            </ul>
-          </div>
-        ))}
-      </div>
+      <BlockList blocks={blocks} />
     </Card>
   );
 }

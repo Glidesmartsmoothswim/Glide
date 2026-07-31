@@ -1,6 +1,6 @@
 import { Radio } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { Card } from "@/components/ui/card";
+import { Card, Pill } from "@/components/ui/card";
 import { WorkoutEditor } from "@/components/workout/editor";
 import { CoachWorkoutCard } from "@/components/workout/coach-workout-card";
 import { saveOpenWorkout } from "../workout-actions";
@@ -40,6 +40,41 @@ export default async function CanaleOpen() {
     items: workouts.filter((w) => (w.week_start ?? "") === wk),
   }));
 
+  // Onda 27.2 — Preferenze: cosa scelgono gli iscritti Open, in aggregato
+  // (mai per singolo nome qui: quello resta nella scheda del nuotatore).
+  const [swimmerCountRes, compAggRes, adjEvRes] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .in("tier", ["open", "open_plus"]),
+    supabase
+      .from("workout_completions")
+      .select("focus")
+      .eq("source", "open_channel")
+      .limit(1000),
+    supabase.from("activity_events").select("payload").eq("type", "workout.adjusted"),
+  ]);
+  const openSwimmers = swimmerCountRes.count ?? 0;
+
+  const focusCount: Record<string, number> = {};
+  (compAggRes.data ?? []).forEach((c) => {
+    const f = (c.focus as string | null) || "Senza focus";
+    focusCount[f] = (focusCount[f] ?? 0) + 1;
+  });
+  const focusTotal = Object.values(focusCount).reduce((a, b) => a + b, 0);
+  const focusRanked = Object.entries(focusCount)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6);
+
+  const adjCount = { riduci: 0, aumenta: 0 };
+  (adjEvRes.data ?? []).forEach((e) => {
+    const dir = (e.payload as { direction?: string } | null)?.direction;
+    if (dir === "riduci") adjCount.riduci++;
+    if (dir === "aumenta") adjCount.aumenta++;
+  });
+
+  const weekItems = byWeek.find((g) => g.isCurrent)?.items ?? [];
+
   return (
     <div className="flex max-w-3xl flex-col gap-6">
       <header className="flex items-center gap-3">
@@ -53,6 +88,69 @@ export default async function CanaleOpen() {
           </p>
         </div>
       </header>
+
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <h2 className="font-display text-lg text-foreground">Preferenze</h2>
+          <Pill tone="brand">test</Pill>
+        </div>
+        <p className="text-sm text-muted">
+          Cosa scelgono gli iscritti Open — in aggregato, mai per nome (quello
+          resta nella scheda del nuotatore).
+        </p>
+
+        {weekItems.length > 0 && openSwimmers > 0 && (
+          <Card className="flex flex-col gap-1.5">
+            <p className="text-sm font-semibold text-foreground">
+              Tasso di scelta — settimana corrente
+            </p>
+            {weekItems.map((w) => {
+              const pct = Math.round(((doneCount[w.id] ?? 0) / openSwimmers) * 100);
+              return (
+                <div key={w.id} className="flex flex-col gap-0.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-foreground">{w.title}</span>
+                    <span className="text-muted">
+                      {doneCount[w.id] ?? 0}/{openSwimmers} · {pct}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-background">
+                    <div
+                      className="h-full rounded-full bg-blu"
+                      style={{ width: `${Math.min(100, pct)}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </Card>
+        )}
+
+        {focusRanked.length > 0 && (
+          <Card className="flex flex-col gap-1.5">
+            <p className="text-sm font-semibold text-foreground">
+              Focus più scelti (tutte le settimane)
+            </p>
+            {focusRanked.map(([focus, n]) => (
+              <div key={focus} className="flex items-center justify-between text-sm">
+                <span className="text-foreground">{focus}</span>
+                <span className="text-muted">
+                  {n} · {focusTotal ? Math.round((n / focusTotal) * 100) : 0}%
+                </span>
+              </div>
+            ))}
+          </Card>
+        )}
+
+        {(adjCount.riduci > 0 || adjCount.aumenta > 0) && (
+          <Card className="flex items-center justify-between text-sm">
+            <span className="text-foreground">Personalizzazione volume</span>
+            <span className="text-muted">
+              {adjCount.riduci} hanno ridotto · {adjCount.aumenta} hanno aumentato
+            </span>
+          </Card>
+        )}
+      </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-lg text-foreground">

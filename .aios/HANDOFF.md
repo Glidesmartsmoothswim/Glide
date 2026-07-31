@@ -1,28 +1,34 @@
-# Handoff — Gestionale GLIDE · 30 luglio 2026
+# Handoff — Gestionale GLIDE · 31 luglio 2026
 
-## Sessione appena chiusa
-- **Task 1 — Onda 25 (riepilogo Open).** Nella scheda coach del nuotatore, solo per i tier `open`/`open_plus`, sezione "Riepilogo Open" (fase di test): stat svolti/metri/feedback, **torta** del feedback post-sessione (RPE in fasce) con RPE e umore medi, ultimi feedback. Dati da `workout_completions` + `v_readiness`. recharts lazy (`ssr:false`). Nessuna migration, nessun dato nuovo raccolto. → **PR #28 mergiata in `main`**, preview Vercel Ready.
-- **Task 2 — apertura binario privacy/GDPR.** Prodotto **`GLIDE_DATA_MAP.md`**: mappa *tecnica* dei trattamenti ricavata dallo schema reale. Solo fatti dal codice; le colonne legali (base giuridica, retention, DPIA) sono lasciate vuote di proposito.
+## Sessione appena chiusa — Onda 27
+Richiesta: feedback/note post-allenamento visibili al coach negli 1:1 (e ora, in test, anche per il Canale Open) · statistiche di preferenza sulla selezione degli allenamenti Open · valutare personalizzazione dell'Open in base al livello (pulsanti riduci/aumenta), con base scientifica sulla percentuale.
+
+- **27.1 — Bug chiuso.** La nota libera del check-in post ("una nota per Alessio", colonna `readiness.note`, esiste da `migration_002`) non arrivava **mai** al coach: `v_readiness` non la esponeva, nessuna UI la mostrava. `migration_033_readiness_note_coach.sql` (additiva) espone `note as nota` + `workout_id` in vista. Nuova sezione "Feedback post-allenamento" nella scheda coach — **sempre visibile, non solo Open**: copre 1:1 e Canale Open perché il check-in è lo stesso flusso per entrambi. Testo integrale della nota, RPE, umore, titolo/fonte allenamento.
+- **27.2 — Preferenze Canale Open** (`/coach/open`, in aggregato, mai per nome): tasso di scelta per allenamento nella settimana corrente (svolti/iscritti Open), focus più scelti (da `workout_completions`), conteggio personalizzazioni riduci/aumenta.
+- **27.3 — Personalizzazione volume Open.** 3 pulsanti su `/app/nuoto/[id]` (solo `open_channel`): Riduci un po' (−15%) · Come indicato · Aumenta un po' (+10%) — si scala SOLO il volume (`rounds` dei blocchi), mai zona/passo/intervallo (altrimenti si snatura lo stimolo prescritto). Percentuali asimmetriche di proposito (più margine a scendere) per prudenza su un canale non supervisionato in tempo reale. Suggerimento non vincolante basato sull'ultimo RPE auto-riportato (≥8 → valuta di ridurre; ≤3 → valuta di aumentare) — **non usa né mostra il `livello` calcolato in intake** (resta solo-coach per ADR-006, di proposito non toccato). Scelta loggata fail-soft (`workout.adjusted`, nuovo `EventType`, nessuna migration perché `activity_events.type` non ha CHECK) → alimenta 27.2.
 
 ### File toccati
-- **Onda 25 (in `main`, PR #28):** `src/components/coach/open-recap-pie-impl.tsx`, `src/components/coach/open-recap-pie.tsx` (nuovi), `src/app/coach/nuotatori/[id]/page.tsx`.
-- **Privacy:** `GLIDE_DATA_MAP.md` (nuovo), `STATO.md` e `.aios/HANDOFF.md` (aggiornati). Branch `claude/gdpr-data-map`.
+- Migration: `supabase/migrations/migration_033_readiness_note_coach.sql` (nuova), `migration_001_activity_ledger.sql` (solo commento vocabolario, additivo).
+- `src/lib/readiness.ts` (tipo `VReadinessRow` + `nota`/`workout_id`), `src/lib/ledger.ts` (`EventType`), `src/lib/workout.ts` (`scaleBlocks`/`ADJUST_FACTOR`/`AdjustDirection`).
+- `src/components/workout/workout-card.tsx` (estratto `BlockList`, riusato), `src/components/workout/workout-adjust.tsx` (nuovo).
+- `src/app/app/nuoto/[id]/page.tsx` (wiring personalizzazione + ultimo RPE), `src/app/app/nuoto/adjust-actions.ts` (nuovo, server action ledger).
+- `src/app/coach/nuotatori/[id]/page.tsx` (sezione feedback universale), `src/app/coach/open/page.tsx` (sezione Preferenze).
+- `STATO.md` (Onda 27), `.aios/HANDOFF.md` (questo file).
 
-### Cosa dice la mappa (fatti utili alla prossima sessione)
-- **Categoria particolare (Art. 9)** già classificata dal progetto: `readiness`/`v_readiness`, `medical_certificates`, contenuto chat. `race_videos` = immagine di persona identificabile.
-- **Chat assistente NON persistita:** `/api/assistant` ritorna solo testo, nessuna tabella `messages`. Il contenuto sanitario transita ma non si archivia; verso l'LLM va solo il messaggio, mai l'identità (ADR-004, `safety.test.ts`).
-- **`medical_certificates` archivia il file PDF** (bucket privato `medical`) + scadenza + note → nodo minimizzazione G9 (decidere se basta la scadenza).
-- **`glide_scores` = scoring/profilazione** → pesa sull'obbligo DPIA (G6).
-- **Sub-responsabili:** Supabase `eu-central-1` (UE ✓); da confermare region/DPA di Stripe (USA/SCC), Resend, Cloudflare R2, Vercel, e il **provider LLM** dell'assistente.
+### Verifica fatta in sessione
+- `npx tsc --noEmit` verde (dopo `npm install`, node_modules non presente nel clone).
+- `npm run lint` verde sui file toccati (gli errori residui — `app/page.tsx`, `assistant-widget.tsx`, `home-greeting.tsx` — sono preesistenti, non toccati in questa sessione).
+- `next build`: si ferma solo sulle env Supabase mancanti nel sandbox (`NEXT_PUBLIC_*`), nessun errore di codice — stesso pattern già visto in Onda 11/13.
+- **Non eseguito** (nessun accesso a un progetto Supabase reale da questo sandbox): applicazione della migration, collaudo a schermo, verifica RLS a runtime.
 
 ## Prossimo passo
-- **NON codice (legale/Alessio):** DPIA (Art. 35 — probabile obbligo per dati sanitari su larga scala + scoring) + testi di consenso Art. 9. Solo dopo si sblocca `migration_004_consents`. Compilare le colonne "base giuridica"/"retention" della mappa e il §3 trasferimenti.
-- **Codice, quando sbloccato:** architettura tecnica dei consensi (schema `004`, oggi bloccato), diritti dell'interessato (export dati, oblio via pseudonimizzazione ADR-003, revoca consenso), auto-purge retention.
-- **Gate umani ancora aperti (dashboard, non codice):** MFA account coach · leaked-password (Pro) · backup PITR + **restore provato** · env Upstash su Vercel · promozione CSP a enforcing dopo verifica report + checkout Stripe · scansione git history (gitleaks).
+- **Applicare `migration_033` al deploy** (view, nessun rischio: `create or replace`, non tocca dati).
+- **Collaudo umano consigliato:** scrivere una nota da atleta (1:1 e Open) e verificarla in scheda coach; provare i 3 pulsanti di personalizzazione da un account Open; controllare che "Preferenze" su `/coach/open` popoli percentuali sensate con dati reali.
+- Resta aperto tutto il binario privacy/GDPR (DPIA, testi consenso) descritto nelle onde precedenti — non toccato qui.
 
 ## Blocchi
-- `004_consents` bloccato su DPIA + testi consenso (decisione legale).
-- Confine confermato: informative/consensi/retention/DPIA non li tocca Code; la mappa fornisce solo la base fattuale.
+- Nessun nuovo blocco introdotto da questa sessione.
+- Restano i blocchi già noti: `004_consents` su DPIA/consensi (legale); gate umani elencati nelle onde precedenti (MFA coach, leaked-password, backup PITR + restore, env Upstash, CSP enforcing, gitleaks).
 
 ## Note di sessione
-- **git push nativo rotto** in questa sessione (proxy: "Unauthorized"). Workaround usato: **GitHub MCP** (create/merge PR) — è la via da usare per le operazioni remote finché il proxy non è ripristinato.
+- Sandbox senza credenziali Supabase/Vercel reali: nessuna query eseguita contro un DB vero, solo lettura di schema/migration dal repo. `git push` da verificare (nota precedente: proxy nativo rotto in sessioni passate, workaround GitHub MCP).

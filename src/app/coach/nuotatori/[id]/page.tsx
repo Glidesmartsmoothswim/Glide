@@ -202,6 +202,25 @@ export default async function SwimmerDetail({
   const readiness = (rRes.data ?? []) as VReadinessRow[];
   const effPoints = (effRes.data ?? []) as EffPoint[];
 
+  // Onda 27.1 — feedback/nota post-allenamento (1:1 E Canale Open): la nota
+  // era già raccolta al check-in ("una nota per Alessio") ma non arrivava mai
+  // in vista al coach. Titolo/fonte dell'allenamento per dare contesto.
+  const feedbackRows = readiness
+    .filter((r) => r.rpe != null)
+    .slice(0, 12);
+  const fbWorkoutIds = [
+    ...new Set(feedbackRows.map((r) => r.workout_id).filter(Boolean) as string[]),
+  ];
+  const { data: fbWorkoutsData } = fbWorkoutIds.length
+    ? await supabase
+        .from("workouts")
+        .select("id, title, kind")
+        .in("id", fbWorkoutIds)
+    : { data: [] as { id: string; title: string; kind: string }[] };
+  const workoutById = new Map(
+    (fbWorkoutsData ?? []).map((w) => [w.id as string, w]),
+  );
+
   // Riepilogo Open (fase di test): allenamenti svolti + feedback post-sessione.
   const isOpen = swimmer.tier === "open" || swimmer.tier === "open_plus";
   const { data: compData } = isOpen
@@ -419,27 +438,44 @@ export default async function SwimmerDetail({
             )}
           </Card>
 
-          {postRows.length > 0 && (
-            <Card className="flex flex-col gap-1.5">
-              <p className="text-sm font-semibold text-foreground">
-                Ultimi feedback
-              </p>
-              {postRows.slice(0, 6).map((r, i) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between border-b border-border/60 py-1 text-sm last:border-0"
-                >
-                  <span className="text-muted">{fmtDate(r.created_at)}</span>
-                  <span className="text-foreground">
-                    RPE {r.rpe}/10
-                    {r.umore_post != null ? ` · umore ${r.umore_post}/5` : ""}
-                  </span>
-                </div>
-              ))}
-            </Card>
-          )}
         </section>
       )}
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-display text-lg text-foreground">
+          Feedback post-allenamento
+        </h2>
+        {feedbackRows.length === 0 ? (
+          <Card className="text-muted">Ancora nessun feedback post-sessione.</Card>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {feedbackRows.map((r) => {
+              const wo = r.workout_id ? workoutById.get(r.workout_id) : undefined;
+              return (
+                <Card key={r.id} className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted">
+                      {fmtDate(r.created_at)}
+                      {wo
+                        ? ` · ${wo.kind === "open_channel" ? "Open" : "Scheda"} · ${wo.title}`
+                        : ""}
+                    </span>
+                    <span className="text-sm font-semibold text-foreground">
+                      RPE {r.rpe}/10
+                      {r.umore_post != null ? ` · umore ${r.umore_post}/5` : ""}
+                    </span>
+                  </div>
+                  {r.nota && (
+                    <p className="rounded-lg bg-background px-3 py-2 text-sm text-foreground">
+                      “{r.nota}”
+                    </p>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-lg text-foreground">Progressi</h2>

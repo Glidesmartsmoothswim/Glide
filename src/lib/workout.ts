@@ -153,6 +153,32 @@ export const blockMeters = (b: Block): number =>
 export const woMeters = (blocks: Block[]): number =>
   blocks.reduce((s, b) => s + blockMeters(b), 0);
 
+/**
+ * Personalizzazione Open (Onda 27): autoregolazione del VOLUME, non
+ * dell'intensità — si scala il numero di ripetizioni del blocco (`rounds`),
+ * mai passo/intervallo/zona, che restano lo stimolo prescritto dal coach.
+ * Fattori scelti in modo prudente e asimmetrico (letteratura RPE-autoregulation,
+ * es. session-RPE Foster / APRE): -15% in riduzione, +10% in aumento — si
+ * concede più margine a scendere che a salire, per non favorire un
+ * sovraccarico non supervisionato. Minimo 1 giro per blocco.
+ */
+export type AdjustDirection = "riduci" | "standard" | "aumenta";
+
+export const ADJUST_FACTOR: Record<AdjustDirection, number> = {
+  riduci: 0.85,
+  standard: 1,
+  aumenta: 1.1,
+};
+
+export function scaleBlocks(blocks: Block[], direction: AdjustDirection): Block[] {
+  const factor = ADJUST_FACTOR[direction];
+  if (factor === 1) return blocks;
+  return blocks.map((b) => ({
+    ...b,
+    rounds: Math.max(1, Math.round(b.rounds * factor)),
+  }));
+}
+
 export const euro = (n: number): string =>
   "€ " + Number(n).toLocaleString("it-IT");
 
