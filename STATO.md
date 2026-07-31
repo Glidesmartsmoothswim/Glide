@@ -4,7 +4,37 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-30 — **Onda 26 (certificato: solo scadenza + flag, niente file) · Onda 25 · binario privacy/GDPR aperto.**_
+_Ultimo aggiornamento: 2026-07-31 — **Onda 27 (feedback/note post-allenamento al coach · preferenze Canale Open · personalizzazione volume Open) · Onda 26 · Onda 25.**_
+
+## 🌊 ONDA 27 — Feedback post-allenamento al coach + preferenze e personalizzazione Canale Open (branch `claude/workout-feedback-open-personalization-mntmss`)
+
+### 27.1 — Bug chiuso: la nota del check-in post non arrivava mai al coach
+- **Scoperto in sessione:** il nuotatore scrive già una nota libera al post-sessione ("Una nota per Alessio", `readiness.note` — esiste da `migration_002_readiness_v2`), ma `v_readiness` — l'UNICA fonte letta dal coach — non la esponeva mai, e nessuna UI la mostrava. Da quando esiste il check-in v2, **ogni nota scritta è stata raccolta ma mai vista da nessuno.**
+- **`migration_033_readiness_note_coach.sql`** (additiva, `create or replace view`): espone `note as nota` + `workout_id` in `v_readiness`. Nessuna nuova colonna, nessun nuovo dato raccolto — solo si smette di scartarlo in vista.
+- **Scheda coach nuotatore:** nuova sezione **"Feedback post-allenamento"**, sempre visibile (non più solo per tier `open`/`open_plus`) — copre esplicitamente **sia 1:1 sia Canale Open**, perché la nota/RPE/umore arrivano dallo stesso check-in a prescindere dal tipo di scheda. Ogni riga: data, RPE, umore, **titolo e fonte dell'allenamento** (Scheda/Open, via join su `workouts`), **testo integrale della nota** se presente. La vecchia lista "Ultimi feedback" dentro "Riepilogo Open" (Onda 25, solo RPE/umore) è stata assorbita da questa sezione per non duplicare.
+
+### 27.2 — Canale Open: statistiche di preferenza (coach, fase di test)
+- Nuova sezione **"Preferenze"** in `/coach/open`, in aggregato (mai per nome — quello resta nella scheda del nuotatore):
+  - **Tasso di scelta — settimana corrente**: per ogni allenamento pubblicato, quanti iscritti Open l'hanno svolto su quanti hanno accesso (`profiles.tier in (open, open_plus)`), in %.
+  - **Focus più scelti** (tutte le settimane): distribuzione dei focus da `workout_completions` (`source='open_channel'`), i primi 6 per conteggio.
+  - **Personalizzazione volume**: quante volte gli iscritti hanno scelto di ridurre/aumentare (27.3), da `activity_events` tipo `workout.adjusted`.
+- Nessuna nuova tabella: solo aggregazioni su dati già raccolti (`workout_completions`, `activity_events`, `profiles.tier`).
+
+### 27.3 — Personalizzazione dell'allenamento Open (autoregolazione del volume)
+- **Decisione scientifica (autoregolazione via RPE):** si modula il **VOLUME** (numero di ripetizioni/giri, `rounds`), MAI l'intensità/passo/zona — cambiare l'intervallo o la zona snaturerebbe lo stimolo prescritto dal coach, mentre variare il numero di ripetizioni dello stesso set preserva il tipo di lavoro (stessa logica delle metodiche di autoregolazione a RPE in letteratura — es. session-RPE di Foster, protocolli APRE nello strength training). **Percentuali scelte in modo prudente e asimmetrico**: **−15%** in riduzione, **+10%** in aumento (si concede più margine a scendere che a salire, per non incentivare un sovraccarico auto-gestito senza supervisione); minimo 1 giro per blocco.
+- **`lib/workout.ts`**: `scaleBlocks(blocks, direction)` + `ADJUST_FACTOR`. Pura funzione di visualizzazione: **non tocca mai la scheda del coach**, è solo la vista del nuotatore che cambia.
+- **`/app/nuoto/[id]`** (solo `kind='open_channel'`): 3 pulsanti "Riduci un po' · Come indicato · Aumenta un po'" (`components/workout/workout-adjust.tsx`) che ricalcolano blocchi e metri al volo. **Suggerimento basato sul feedback**: se l'ultimo RPE post-sessione del nuotatore è ≥8 (fatica alta) compare un invito non vincolante a valutare la riduzione; se ≤3 (troppo facile) a valutare l'aumento — **niente indice nascosto mostrato**, solo il proprio RPE che il nuotatore ha già dichiarato (non viola ADR-006 §4, che riguarda gli indici derivati readiness_fisica/mentale, mai l'RPE auto-riportato).
+- La scelta (se diversa da "standard") viene loggata fail-soft nel ledger (`workout.adjusted { workout_id, direction }`, nuovo tipo in `lib/ledger.ts` — vocabolario aggiornato in `migration_001_activity_ledger.sql`, nessuna nuova migration: `activity_events.type` è testo libero per convenzione, non CHECK) → alimenta 27.2.
+- **Non fatto in questa onda (rinviato):** derivare un fattore di personalizzazione DEFAULT dal `livello` calcolato in intake — scartato apposta: il livello è **solo del coach** (ADR-006), mostrarlo o usarlo per pre-selezionare un pulsante al nuotatore violerebbe l'invariante. L'autoregolazione resta scelta esplicita del nuotatore, non calcolata.
+
+### ✅ Collaudo
+- **27.1**: da atleta, scrivi una nota al post-sessione (1:1 o Open) → il coach la vede integralmente in scheda, con titolo/fonte dell'allenamento.
+- **27.2**: su `/coach/open`, verifica che le percentuali di scelta e i focus più scelti compaiano con almeno un paio di completamenti a DB.
+- **27.3**: da atleta Open, apri un allenamento della settimana → i 3 pulsanti ricalcolano giri e metri senza toccare passo/zona; scegliendo riduci/aumenta compare il log lato coach in "Preferenze".
+- `tsc --noEmit` verde. `next build`: stop solo su env Supabase mancanti nel sandbox (nessun errore di codice) — coerente coi precedenti.
+
+### 🗄️ Migrazione da applicare al deploy
+- **`migration_033_readiness_note_coach.sql`** — additiva, `create or replace view` (nessun downtime, nessun dato nuovo).
 
 ## 🌊 ONDA 26 — Certificato medico: minimizzazione (branch `claude/onda-26-medcert`)
 - **Decisione del titolare (GDPR, minimizzazione Art. 5(1)(c)):** del certificato medico si conserva **solo la scadenza + un flag di validità autodichiarato**. Il documento **non si carica e non si archivia più**.

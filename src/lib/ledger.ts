@@ -23,7 +23,8 @@ export type EventType =
   | "booking.no_show"
   | "event.signup"
   | "videoanalisi.done"
-  | "payment.collected";
+  | "payment.collected"
+  | "workout.adjusted";
 
 /**
  * Scrive un evento. FAIL-SOFT: un errore del ledger non deve MAI far fallire

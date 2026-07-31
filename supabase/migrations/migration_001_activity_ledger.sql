@@ -56,6 +56,9 @@ create policy "activity_insert" on public.activity_events
 --   event.signup         { event_id, kind }
 --   videoanalisi.done    { event_id, test_codes: [] }
 --
+--   -- Onda 27 — personalizzazione Canale Open
+--   workout.adjusted     { workout_id, direction: 'riduci'|'standard'|'aumenta' }
+--
 -- Regole payload:
 --   - MAI testo libero del nuotatore (solo has_note: true/false)
 --   - MAI le sedi del dolore (solo health_flag: true/false)  ← ADR-004

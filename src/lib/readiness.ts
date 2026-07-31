@@ -17,6 +17,8 @@ export type VReadinessRow = {
   main_set_sig: string | null;
   pain_sites: string[] | null;
   health_flag: boolean;
+  nota: string | null; // nota libera del nuotatore al post-sessione ("per Alessio")
+  workout_id: string | null;
   readiness_fisica: number | null; // (sonno+energia+corpo)/3 — solo coach
   readiness_mentale: number | null; // (umore+motivazione)/2 — solo coach
   effetto_acqua: number | null; // umore_post - umore_pre
