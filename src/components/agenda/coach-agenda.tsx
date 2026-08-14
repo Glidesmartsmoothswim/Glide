@@ -5,6 +5,7 @@ import { Card, Pill } from "@/components/ui/card";
 import {
   addRule,
   deleteRule,
+  deleteRules,
   duplicateRuleAllWeek,
   duplicateWeekToNext,
   closeDay,
@@ -19,6 +20,11 @@ import {
   cancelEvent,
   type AgendaState,
 } from "@/app/coach/agenda/actions";
+import {
+  groupAvailabilityRules,
+  groupIds,
+  WEEK_DISPLAY_ORDER,
+} from "@/lib/availability";
 
 const WD = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"];
 const KINDS = [
@@ -269,38 +275,91 @@ function AvailabilityTab({ rules, exceptions }: { rules: Rule[]; exceptions: Exc
         {rules.length === 0 ? (
           <p className="t-small text-muted">Nessuna finestra: aggiungine una sopra.</p>
         ) : (
-          <ul className="flex flex-col gap-2">
-            {rules.map((r) => (
-              <li key={r.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-background px-3 py-2">
-                <span className="grid h-8 w-10 place-items-center rounded-md bg-ink text-xs font-bold text-white">
-                  {WD[r.weekday]}
-                </span>
-                <span className="t-data">
-                  {hhmm(r.start_time)}–{hhmm(r.end_time)}
-                </span>
-                <span className="t-small text-muted">ogni {r.slot_step}&apos;</span>
-                <div className="flex gap-1">
-                  {r.modes.map((m) => (
-                    <ModeBadge key={m} m={m} />
-                  ))}
-                </div>
-                {r.label && <span className="t-small text-muted">· {r.label}</span>}
-                <div className="ml-auto flex gap-2">
-                  <form action={duplicateRuleAllWeek}>
-                    <input type="hidden" name="id" value={r.id} />
-                    <button className="rounded-md border border-border px-2 py-1 text-xs text-muted hover:bg-surface">
-                      Duplica su tutta la settimana
-                    </button>
-                  </form>
-                  <form action={deleteRule}>
-                    <input type="hidden" name="id" value={r.id} />
-                    <button className="rounded-md border border-border px-2 py-1 text-xs text-[#DC2626] hover:bg-surface">
-                      Elimina
-                    </button>
-                  </form>
-                </div>
-              </li>
-            ))}
+          <ul className="flex flex-col gap-3">
+            {groupAvailabilityRules(rules).map((g) => {
+              const ids = groupIds(g);
+              const fullWeek = ids.length === 7;
+              const repId = ids[0];
+              return (
+                <li
+                  key={g.key}
+                  className="flex flex-col gap-2 rounded-lg border border-border bg-background px-3 py-2.5"
+                >
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="t-data">
+                      {hhmm(g.start_time)}–{hhmm(g.end_time)}
+                    </span>
+                    <span className="t-small text-muted">ogni {g.slot_step}&apos;</span>
+                    <div className="flex gap-1">
+                      {g.modes.map((m) => (
+                        <ModeBadge key={m} m={m} />
+                      ))}
+                    </div>
+                    {g.label && <span className="t-small text-muted">· {g.label}</span>}
+                    <div className="ml-auto flex gap-2">
+                      {!fullWeek && repId && (
+                        <form action={duplicateRuleAllWeek}>
+                          <input type="hidden" name="id" value={repId} />
+                          <button className="rounded-md border border-border px-2 py-1 text-xs text-muted hover:bg-surface">
+                            Duplica su tutta la settimana
+                          </button>
+                        </form>
+                      )}
+                      {ids.length > 1 && (
+                        <form action={deleteRules}>
+                          {ids.map((id) => (
+                            <input key={id} type="hidden" name="ids" value={id} />
+                          ))}
+                          <button className="rounded-md border border-border px-2 py-1 text-xs text-[#DC2626] hover:bg-surface">
+                            Elimina tutte ({ids.length})
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                  </div>
+                  {/* Un giorno per gruppo = niente da distinguere: il badge singolo basta. */}
+                  {ids.length === 1 ? (
+                    <div className="flex items-center gap-2">
+                      <span className="grid h-7 w-9 place-items-center rounded-md bg-ink text-xs font-bold text-white">
+                        {WD[g.byDay.findIndex((id) => id != null)]}
+                      </span>
+                      <form action={deleteRule}>
+                        <input type="hidden" name="id" value={repId} />
+                        <button className="rounded-md border border-border px-2 py-1 text-xs text-[#DC2626] hover:bg-surface">
+                          Elimina
+                        </button>
+                      </form>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {WEEK_DISPLAY_ORDER.map((wd) => {
+                        const id = g.byDay[wd];
+                        if (!id)
+                          return (
+                            <span
+                              key={wd}
+                              className="grid h-7 w-9 place-items-center rounded-md border border-dashed border-border text-xs text-muted"
+                            >
+                              {WD[wd]}
+                            </span>
+                          );
+                        return (
+                          <form key={wd} action={deleteRule}>
+                            <input type="hidden" name="id" value={id} />
+                            <button
+                              title="Rimuovi questo giorno"
+                              className="grid h-7 w-9 place-items-center rounded-md bg-ink text-xs font-bold text-white hover:bg-navy"
+                            >
+                              {WD[wd]}
+                            </button>
+                          </form>
+                        );
+                      })}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </Card>

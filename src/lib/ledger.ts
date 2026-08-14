@@ -24,7 +24,9 @@ export type EventType =
   | "event.signup"
   | "videoanalisi.done"
   | "payment.collected"
-  | "workout.adjusted";
+  | "workout.adjusted"
+  | "library.opened"
+  | "feedback.weekly";
 
 /**
  * Scrive un evento. FAIL-SOFT: un errore del ledger non deve MAI far fallire

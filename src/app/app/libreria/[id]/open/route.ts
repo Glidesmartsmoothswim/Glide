@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { librarySignedUrl } from "@/lib/storage";
 import { canOpenLibraryItem, type Visibility } from "@/lib/access";
+import { logEvent } from "@/lib/ledger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,6 +36,10 @@ export async function GET(
     back.searchParams.set("locked", "1");
     return NextResponse.redirect(back);
   }
+
+  // Onda 28.2 — riepilogo "contenuti visualizzati" per il planner social.
+  // Fail-soft, come ogni scrittura nel ledger: non deve mai bloccare l'apertura.
+  await logEvent(supabase, profile.id, "library.opened", { item_id: id });
 
   if (item.kind === "link" || item.kind === "video") {
     if (!item.url) return NextResponse.redirect(back);
