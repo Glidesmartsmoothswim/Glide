@@ -4,7 +4,35 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-07-31 — **Onda 27 (feedback/note post-allenamento al coach · preferenze Canale Open · personalizzazione volume Open) · Onda 26 · Onda 25.**_
+_Ultimo aggiornamento: 2026-08-14 — **Onda 28 (agenda: finestre raggruppate · social: riepilogo contenuti + idee post + feedback settimanale atleta) · Onda 27 · Onda 26 · Onda 25.**_
+
+## 🌊 ONDA 28 — Agenda leggibile + Social: riepilogo contenuti e feedback settimanale (branch `claude/agenda-social-improvements-h9b8r6`)
+
+### 28.1 — Agenda: "Finestre attive" raggruppate (usabilità)
+- **Sintomo segnalato:** quando la stessa finestra ricorrente viene duplicata su più giorni (`duplicateRuleAllWeek` o inserimento manuale), l'elenco "Finestre attive" mostrava **una riga identica per ogni giorno** — dispersivo, richiede più occhiate per capire cosa cambia davvero.
+- **`lib/availability.ts`** (nuovo, puro): `groupAvailabilityRules(rules)` raggruppa le regole con **stesso orario+passo+modalità+etichetta** in un'unica riga; `groupIds` per l'eliminazione in blocco; `WEEK_DISPLAY_ORDER` (lun→dom) per la visualizzazione, indipendente dalla convenzione DB (0=Dom…6=Sab).
+- **`coach-agenda.tsx`**: la card "Finestre attive" ora mostra **una riga per gruppo** — se copre un solo giorno, badge singolo com'era prima; se ne copre più di uno, **7 chip lun→dom** (piene per i giorni coperti, tratteggiate per gli assenti). **Cliccare una chip rimuove solo quel giorno** dal gruppo (riusa `deleteRule`); **"Elimina tutte (N)"** toglie l'intero gruppo in un colpo (nuova azione `deleteRules`, bulk `delete...in(ids)`); "Duplica su tutta la settimana" resta disponibile finché il gruppo non copre già tutti i 7 giorni.
+- **Nessuna migration**: solo raggruppamento client-side sui dati già letti da `availability_rules`; nessuna colonna nuova, nessun cambio di RLS.
+
+### 28.2 — Social: riepilogo contenuti visualizzati + idee per i prossimi post + feedback settimanale atleta
+- **`migration_034_weekly_feedback.sql`**: nuova tabella **`weekly_feedback`** (swimmer_id, week_start, rating 1–5, topics text[], note, **unique swimmer+settimana** → upsert). RLS: il nuotatore legge/scrive/aggiorna la propria riga, il coach legge tutto (aggregato, mai per nome fuori dalla scheda). Niente policy delete (resta un fatto storico, come readiness).
+- **`lib/feedback.ts`**: vocabolario chiuso `FEEDBACK_TOPICS` (tecnica/allenamento/gare/alimentazione/mentale/recupero/materiali) + ancore del punteggio 1–5.
+- **App atleta — proposta settimanale non invasiva** (`components/feedback/weekly-feedback.tsx` + `app/app/feedback-actions.ts`): una card in home ("Come è andata questa settimana?"), **mai un popup**, **saltabile senza conseguenze** (torna la settimana dopo — nessuno stato "rifiutato per sempre" persistito), compare solo se il nuotatore **non ha già risposto per la settimana corrente** (query su `weekly_feedback`, come il pattern del prompt "com'è andata la seduta?" del check-in). Punteggio 1–5 con ancore + chip multi-select "cosa vorresti approfondire" + nota libera facoltativa. Upsert (può correggersi). Ledger fail-soft `feedback.weekly {week_start, rating, topics, has_note}` — **la nota resta fuori dal ledger**, stesso pattern del "una nota per Alessio" post-sessione (ADR-004).
+- **Tracciamento apertura Libreria** (`app/app/libreria/[id]/open/route.ts`): dopo il gate tier, `logEvent(..., "library.opened", {item_id})` fail-soft — prima non esisteva alcuna traccia di cosa gli atleti aprono davvero in Libreria.
+- **`/coach/social`** — nuova sezione **"Riepilogo contenuti & idee per i prossimi post"** (`components/social/content-insights.tsx`, fase di test): **contenuti Libreria più aperti** (da `library.opened`), **focus Canale Open più scelti** (da `workout_completions`, stessa fonte di 27.2), **argomenti più richiesti** dal feedback settimanale (chip aggregate), **umore medio settimanale + tasso di risposta**, **ultime note** — tutto in aggregato, coerente con "Preferenze" di 27.2 (mai il nome del singolo qui).
+- **Vocabolario ledger aggiornato** (`migration_001_activity_ledger.sql`, solo commento — additivo, nessuna DDL ri-eseguita): `library.opened`, `feedback.weekly`.
+
+### ✅ Collaudo
+- **28.1**: duplica una finestra su tutta la settimana → compare **una riga** con 7 chip piene; clic su una chip → sparisce solo quel giorno (torna a 6 chip); "Elimina tutte" toglie il gruppo intero in un colpo.
+- **28.2**: da atleta, apri un contenuto Libreria → il coach vede il conteggio in "Contenuti Libreria più aperti". Rispondi al feedback settimanale (voto + almeno un argomento) → compare in "argomenti più richiesti" e nelle ultime note su `/coach/social`; riapri l'home nella stessa settimana → il prompt non ricompare (già risposto).
+- `npx tsc --noEmit` verde. `npm run lint`: nessun nuovo errore/warning (i 3 pre-esistenti — `app/page.tsx` Date.now, `assistant-widget.tsx`, `home-greeting.tsx` — non toccati in questa sessione). `next build`: si ferma solo sulle env Supabase mancanti nel sandbox, nessun errore di codice — stesso pattern delle onde precedenti.
+
+### 🗄️ Migrazione da applicare al deploy
+- **`migration_034_weekly_feedback.sql`** — additiva, nuova tabella + RLS, nessun dato esistente toccato.
+
+### 🔮 Non fatto in questa onda (rinviato)
+- **Vista settimanale a griglia** per l'agenda (calendario visivo lun→dom con le fasce come blocchi): il raggruppamento in 28.1 risolve il sintomo segnalato (ripetizione) con una modifica minima e senza rischio; una griglia vera è un cambio di layout più ampio, da valutare se il raggruppamento non bastasse all'uso reale.
+- **Analytics sui post pubblicati** (like/commenti/reach da Instagram/TikTok/YouTube): richiederebbe le API dei singoli social (OAuth, token, sync) — fuori scala per questa onda. Il riepilogo 28.2 lavora solo sui **segnali che GLIDE già possiede** (aperture Libreria, focus Open, feedback atleta), che è quanto un coach singolo può leggere senza integrazioni esterne.
 
 ## 🌊 ONDA 27 — Feedback post-allenamento al coach + preferenze e personalizzazione Canale Open (branch `claude/workout-feedback-open-personalization-mntmss`)
 

@@ -96,6 +96,20 @@ export async function deleteRule(fd: FormData): Promise<void> {
   revalidatePath("/coach/agenda");
 }
 
+/**
+ * Onda 28.1 — elimina in blocco tutte le regole di un gruppo (stesso orario
+ * duplicato su più giorni), per non dover ripetere "Elimina" giorno per giorno.
+ */
+export async function deleteRules(fd: FormData): Promise<void> {
+  const c = await coachOnly();
+  if (!c) return;
+  const ids = fd.getAll("ids").map(String).filter(Boolean);
+  if (ids.length === 0) return;
+  const supabase = await createClient();
+  await supabase.from("availability_rules").delete().in("id", ids);
+  revalidatePath("/coach/agenda");
+}
+
 export async function duplicateRuleAllWeek(fd: FormData): Promise<void> {
   const c = await coachOnly();
   if (!c) return;

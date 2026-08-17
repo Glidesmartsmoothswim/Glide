@@ -59,6 +59,10 @@ create policy "activity_insert" on public.activity_events
 --   -- Onda 27 — personalizzazione Canale Open
 --   workout.adjusted     { workout_id, direction: 'riduci'|'standard'|'aumenta' }
 --
+--   -- Onda 28 — riepilogo contenuti + feedback settimanale (planner social)
+--   library.opened        { item_id }
+--   feedback.weekly       { week_start, rating, topics: [], has_note: bool }
+--
 -- Regole payload:
 --   - MAI testo libero del nuotatore (solo has_note: true/false)
 --   - MAI le sedi del dolore (solo health_flag: true/false)  ← ADR-004

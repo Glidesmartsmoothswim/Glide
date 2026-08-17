@@ -6,8 +6,10 @@ import { ReadinessCheckin } from "@/components/readiness/checkin";
 import { NotifList } from "@/components/notifications/notif-list";
 import { Onboarding } from "@/components/onboarding/onboarding";
 import { ProgramHomeCard } from "@/components/programs/program-home-card";
+import { WeeklyFeedbackPrompt } from "@/components/feedback/weekly-feedback";
 import type { NotificationRow } from "@/lib/notifications";
 import type { ProgramRow, PhaseRow } from "@/lib/programs";
+import { currentMonday } from "@/lib/week";
 
 export default async function SwimmerToday() {
   const profile = await getCurrentProfile();
@@ -18,7 +20,7 @@ export default async function SwimmerToday() {
   // Onda 14.2: query indipendenti in parallelo. Le fasi dipendono dal
   // programma attivo → restano dopo (unica dipendenza reale).
   const sid = profile?.id ?? "";
-  const [profRes, progRes, notifRes, wRes, lastCheckinRes, bookingRes] =
+  const [profRes, progRes, notifRes, wRes, lastCheckinRes, bookingRes, feedbackRes] =
     await Promise.all([
     supabase
       .from("profiles")
@@ -58,6 +60,12 @@ export default async function SwimmerToday() {
       .gte("starts_at", new Date().toISOString())
       .order("starts_at", { ascending: true })
       .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("weekly_feedback")
+      .select("id")
+      .eq("swimmer_id", sid)
+      .eq("week_start", currentMonday())
       .maybeSingle(),
   ]);
   const prof = profRes.data;
@@ -130,6 +138,8 @@ export default async function SwimmerToday() {
         </p>
         <ReadinessCheckin workouts={workouts} promptPost={promptPost} />
       </section>
+
+      <WeeklyFeedbackPrompt hasSubmitted={Boolean(feedbackRes.data)} />
 
       {notifs.length > 0 && (
         <section className="flex flex-col gap-3">
