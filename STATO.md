@@ -4,7 +4,29 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-08-18 — **Bozze legali privacy/GDPR archiviate in `docs/legal/`** · Onda 28 (agenda: finestre raggruppate · social: riepilogo contenuti + idee post + feedback settimanale atleta) · Onda 27 · Onda 26 · Onda 25.**_
+_Ultimo aggiornamento: 2026-08-19 — **`PROMPT_CODE_ONDA_12.md` scritto (planning, nessun codice applicativo ancora)** · Onda 28 (agenda: finestre raggruppate · social: riepilogo contenuti + idee post + feedback settimanale atleta) · Onda 27 · Onda 26 · Onda 25.**_
+
+## 📋 PLANNING — `PROMPT_CODE_ONDA_12.md` (Palestra lato atleta, 19 ago)
+- Ricevuto `LA_07_PALESTRA.md` (documento esterno, serie di pianificazione LA_* non presente nel
+  repo): modello dati per prescrizione/log/1RM in palestra, parallelo all'onda 11/`LA_08` — nessuna
+  sovrapposizione di schema (`gare_*`, `personal_bests_manuali`, `program_notes`, `program_phases`
+  restano dominio di quell'altra onda).
+- Il documento condizionava la scrittura del runbook alla conferma di 5 assunzioni (§10) —
+  **confermate da Alessio**: Epley per il 1RM, nessun gate di approvazione sugli esercizi aggiunti
+  dall'atleta, finestra di modifica "stesso giorno", una palestra dichiarata al giorno, numero di
+  sessioni tipo lasciato libero.
+- **Verificati 3 disallineamenti tra la bozza e il codice reale** (non presenti in questo repo, solo
+  nella bozza): (1) lo scope `group/squad/athlete` con tipo `squad_kind` "già in uso per l'acqua" —
+  **non esiste**, GLIDE è coach-unico, nessun concetto di squadra/gruppo intermedio → **ridotto a
+  `group`/`athlete`**, confermato da Alessio. (2) Il "POST palestra" (RPE differenziato + durata,
+  seduta `strength`) che la bozza dava per già esistente in `LA_02 §2.6` — **non esiste**: il
+  check-in post-sessione reale (`readiness-actions.ts::savePost`) copre solo l'acqua → **costruito
+  nel runbook dentro `palestra_giornaliera`** (nuove colonne `rpe_palestra`/`durata_min`), mai
+  mescolato con `readiness` (carico interno acqua vs palestra restano separati, invariante §6).
+- **`PROMPT_CODE_ONDA_12.md`** (root, stesso pattern di `PROMPT_CODE_SEC.md`): schema
+  (`migration_035_palestra.sql`, non ancora applicata), RLS, flusso atleta/coach, collaudo — pronto
+  per l'esecuzione in una prossima sessione. **Nessun codice applicativo scritto in questa sessione**:
+  solo planning, coerente col cancello posto dalla bozza stessa.
 
 ## 📄 PRIVACY / GDPR — bozze legali archiviate in `docs/legal/` (18 ago)
 - Archiviate le **5 bozze di lavoro** prodotte sul binario umano (non da Code, coerente col vincolo del 30 lug): `GLIDE_INFORMATIVA_PRIVACY.md`, `GLIDE_CONSENSI.md`, `GLIDE_DPIA.md`, `GLIDE_DATA_BREACH_PROCEDURE.md`, `GLIDE_LAUNCH_PRIVACY_READINESS.md` — tutte in `docs/legal/`, ciascuna già marcata **BOZZA** con i propri segnaposto `[DA COMPLETARE]` e nodi `⚖️` da far validare da un privacy lawyer/DPO.

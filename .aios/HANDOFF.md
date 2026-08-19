@@ -1,36 +1,57 @@
-# Handoff — Gestionale GLIDE · 14 agosto 2026
+# Handoff — Gestionale GLIDE · 19 agosto 2026
 
-## Sessione appena chiusa — Onda 28
-Richiesta: migliorare l'usabilità dell'agenda (registrare fasce orarie e vederle in un elenco dove gli eventi si ripetono è dispersivo) · la parte social dovrebbe contenere un riepilogo dei contenuti visualizzati dagli utenti e indicazioni sui post futuri · introdurre nell'app atleta una domanda settimanale di feedback + cosa vorrebbe approfondire.
+## Sessione appena chiusa — Planning `PROMPT_CODE_ONDA_12.md` (Palestra lato atleta)
+Richiesta: leggere stato/handoff e procedere con `LA_07_PALESTRA.md` (documento esterno caricato
+in sessione, non presente nel repo) — modello dati palestra: prescrizione per esercizio,
+log dell'eseguito, storico 1RM da test submassimale confermato dal coach.
 
-- **28.1 — Agenda.** "Finestre attive" raggruppa le regole duplicate su più giorni (stesso orario/passo/modalità/etichetta) in **una riga con 7 chip giorno** invece di N righe identiche. Clic su una chip = rimuove solo quel giorno; "Elimina tutte" = rimuove il gruppo intero. Puro raggruppamento client-side (`lib/availability.ts`), nessuna migration.
-- **28.2 — Social.** Nuova sezione "Riepilogo contenuti & idee per i prossimi post" su `/coach/social`: contenuti Libreria più aperti (nuovo tracking `library.opened`), focus Canale Open più scelti (fonte già esistente, 27.2), argomenti più richiesti + umore medio + ultime note dal **feedback settimanale** dell'atleta (nuova tabella `weekly_feedback`, migration_034). L'app atleta propone una card non invasiva in home una volta a settimana ("Come è andata? Cosa vorresti approfondire?") — saltabile, riappare la settimana dopo se non risposto.
+- Il documento condizionava la scrittura del runbook alla conferma di **5 assunzioni** (§10):
+  confermate da Alessio via domande dirette in sessione — Epley per il 1RM, nessun gate di
+  approvazione sugli esercizi aggiunti dall'atleta, finestra di modifica "stesso giorno", una
+  palestra dichiarata al giorno, numero di sessioni tipo lasciato libero (oggi 3, non vincolato
+  a schema).
+- **Verificati e corretti 2 disallineamenti reali tra bozza e codice**, anch'essi confermati con
+  Alessio:
+  1. Scope `prescrizioni_palestra` — la bozza assumeva `group/squad/athlete` con un tipo
+     `squad_kind` "già in uso per l'acqua": **non esiste in questo repo** (GLIDE è coach-unico,
+     nessun concetto di squadra). Ridotto a **`group`/`athlete`**.
+  2. "POST palestra" (RPE differenziato + durata) — la bozza lo dava per già esistente
+     (`LA_02 §2.6`): **non esiste**, il check-in reale (`readiness-actions.ts`) copre solo
+     l'acqua. Costruito nel runbook **dentro `palestra_giornaliera`** (nuove colonne
+     `rpe_palestra`/`durata_min`), mai mescolato con `readiness`.
+- **Deliverable di questa sessione: `PROMPT_CODE_ONDA_12.md`** (root) — runbook completo:
+  schema (`migration_035_palestra.sql`), RLS + test obbligatori, flusso atleta, flusso coach,
+  collaudo. **Nessun codice applicativo scritto**: solo planning, coerente col cancello posto
+  dalla bozza stessa ("se questi punti sono ok, scrivo il runbook").
 
 ### File toccati
-- Migration: `supabase/migrations/migration_034_weekly_feedback.sql` (nuova), `migration_001_activity_ledger.sql` (solo commento vocabolario, additivo).
-- `src/lib/ledger.ts` (`EventType`: `library.opened`, `feedback.weekly`), `src/lib/feedback.ts` (nuovo, vocabolario topic), `src/lib/availability.ts` (nuovo, raggruppamento regole agenda).
-- `src/app/app/feedback-actions.ts` (nuovo, `submitWeeklyFeedback`), `src/components/feedback/weekly-feedback.tsx` (nuovo).
-- `src/app/app/page.tsx` (query stato feedback settimana corrente + render prompt).
-- `src/app/app/libreria/[id]/open/route.ts` (log `library.opened` dopo il gate tier).
-- `src/app/coach/social/page.tsx` (aggregazioni riepilogo contenuti), `src/components/social/content-insights.tsx` (nuovo).
-- `src/components/agenda/coach-agenda.tsx` (finestre raggruppate), `src/app/coach/agenda/actions.ts` (`deleteRules`, bulk).
-- `STATO.md` (Onda 28), `.aios/HANDOFF.md` (questo file).
+- `PROMPT_CODE_ONDA_12.md` (nuovo, root).
+- `STATO.md` (nuova sezione "PLANNING — PROMPT_CODE_ONDA_12.md").
+- `.aios/HANDOFF.md` (questo file).
 
 ### Verifica fatta in sessione
-- `npx tsc --noEmit` verde (dopo `npm install`, node_modules non presente nel clone).
-- `npm run lint`: nessun nuovo errore/warning introdotto — i 3 preesistenti (`app/page.tsx` Date.now impuro, `assistant-widget.tsx`, `home-greeting.tsx` setState in effect) non toccati in questa sessione, stesso stato di Onda 27.
-- `next build`: si ferma solo sulle env Supabase mancanti nel sandbox (`NEXT_PUBLIC_*`), nessun errore di codice — stesso pattern già visto nelle onde precedenti.
-- **Non eseguito** (nessun accesso a un progetto Supabase reale da questo sandbox): applicazione della migration, collaudo a schermo, verifica RLS a runtime su `weekly_feedback`.
+- Letto l'intero repo per verificare i pattern citati dalla bozza come "già in uso" (scope
+  gruppo/squadra, POST palestra): **entrambi assenti**, corretti nel runbook prima di scriverlo
+  invece di lasciarli come contraddizione silenziosa.
+- Nessuna migration applicata, nessun codice UI/server scritto: questa sessione è solo il
+  passaggio da bozza esterna a runbook eseguibile.
 
 ## Prossimo passo
-- **Applicare `migration_034_weekly_feedback.sql` al deploy** (tabella nuova + RLS, non tocca dati esistenti).
-- **Collaudo umano consigliato:** da coach, duplicare una finestra su tutta la settimana e verificare il raggruppamento a 7 chip + rimozione singolo giorno; da atleta, aprire un contenuto Libreria e rispondere al feedback settimanale, poi verificare che entrambi compaiano in "Riepilogo contenuti" su `/coach/social`; riaprire l'home nella stessa settimana e verificare che il prompt feedback non ricompaia.
-- **Non fatto di proposito (vedi STATO §28, "non fatto"):** vista a griglia calendario per l'agenda (il raggruppamento risolve il sintomo segnalato senza un cambio di layout più ampio); analytics reali sui post pubblicati sui social esterni (richiederebbe integrazioni OAuth con Instagram/TikTok/YouTube, fuori scala qui).
-- Resta aperto tutto il binario privacy/GDPR (DPIA, testi consenso) descritto nelle onde precedenti — non toccato qui.
+- **Eseguire `PROMPT_CODE_ONDA_12.md`** in una prossima sessione Claude Code: applica
+  `migration_035_palestra.sql`, RLS + test, poi flusso atleta e coach.
+- Resta aperto tutto il binario privacy/GDPR (DPIA, testi consenso) — non toccato qui.
+- Onda 11/`LA_08_TEST_GARE_PB_MAPPA.md` (gare/PB) procede in parallelo, dominio separato — non
+  toccata qui.
 
 ## Blocchi
-- Nessun nuovo blocco introdotto da questa sessione.
-- Restano i blocchi già noti: `004_consents` su DPIA/consensi (legale); gate umani elencati nelle onde precedenti (MFA coach, leaked-password, backup PITR, env Upstash, CSP enforcing, gitleaks).
+- Nessun blocco tecnico. Il runbook è pronto per l'esecuzione.
+- Restano i blocchi già noti: `004_consents` su DPIA/consensi (legale); gate umani elencati nelle
+  onde precedenti (MFA coach, leaked-password, backup PITR, env Upstash, CSP enforcing, gitleaks).
 
 ## Note di sessione
-- Sandbox senza credenziali Supabase/Vercel reali: nessuna query eseguita contro un DB vero, solo lettura di schema/migration dal repo.
+- `LA_07_PALESTRA.md` è stato fornito come allegato di sessione, non fa parte del repo. La serie
+  `LA_00`…`LA_08` a cui fa riferimento (in particolare `LA_02_QUESTIONARI.md` e
+  `LA_06`, citati per pattern "già in uso") non è disponibile in questo repo: dove la bozza
+  assumeva quei pattern come esistenti, ho verificato sul codice reale ed è risultato falso in
+  2 punti — corretti esplicitamente nel runbook (§0 di `PROMPT_CODE_ONDA_12.md`) invece di
+  copiarli ciecamente.
