@@ -21,7 +21,7 @@ export function PricingCard({
 }: {
   name: string;
   color: string; // hex o var(--…)
-  price: string;
+  price?: string;
   period?: string;
   saving?: string;
   tagline?: string;
@@ -47,7 +47,7 @@ export function PricingCard({
       </div>
 
       <div className="text-center">
-        <p className="font-display text-2xl text-foreground">{price}</p>
+        {price && <p className="font-display text-2xl text-foreground">{price}</p>}
         {period && <p className="text-xs text-muted">{period}</p>}
         {saving && <p className="mt-0.5 text-xs font-semibold text-teal">{saving}</p>}
         {tagline && <p className="text-xs text-muted">{tagline}</p>}

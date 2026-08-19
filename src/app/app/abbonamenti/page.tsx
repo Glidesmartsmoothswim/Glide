@@ -80,6 +80,9 @@ export default async function Abbonamenti({
           Price ID Stripe in <code>.env.local</code>.
         </Card>
       )}
+      <Card className="text-muted">
+        Versione di prova: i prezzi non sono ancora attivi.
+      </Card>
 
       {/* FREE — fascia semplice, non una carta di vendita */}
       <div className="rounded-xl border border-border bg-background p-3 text-sm text-muted">
@@ -94,9 +97,6 @@ export default async function Abbonamenti({
           <PricingCard
             name="Open"
             color={C.open}
-            price="12,90 €"
-            period="al mese"
-            tagline="Meno di un caffè ad allenamento"
             badge="Consigliato"
             features={OPEN}
             cta={
@@ -113,8 +113,6 @@ export default async function Abbonamenti({
           <PricingCard
             name="Open+"
             color={C.openPlus}
-            price="19,90 €"
-            period="al mese"
             features={OPEN_PLUS}
             cta={
               <form action={startSubscription}>
@@ -137,8 +135,6 @@ export default async function Abbonamenti({
           <PricingCard
             name="Mensile"
             color={C.monthly}
-            price="79 €"
-            period="al mese"
             features={ONE_TO_ONE}
             cta={
               <form action={startSubscription}>
@@ -150,9 +146,7 @@ export default async function Abbonamenti({
           <PricingCard
             name="Stagionale"
             color={C.season}
-            price="690 €"
             tagline="settembre – giugno"
-            saving="Paghi 690 invece di 790"
             features={ONE_TO_ONE}
             cta={
               <form action={startSeason}>

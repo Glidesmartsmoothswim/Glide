@@ -1,6 +1,16 @@
-# Handoff — Gestionale GLIDE · 14 agosto 2026
+# Handoff — Gestionale GLIDE · 19 agosto 2026
 
-## Sessione appena chiusa — Onda 28
+## Sessione appena chiusa — Versione di prova: prezzi rimossi da /app/abbonamenti
+Richiesta: siamo in versione di prova, eliminare i prezzi dalla sezione abbonamenti.
+
+- **`src/components/pricing/pricing-card.tsx`**: `price`/`period`/`saving` resi opzionali (non renderizzati se assenti).
+- **`src/app/app/abbonamenti/page.tsx`**: rimossi i prezzi dalle 4 carte (Open/Open+/Mensile/Stagionale) e la tagline che alludeva al costo; aggiunto avviso "Versione di prova: i prezzi non sono ancora attivi." CTA e checkout (reale/simulato) invariati.
+- Verifica: `npx tsc --noEmit` verde; `npm run lint` nessun nuovo errore (restano i 3 pre-esistenti già noti, non toccati).
+
+### Prossimo passo
+- Quando si esce dalla versione di prova: reintrodurre i prezzi passando `price`/`period`/`saving` alle `PricingCard` in `abbonamenti/page.tsx` (i valori erano 12,90€/19,90€/79€/690€, invariati altrove — env Stripe non toccate).
+
+## Sessione precedente — Onda 28
 Richiesta: migliorare l'usabilità dell'agenda (registrare fasce orarie e vederle in un elenco dove gli eventi si ripetono è dispersivo) · la parte social dovrebbe contenere un riepilogo dei contenuti visualizzati dagli utenti e indicazioni sui post futuri · introdurre nell'app atleta una domanda settimanale di feedback + cosa vorrebbe approfondire.
 
 - **28.1 — Agenda.** "Finestre attive" raggruppa le regole duplicate su più giorni (stesso orario/passo/modalità/etichetta) in **una riga con 7 chip giorno** invece di N righe identiche. Clic su una chip = rimuove solo quel giorno; "Elimina tutte" = rimuove il gruppo intero. Puro raggruppamento client-side (`lib/availability.ts`), nessuna migration.

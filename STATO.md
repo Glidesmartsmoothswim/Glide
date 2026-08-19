@@ -4,7 +4,14 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-08-18 — **Bozze legali privacy/GDPR archiviate in `docs/legal/`** · Onda 28 (agenda: finestre raggruppate · social: riepilogo contenuti + idee post + feedback settimanale atleta) · Onda 27 · Onda 26 · Onda 25.**_
+_Ultimo aggiornamento: 2026-08-19 — **Versione di prova: prezzi rimossi da `/app/abbonamenti`** · Onda 28 (agenda: finestre raggruppate · social: riepilogo contenuti + idee post + feedback settimanale atleta) · Onda 27 · Onda 26 · Onda 25.**_
+
+## 💶 VERSIONE DI PROVA — prezzi rimossi dalla pagina Abbonamenti (19 ago)
+- **Decisione del titolare:** siamo in fase di test, quindi la pagina `/app/abbonamenti` **non mostra più i prezzi** delle carte Open/Open+/1:1 Mensile/Stagionale.
+- **`components/pricing/pricing-card.tsx`**: `price`/`period`/`saving` diventati **opzionali** (renderizzati solo se presenti) — nessuna riga vuota al posto del prezzo.
+- **`app/app/abbonamenti/page.tsx`**: rimossi i prop `price`/`period`/`saving` dalle 4 `PricingCard` (Open, Open+, Mensile, Stagionale); rimossa la tagline "Meno di un caffè ad allenamento" (riferimento implicito al costo). Aggiunto un avviso `Card` — "Versione di prova: i prezzi non sono ancora attivi." Il resto della pagina (feature, CTA, checkout Stripe/simulato, tier attuale) **invariato**: solo la visualizzazione del prezzo è stata tolta, non il flusso di attivazione.
+- **Non toccato**: Stripe/env (`STRIPE_PRICE_*`), altri importi in app (sblocco video €5, lezioni extra a pagamento, incassi coach) — sono pagamenti diversi dagli abbonamenti, fuori dalla richiesta.
+- `npx tsc --noEmit` verde. `npm run lint`: nessun nuovo errore (i soliti 3 pre-esistenti non toccati).
 
 ## 📄 PRIVACY / GDPR — bozze legali archiviate in `docs/legal/` (18 ago)
 - Archiviate le **5 bozze di lavoro** prodotte sul binario umano (non da Code, coerente col vincolo del 30 lug): `GLIDE_INFORMATIVA_PRIVACY.md`, `GLIDE_CONSENSI.md`, `GLIDE_DPIA.md`, `GLIDE_DATA_BREACH_PROCEDURE.md`, `GLIDE_LAUNCH_PRIVACY_READINESS.md` — tutte in `docs/legal/`, ciascuna già marcata **BOZZA** con i propri segnaposto `[DA COMPLETARE]` e nodi `⚖️` da far validare da un privacy lawyer/DPO.
