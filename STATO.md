@@ -4,7 +4,13 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-08-14 — **Onda 28 (agenda: finestre raggruppate · social: riepilogo contenuti + idee post + feedback settimanale atleta) · Onda 27 · Onda 26 · Onda 25.**_
+_Ultimo aggiornamento: 2026-08-18 — **Bozze legali privacy/GDPR archiviate in `docs/legal/`** · Onda 28 (agenda: finestre raggruppate · social: riepilogo contenuti + idee post + feedback settimanale atleta) · Onda 27 · Onda 26 · Onda 25.**_
+
+## 📄 PRIVACY / GDPR — bozze legali archiviate in `docs/legal/` (18 ago)
+- Archiviate le **5 bozze di lavoro** prodotte sul binario umano (non da Code, coerente col vincolo del 30 lug): `GLIDE_INFORMATIVA_PRIVACY.md`, `GLIDE_CONSENSI.md`, `GLIDE_DPIA.md`, `GLIDE_DATA_BREACH_PROCEDURE.md`, `GLIDE_LAUNCH_PRIVACY_READINESS.md` — tutte in `docs/legal/`, ciascuna già marcata **BOZZA** con i propri segnaposto `[DA COMPLETARE]` e nodi `⚖️` da far validare da un privacy lawyer/DPO.
+- **Nessun contenuto legale scritto o modificato da Code** in questa sessione: solo spostate le bozze fornite dal titolare nella destinazione già indicata nell'header di ciascun file. Restano bozze **non pubblicabili** finché non validate.
+- Confermato lo stato dei gap 🔴 mandatory pre-lancio (da `GLIDE_LAUNCH_PRIVACY_READINESS.md`): consenso esplicito art. 9, informativa, DPIA, registro trattamenti, DPA fornitori, mappa trasferimenti — tutti ancora da chiudere sul binario umano prima che si possa sbloccare `migration_004_consents`.
+- **Prossimo passo NON codice invariato:** validazione legale/DPO dei testi, poi firma DPIA (§6), poi si sblocca la migration dei consensi.
 
 ## 🌊 ONDA 28 — Agenda leggibile + Social: riepilogo contenuti e feedback settimanale (branch `claude/agenda-social-improvements-h9b8r6`)
 
