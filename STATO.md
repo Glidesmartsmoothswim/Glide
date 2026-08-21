@@ -4,7 +4,25 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-08-19 — **Versione di prova: prezzi rimossi da `/app/abbonamenti`** · Onda 28 (agenda: finestre raggruppate · social: riepilogo contenuti + idee post + feedback settimanale atleta) · Onda 27 · Onda 26 · Onda 25.**_
+_Ultimo aggiornamento: 2026-08-21 — **S-0 (bis): ricognizione sicurezza, solo lettura, scritta in `SECURITY_AUDIT.md`** · Versione di prova: prezzi rimossi da `/app/abbonamenti` (19 ago) · Onda 28 · Onda 27 · Onda 26 · Onda 25.**_
+
+## 🔒 S-0 (bis) — ricognizione sicurezza, nessun fix (21 ago)
+- Richiesta: verificare stato migrazioni/RLS/webhook/bucket/env secondo i 7 punti di S-0, **solo
+  lettura**, scrivere tutto in `SECURITY_AUDIT.md` senza applicare fix.
+- **Tutto scritto in `SECURITY_AUDIT.md`** (nuova sezione in cima, storico precedente del 28 lug
+  preservato sotto). Riassunto: RLS attiva su tutte le tabelle; nessuna escalation di ruolo
+  possibile (trigger + policy, verificato live); webhook Stripe firma su raw body, corretto;
+  bucket video/library/medical tutti privati; nessun segreto dietro `NEXT_PUBLIC_`; nessun
+  `migration_003_tenancy`/`coach_id` (modello coach-unico confermato).
+- **2 drift trovati (novità rispetto al giro di luglio), nessuna azione presa:**
+  `migration_023_pricing_cron.sql` è nel repo ma **non applicata** al DB live (`tier_expires_at`
+  assente, `pg_cron` non installato) — il webhook Stripe già scrive quella colonna nel branch
+  "season", quindi un pagamento 1:1 stagionale reale oggi non setterebbe il tier; e due tabelle
+  live (`marketing.leads`, `marketing.test_results`) non presenti in nessuna migration del repo
+  (RLS attiva senza policy, quindi non aperte, ma non tracciate). Entrambi da confermare con
+  Alessio prima di qualunque fix.
+- Nessun codice toccato, nessuna migration applicata, nessuna configurazione Supabase toccata —
+  coerente coi vincoli di sessione.
 
 ## 💶 VERSIONE DI PROVA — prezzi rimossi dalla pagina Abbonamenti (19 ago)
 - **Decisione del titolare:** siamo in fase di test, quindi la pagina `/app/abbonamenti` **non mostra più i prezzi** delle carte Open/Open+/1:1 Mensile/Stagionale.

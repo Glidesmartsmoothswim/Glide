@@ -1,4 +1,115 @@
-# SECURITY_AUDIT — GLIDE (S-0 orientamento)
+# SECURITY_AUDIT — GLIDE
+
+> Log cronologico, voce più recente in cima. Non sovrascrivere le sezioni precedenti: sono lo
+> storico dei finding già chiusi nei cicli S-0→S-4 di fine luglio 2026.
+
+---
+
+## S-0 (bis) — ricognizione 21 agosto 2026 · Claude Code (solo lettura, nessun fix)
+
+> Nuovo giro di S-0 richiesto in sessione (stessi 7 punti del runbook originale + verifica
+> puntuale ledger/live DB). Eseguito da un clone locale aggiornato (`main` @ `c912709`) con
+> accesso Supabase MCP in sola lettura sul progetto `unsdbeliaunhhgnuefyz`.
+
+### 0. STATO.md / .aios/HANDOFF.md — ultima sessione
+- **Ultima sessione (19 ago):** rimossi i prezzi da `/app/abbonamenti` (versione di prova) — solo
+  UI, nessun fix di sicurezza, nessuna migration.
+- **Sessione precedente — Onda 28 (18-19 ago):** agenda "finestre raggruppate" (client-side) +
+  riepilogo social/feedback settimanale (nuova tabella `weekly_feedback`, migration_034).
+- **Blocchi già noti (dichiarati in HANDOFF/STATO, non riverificati qui salvo dove indicato
+  sotto):** `004_consents` bloccata su DPIA/consensi (legale — **non tocco**, da vincoli sessione).
+  Gate umani noti: MFA coach, leaked-password protection, backup PITR, env Upstash, CSP
+  enforcing, gitleaks su git history, bump `next@16.2.12`, limiti upload video.
+- Nessuna nota in STATO/HANDOFF segnalava i due punti di drift trovati sotto (§1) — non erano
+  quindi noti prima di questo giro.
+
+### 1. Ledger migrazioni — tracciato o tabelle a mano?
+**In generale: tracciato.** Il progetto usa la migration history nativa di Supabase
+(`supabase_migrations.schema_migrations`). 34 file in `supabase/migrations/` (001→034),
+numerazione continua, nessun buco.
+
+**Due eccezioni trovate (drift repo↔DB live), non presenti nel giro di fine luglio:**
+
+1. **`migration_023_pricing_cron.sql` è nel repo ma NON applicata al DB live.** Verificato live:
+   colonna `profiles.tier_expires_at` **non esiste**, estensione `pg_cron` **non installata**.
+   - ⚠️ **Effetto collaterale reale**: `src/app/api/stripe/webhook/route.ts` (branch
+     `meta.type === "season"`, ~righe 103-109) scrive già `.update({ tier: "one_to_one",
+     tier_expires_at: ... })` assumendo la colonna. Su colonna assente l'update viene rifiutata
+     (errore non controllato nel codice) → **un pagamento 1:1 stagionale reale oggi non
+     setterebbe il tier del nuotatore.** Bug funzionale/di integrità dati scoperto durante
+     l'audit, non un buco di sicurezza in senso stretto — **da confermare con te se è già
+     noto/accettato in versione di prova o va trattato come blocco.**
+2. **Due tabelle live non presenti in nessuna migration del repo:** `marketing.leads` e
+   `marketing.test_results`. RLS **attiva** su entrambe ma **nessuna policy** (confermato da
+   `get_advisors`: `rls_enabled_no_policy`) → accesso negato di default a chiunque non sia
+   `service_role` (non è un buco aperto), ma sono tabelle "fantasma": create a mano o da un tool
+   esterno, non riproducibili da un clone pulito via `supabase/migrations/`. Origine da chiarire
+   — **non tocco lo schema marketing/consensi senza tua indicazione**.
+
+Tutte le altre migration risultano applicate e riscontrate live a campione (indice
+`workout_completions_workout_idx` di `migration_025` presente, policy `workouts: lettura`
+riscritta con `(select …)` come da `migration_025`, `services.buffer_min` azzerato come da
+`migration_026`).
+
+### 2. `migration_003_tenancy` / `coach_id` su `profiles`
+**Non esiste `migration_003_tenancy`** nel repo — il file `migration_003` è
+`migration_003_efficiency_window.sql` (punti efficienza). Verificato live:
+`information_schema.columns` su `public.profiles` → 21 colonne, **`coach_id` non presente**.
+Coerente col modello coach-unico (ADR-002, `is_coach()`). Stato invariato rispetto al giro di
+fine luglio.
+
+### 3. RLS — stato per tabella + policy `profiles`
+**RLS attiva su tutte le 39 tabelle di `public`** (+ le 2 di `marketing`, vedi sopra) — nessuna
+tabella applicativa senza RLS.
+
+**`profiles` — un utente può cambiare il proprio `role`? No, doppia difesa, verificata live:**
+- Trigger `protect_role_column` (`migration_015`, `tgenabled='O'` = attivo) rifiuta l'update se
+  `role` cambia e l'attore è `authenticated`/`anon`.
+- Policy `profili: modifica propria o coach` (`migration_030`): `with check` richiede
+  `is_coach()` oppure (`id = auth.uid()` **e** `role` invariato). Trigger gemello
+  `protect_tier_column`, anch'esso attivo, protegge `tier` allo stesso modo.
+- Policy di lettura (`profili: lettura propria o coach`): `id = auth.uid() or is_coach()`.
+
+Nessuna escalation di ruolo possibile dal client con le chiavi attuali — invariato rispetto al
+giro di fine luglio (qui solo riconfermato live).
+
+### 4. Webhook Stripe — firma su raw body o `req.json()`?
+**Raw body, corretto** (invariato): `req.text()` → `stripe.webhooks.constructEvent(raw, sig,
+secret)`. Idempotenza via `stripe_events(id)` unique, già presente (chiusa nel ciclo precedente,
+`migration_031`). Fail-open intenzionale se l'insert di dedup fallisce per motivo diverso da
+duplicato — comportamento voluto, non un buco.
+
+### 5. Bucket video — pubblico o privato?
+**Privato**, invariato: `race-videos` → `public: false` (verificato live), idem `library` e
+`medical` (`public: false`). Accesso solo via signed URL (`src/lib/storage.ts`); `medical` a
+300s invece di 3600s.
+
+### 6. Env `NEXT_PUBLIC_*` che sembrano contenere segreti
+Nessuna novità rispetto al giro precedente: `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_APP_NAME`,
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+— tutte pubblicabili per design. Le chiavi sensibili (`SUPABASE_SERVICE_ROLE_KEY`,
+`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`) sono senza prefisso, corretto.
+
+### Extra — trovato durante l'audit, non richiesto esplicitamente ma rilevante
+Da `get_advisors(type=security)` sul progetto live:
+- **7 funzioni `SECURITY DEFINER` chiamabili via RPC da `anon`/`authenticated`:**
+  `grant_monthly_tokens`, `is_coach`, `link_lesson_token`, `my_tier`, `release_lesson_token`,
+  `reserve_lesson_token`, `test_mode`. Per `is_coach`/`my_tier`/`test_mode` probabilmente
+  intenzionale (il client legge il proprio stato). Per
+  `grant_monthly_tokens`/`reserve_lesson_token`/`release_lesson_token`/`link_lesson_token` **non
+  ho verificato il corpo delle funzioni** in questo giro (fuori dai 7 punti richiesti) — segnalo
+  solo che sono chiamabili via `/rest/v1/rpc/...` da chiunque sia autenticato (alcune anche da
+  anonimo): da valutare se le funzioni fanno già i controlli giusti (es. solo sul proprio
+  `swimmer_id`) prima di eventuali fix.
+- `auth_leaked_password_protection` disabilitata — già in elenco gate umani noti, nessuna novità.
+
+### Non toccato in questo giro (fuori scope / vincoli sessione)
+Informative privacy/consensi/retention/DPIA, `migration_004_consents`, vocabolario clinico/ADR-004,
+configurazione progetto Supabase (regione/piano/backup), corpo delle funzioni RPC in "Extra".
+
+---
+
+## S-0 — ricognizione 28 luglio 2026 · Claude Code (solo lettura, nessun fix)
 
 **Eseguito:** 28 luglio 2026 · Claude Code (solo lettura, nessun fix)
 **Progetto DB:** Supabase `unsdbeliaunhhgnuefyz` (region `eu-central-1` / Frankfurt)
@@ -10,9 +121,7 @@
 > role-lock già presente, bucket video già privato. Diverse voci "critiche" risultano **già chiuse**.
 > Questo cambia il piano di S-1 (vedi §Riconciliazione).
 
----
-
-## Risposte alle 7 domande di S-0
+### Risposte alle 7 domande di S-0
 
 **1. Tabelle & RLS.** Tutte le tabelle di `public` hanno **RLS ATTIVA**. Nessuna tabella senza RLS.
 Nessuna tabella con RLS attiva ma **zero policy**. → Copertura RLS (A-1 tecnico) **OK**.
@@ -45,9 +154,7 @@ Tutte **pubblicabili per design** (publishable/anon/url/name). **Nessun segreto*
 (001→029)**, applicate. Il ledger **NON è vuoto**: la premessa di M-1/S-0.5 non vale su questo repo.
 Naming reale ≠ runbook (es. `001_activity_ledger` non `001_events`; `003_efficiency_window` non `003_tenancy`).
 
----
-
-## Stato dei finding critici (riletti sul codice reale)
+### Stato dei finding critici (riletti sul codice reale)
 
 | Finding | Stato reale | Nota |
 |---|---|---|
@@ -61,9 +168,7 @@ Naming reale ≠ runbook (es. `001_activity_ledger` non `001_events`; `003_effic
 | **A-2** cron protetti | 🟡 da verificare | `CRON_SECRET` già usato (es. `/api/cron/digest`); verificare tutte le route cron in S-4. |
 | **idempotenza Stripe** | 🟡 aperto | tabella `stripe_events` da aggiungere. |
 
----
-
-## Riconciliazione col runbook (impatto su S-0.5 / S-1)
+### Riconciliazione col runbook (impatto su S-0.5 / S-1)
 
 1. **S-0.5 non applicabile come scritto.** Non c'è CLI Supabase in questo ambiente (`supabase db pull`
    impossibile) **e** il ledger è già tracciato (001→029): non c'è baseline da rifare.
@@ -75,15 +180,11 @@ Naming reale ≠ runbook (es. `001_activity_ledger` non `001_events`; `003_effic
 4. **`migration_004_consents` non esiste** in questo repo (il 004 è `backfill_ledger`). Vincolo ⛔ rispettato
    per costruzione: non c'è nulla da (non) applicare.
 
----
-
-## Cosa NON ho toccato in S-0 (vincoli ⛔ rispettati)
+### Cosa NON ho toccato in S-0 (vincoli ⛔ rispettati)
 Nessun fix, nessuna migration applicata, nessun drop, nessuna modifica alla config Supabase,
 nessun testo consenso/retention/DPIA, nessun vocabolario clinico. Solo lettura + questo file.
 
----
-
-## Stato finale dei finding (dopo S-1 → S-4)
+### Stato finale dei finding (dopo S-1 → S-4)
 
 | Finding | Stato | Dettaglio |
 |---|---|---|
