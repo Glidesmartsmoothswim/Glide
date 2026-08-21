@@ -5,6 +5,240 @@
 
 ---
 
+## Indagine mirata — 21 agosto 2026 (modalità autonoma, solo lettura)
+
+> Richiesta: elenco completo migration + verifica applicata/non applicata sul DB live per
+> ciascuna, approfondimento su `migration_023_pricing_cron` (contenuto, riferimenti nel codice,
+> modalità di fallimento, log), schema esatto live delle 2 tabelle `marketing.*` non tracciate.
+> **Nessuna modifica al DB.** Nessun `supabase db pull`, nessuna migration applicata: solo
+> `execute_sql`/`list_migrations`/`query_logs` in lettura + lettura file locali. Fermato in attesa
+> di OK prima di qualunque fix.
+
+### 1. Tutte le migration in `supabase/migrations/`, in ordine
+
+| # | File |
+|---|---|
+| 001 | `migration_001_activity_ledger.sql` |
+| 002 | `migration_002_readiness_v2.sql` |
+| 003 | `migration_003_efficiency_window.sql` |
+| 004 | `migration_004_backfill_ledger.sql` |
+| 005 | `migration_005_booking.sql` |
+| 006 | `migration_006_videoanalisi.sql` |
+| 007 | `migration_007_glide_scores.sql` |
+| 008 | `migration_008_badges.sql` |
+| 009 | `migration_009_security_hardening.sql` |
+| 010 | `migration_010_fk_indexes.sql` |
+| 011 | `migration_011_cash_payments.sql` |
+| 012 | `migration_012_revoke_public_execute.sql` |
+| 013 | `migration_013_swimmer_profile.sql` |
+| 014 | `migration_014_workout_published_backfill.sql` |
+| 015 | `migration_015_role_lock.sql` |
+| 016 | `migration_016_intake.sql` |
+| 017 | `migration_017_video_retention.sql` |
+| 018 | `migration_018_programs.sql` |
+| 019 | `migration_019_tiers_open_week.sql` |
+| 020 | `migration_020_library.sql` |
+| 021 | `migration_021_objectives.sql` |
+| 022 | `migration_022_medical_certificates.sql` |
+| 023 | `migration_023_pricing_cron.sql` |
+| 024 | `migration_024_lesson_tokens.sql` |
+| 025 | `migration_025_perf_indexes_rls.sql` |
+| 026 | `migration_026_lesson_buffer_zero.sql` |
+| 027 | `migration_027_test_mode_and_11_perks.sql` |
+| 028 | `migration_028_booking_token_and_step15.sql` |
+| 029 | `migration_029_booking_pending.sql` |
+| 030 | `migration_030_role_lock.sql` |
+| 031 | `migration_031_stripe_events.sql` |
+| 032 | `migration_032_medcert_no_file.sql` |
+| 033 | `migration_033_readiness_note_coach.sql` |
+| 034 | `migration_034_weekly_feedback.sql` |
+
+Tutte in `supabase/migrations/` (path relativo al repo), 34 file, numerazione continua senza buchi.
+
+### 2. Stato applicazione sul DB live (`supabase_migrations.schema_migrations`)
+
+Letto direttamente `select version, name from supabase_migrations.schema_migrations order by
+version` (31 righe) e incrociato con i 34 file locali per contenuto/nome. Risultato:
+
+| File | Stato | Nota |
+|---|---|---|
+| 001–022 | ✅ **APPLICATA** | ogni file trova una riga corrispondente nel ledger (nomi non sempre identici al file: es. `002`→`readiness_v2`, `003`→`efficiency_points_8week_window`, coerente con la rinumerazione già nota) |
+| **023** `pricing_cron` | ❌ **NON APPLICATA** | nessuna riga nel ledger corrispondente; confermato anche a livello di schema (§3) |
+| **024** `lesson_tokens` | ✅ **APPLICATA** | tracciata come **due** righe nel ledger (`migration_024_lesson_tokens_core` + `migration_024_token_redeem_fns`) — un solo file nel repo, applicato in due passi |
+| **025** `perf_indexes_rls` | ⚠️ **APPLICATA DI FATTO, MA ASSENTE DAL LEDGER** | **nessuna riga** nel ledger con questo nome o versione compatibile, MA verificato a schema che l'indice `workout_completions_workout_idx` esiste e la policy `workouts: lettura` è **già** riscritta con `(select is_coach())`/`(select my_tier())` come da questo file — quindi il contenuto **è stato eseguito sul DB**, semplicemente non tramite un passo tracciato nel ledger delle migration |
+| **026** `lesson_buffer_zero` | ⚠️ **APPLICATA DI FATTO, MA ASSENTE DAL LEDGER** | stessa situazione di 025: nessuna riga nel ledger, ma `select buffer_min from public.services` conferma tutti i valori a `0` come da questo file |
+| 027–034 | ✅ **APPLICATA** | ogni file trova riga corrispondente (`test_mode_and_11_perks`, `booking_token_and_step15`, `booking_pending`, `stripe_events`, `role_lock` — seconda occorrenza, per il file 030 — `medcert_no_file`, `readiness_note_coach`, `weekly_feedback`) |
+
+**Riepilogo:** 31 file applicati e tracciati regolarmente · 2 file (**025, 026**) applicati di fatto
+ma **non tracciati** nel ledger (drift ledger↔realtà, diverso da 023: qui lo schema combacia, manca
+solo la riga di tracciamento) · 1 file (**023**) **né tracciato né applicato**, unico caso di vera
+migration pendente.
+
+### 3. `migration_023_pricing_cron.sql` — approfondimento
+
+**Contenuto esatto del file** (`supabase/migrations/migration_023_pricing_cron.sql`):
+```sql
+-- ============================================================
+-- GLIDE — migration_023_pricing_cron.sql  (Onda 13.5)
+-- Scadenza del tier stagionale 1:1 (pagamento one-off 690€, valido fino al
+-- 30 giugno della stagione) + job pg_cron giornaliero che riporta a free i
+-- tier stagionali scaduti. Gli abbonamenti mensili si gestiscono via webhook.
+-- ============================================================
+
+alter table public.profiles
+  add column if not exists tier_expires_at timestamptz;
+
+comment on column public.profiles.tier_expires_at is
+  'Onda 13.5: scadenza del tier stagionale 1:1 (one-off). NULL per mensili/coach '
+  '(gestiti da Stripe/coach). Il job giornaliero riporta a free quando scade.';
+
+create extension if not exists pg_cron;
+
+-- Riporta a free i SOLI tier stagionali scaduti (hanno tier_expires_at valorizzato).
+create or replace function public.expire_seasonal_tiers()
+returns void language sql security definer set search_path = public as $$
+  update public.profiles
+     set tier = 'free', tier_expires_at = null
+   where tier_expires_at is not null
+     and tier_expires_at < now();
+$$;
+revoke execute on function public.expire_seasonal_tiers() from public;
+
+-- Giornaliero alle 03:10 UTC.
+select cron.schedule(
+  'expire-seasonal-tiers',
+  '10 3 * * *',
+  $$ select public.expire_seasonal_tiers(); $$
+);
+```
+
+**Verificato live:** colonna `profiles.tier_expires_at` **assente**
+(`information_schema.columns` non la elenca — profiles ha 21 colonne, nessuna `tier_expires_at`);
+estensione `pg_cron` **non installata** (`pg_extension` non contiene `pg_cron`) — coerente con
+"non applicata".
+
+**Dove il codice referenzia la colonna:** unico punto in tutto `src/`
+(`grep -rn "tier_expires_at" src` → 1 risultato) — `src/app/api/stripe/webhook/route.ts`,
+branch `meta.type === "season"` (righe 100-117):
+```ts
+} else if (meta.type === "season" && meta.swimmer_id) {
+  // 1:1 stagionale (one-off): tier one_to_one fino a fine giugno; poi il
+  // job pg_cron giornaliero lo riporta a free.
+  await admin
+    .from("profiles")
+    .update({
+      tier: "one_to_one",
+      tier_expires_at: meta.season_end ?? null,
+    })
+    .eq("id", meta.swimmer_id);
+  await admin.from("transactions").insert({
+    swimmer_id: meta.swimmer_id,
+    type: "subscription",
+    amount_cents: amount,
+    currency: s.currency ?? "eur",
+    status: "succeeded",
+    description: "Percorso 1:1 stagionale",
+  });
+}
+```
+
+**Modalità di fallimento — silenziosa, non un try/catch che ingoia l'errore: peggio, l'errore non
+viene proprio letto.**
+- L'unico `try/catch` di tutto il file è **solo** intorno a `stripe.webhooks.constructEvent(...)`
+  (righe 26-33, verifica firma) — il blocco `season` **non è dentro nessun try/catch**.
+- La chiamata `await admin.from("profiles").update(...)` **non distrugge `{ error }`** dal
+  risultato (a differenza di altre chiamate nello stesso file, es. riga 41 `const { error: dupErr
+  } = await admin.from("stripe_events").insert(...)`, che invece lo controlla). Il client
+  `supabase-js` **non lancia eccezioni** su un errore Postgres/PostgREST (colonna inesistente →
+  `42703`/`PGRST204`): restituisce `{ data: null, error: {...} }` senza `throw`. Con l'errore mai
+  letto, l'esecuzione **prosegue normalmente** all'`insert` su `transactions` subito dopo (riga
+  110-117), che **va comunque a buon fine** — quindi oggi risulterebbe una transazione "succeeded"
+  con descrizione "Percorso 1:1 stagionale" **senza che il tier del nuotatore sia mai stato
+  aggiornato**, e nessun errore visibile da nessuna parte.
+- **Zero logging** in questo file e in `src/lib/supabase/admin.ts` (nessun `console.error`,
+  nessun Sentry/`captureException`): anche volendo, oggi non ci sarebbe traccia applicativa del
+  fallimento.
+
+**Nei log: non riscontrato, ma per due motivi diversi.**
+- Interrogazione diretta di `postgres_logs`/`edge_logs` (via `query_logs`, finestra di default
+  24h) per `tier_expires_at`/`42703`/`stripe/webhook`: **la query è fallita due volte con
+  "Backend error"** lato Supabase — non ho potuto leggere i log grezzi in questo giro (da
+  ritentare più tardi se serve, non ho insistito per non eseguire polling).
+- **Più concretamente:** `select * from public.transactions where description ilike
+  '%stagionale%' or type='subscription'` → **0 righe**. Il branch "season" del webhook **non
+  risulta mai stato eseguito** su un pagamento reale finora (nessuna transazione one-off
+  stagionale registrata; `profiles.tier` oggi è solo `free`×1 e `open_plus`×10, nessun
+  `one_to_one`). **Il bug è quindi latente/mai innescato finora**, non ha ancora causato un
+  mancato accesso a un cliente pagante — ma si attiverebbe silenziosamente al primo acquisto 1:1
+  stagionale reale.
+
+### 4. Schema esatto live — `marketing.leads` e `marketing.test_results`
+
+**`marketing.leads`**
+
+| colonna | tipo | nullable | default |
+|---|---|---|---|
+| `id` | `uuid` | NO | `gen_random_uuid()` |
+| `email` | `text` | NO | — |
+| `source` | `text` | YES | — |
+| `created_at` | `timestamptz` | NO | `now()` |
+
+Vincoli: `PRIMARY KEY (id)` (`leads_pkey`) + 3 CHECK di sola non-nullità con nomi numerici
+generati automaticamente (`19516_19517_*_not_null` — pattern tipico di uno schema creato/importato
+con un tool esterno via connessione Postgres diretta, non con una migration scritta a mano in
+questo stile). Nessuna FK.
+
+**`marketing.test_results`**
+
+| colonna | tipo | nullable | default |
+|---|---|---|---|
+| `id` | `uuid` | NO | `gen_random_uuid()` |
+| `lead_id` | `uuid` | YES | — |
+| `email` | `text` | YES | — |
+| `answers` | `jsonb` | NO | — |
+| `profile` | `text` | YES | — |
+| `created_at` | `timestamptz` | NO | `now()` |
+
+Vincoli: `PRIMARY KEY (id)` (`test_results_pkey`) + `FOREIGN KEY (lead_id) REFERENCES
+marketing.leads(id)` (`test_results_lead_id_fkey`) + 3 CHECK di non-nullità, stesso pattern di
+nomi numerici di `leads`.
+
+**RLS:** `rowsecurity = true` su entrambe (confermato via `pg_tables`); **zero righe** in
+`pg_policy` per `marketing.leads`/`marketing.test_results` — nessuna policy definita. Effetto:
+accesso negato di default a `anon`/`authenticated` (RLS attiva senza policy = deny-all), solo
+`service_role`/superuser può leggere/scrivere. Non è quindi un buco aperto, ma resta uno schema
+"fantasma": non riproducibile da un clone pulito del repo (nessuna migration lo crea), origine
+non identificata da questo audit — **verosimilmente un funnel/quiz marketing esterno collegato
+allo stesso progetto Postgres**, ma è un'ipotesi, non una conferma: da chiarire con te.
+
+### 5. Vincoli rispettati
+Nessun `supabase db pull` eseguito. Nessuna migration applicata. Nessuna modifica a schema, dati,
+config Supabase o codice. Solo query in lettura (`execute_sql` con `select`, `list_migrations`,
+2 tentativi di `query_logs` falliti lato backend) + lettura file locali.
+
+**Fermo qui, in attesa del tuo OK prima di qualunque fix** (inclusi: applicare `migration_023`,
+aggiungere logging/try-catch al webhook, decidere sulle tabelle `marketing.*`).
+
+### 6. Seguito — 21 agosto 2026, modalità autonoma: drift 025/026 chiuso, webhook parzialmente corretto
+
+Due interventi indipendenti, autorizzati esplicitamente (a differenza del resto di questa
+indagine, che restava "solo lettura in attesa di OK"):
+
+- **Ledger 025/026**: nessun file mancante da generare (erano già presenti e già verificati
+  identici allo schema live, §2 sopra). Aggiunte solo le due righe di tracciamento in
+  `supabase_migrations.schema_migrations` (version `20260721101000` `perf_indexes_rls` e
+  `20260721101500` `lesson_buffer_zero`, tra 024 e 027; `created_by` marcato esplicitamente come
+  backfill di ledger). **Nessuna DDL ri-eseguita.** `list_migrations` ora conta 33 righe; 025 e
+  026 non sono più drift. `023` resta **non applicata, non toccata** (fuori scope, per
+  indicazione esplicita — vedi STATO.md).
+- **Webhook (§4 sopra, branch `season`, righe ~103–109)**: il fallimento silenzioso è stato
+  corretto (errore letto esplicitamente, log strutturato con `stripe_event_id`, risposta 500
+  invece di 200 così Stripe ritenta). **La colonna `tier_expires_at` e `migration_023` non sono
+  state toccate**: finché 023 resta pendente, un pagamento 1:1 stagionale reale continua a fallire
+  quell'update — ma ora in modo tracciato/rumoroso invece che silenzioso. Dettagli in STATO.md.
+
+---
+
 ## S-0 (bis) — ricognizione 21 agosto 2026 · Claude Code (solo lettura, nessun fix)
 
 > Nuovo giro di S-0 richiesto in sessione (stessi 7 punti del runbook originale + verifica

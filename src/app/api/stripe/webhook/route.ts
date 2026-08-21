@@ -100,13 +100,34 @@ export async function POST(req: Request) {
     } else if (meta.type === "season" && meta.swimmer_id) {
       // 1:1 stagionale (one-off): tier one_to_one fino a fine giugno; poi il
       // job pg_cron giornaliero lo riporta a free.
-      await admin
+      const { error: seasonTierError } = await admin
         .from("profiles")
         .update({
           tier: "one_to_one",
           tier_expires_at: meta.season_end ?? null,
         })
         .eq("id", meta.swimmer_id);
+      if (seasonTierError) {
+        // Critico per il pagamento: l'atleta ha pagato ma senza questo update
+        // non ha accesso al percorso 1:1. Non silenziare: log strutturato +
+        // risposta NON 200, così Stripe ritenta invece di segnare l'evento
+        // come gestito (vedi anche nota migration_023/tier_expires_at sotto).
+        console.error(
+          JSON.stringify({
+            scope: "stripe_webhook",
+            step: "profiles.update tier=one_to_one (season)",
+            stripe_event_id: event.id,
+            stripe_event_type: event.type,
+            swimmer_id: meta.swimmer_id,
+            error_code: seasonTierError.code,
+            error_message: seasonTierError.message,
+          }),
+        );
+        return new Response(
+          "errore aggiornamento tier one_to_one: " + seasonTierError.message,
+          { status: 500 },
+        );
+      }
       await admin.from("transactions").insert({
         swimmer_id: meta.swimmer_id,
         type: "subscription",
