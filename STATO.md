@@ -4,7 +4,14 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-08-21 — **Ledger 025/026 tracciato + fix fallimento silenzioso webhook Stripe (modalità autonoma)** · S-0 (bis): ricognizione sicurezza, solo lettura, scritta in `SECURITY_AUDIT.md` · Versione di prova: prezzi rimossi da `/app/abbonamenti` (19 ago) · Onda 28 · Onda 27 · Onda 26 · Onda 25.**_
+_Ultimo aggiornamento: 2026-08-21 — **migration_035: scope pubblico anon su `marketing.leads`/`test_results` (solo INSERT)** · Ledger 025/026 tracciato + fix fallimento silenzioso webhook Stripe (modalità autonoma) · S-0 (bis): ricognizione sicurezza, solo lettura, scritta in `SECURITY_AUDIT.md` · Versione di prova: prezzi rimossi da `/app/abbonamenti` (19 ago) · Onda 28 · Onda 27 · Onda 26 · Onda 25.**_
+
+## 🔓 migration_035 — scope pubblico anon su `marketing.leads`/`marketing.test_results` (21 ago, modalità autonoma)
+
+- **Contesto:** l'audit di ieri (S-0 bis) aveva trovato queste due tabelle "fantasma" (origine esterna, non create da nessuna migration del repo) con RLS attiva ma **zero policy e zero grant** per `anon` — deny-all totale, lasciato come domanda aperta ("da chiarire con te"). Richiesta esplicita di oggi: aprire **solo la scrittura minima** (form pubblico di lead/quiz), mai la lettura.
+- **Pre-check (come richiesto) prima di applicare:** riverificato via query dirette — `relrowsecurity = true` su entrambe, **zero righe in `pg_policies`**, **zero righe in `information_schema.role_table_grants`** per `anon`/`authenticated`/`public` sullo schema `marketing`. Nessuna policy preesistente da duplicare o contraddire: confermato quanto diceva l'audit di ieri.
+- **`migration_035_marketing_anon_scope.sql`** applicata via Supabase (ledger `20260821143252`): `grant usage` sullo schema + `grant insert` (solo insert) su entrambe le tabelle ad `anon`; due policy `for insert to anon with check (true)`. Nessun `select`/`update`/`delete` concesso.
+- **Test reale con la anon key** (via REST, non simulato): `INSERT` su `marketing.leads` e `marketing.test_results` → **201** su entrambe; `SELECT` su entrambe → **401** (`42501 permission denied`, nessun grant select); `UPDATE` → **401** allo stesso modo. Nota tecnica: un `INSERT` con `Prefer: return=representation` fallisce anch'esso con 401 perché il `RETURNING` richiede privilegio `SELECT` sulle colonne — comportamento corretto e atteso per un client write-only (deve usare `return=minimal`). Righe di test create durante la prova **rimosse subito dopo** con la service_role (marcate con un identificatore univoco, verificato conteggio 0 residuo).
 
 ## 🔧 Ledger migration 025/026 + fix fallimento silenzioso webhook Stripe (21 ago, modalità autonoma)
 

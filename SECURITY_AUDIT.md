@@ -237,6 +237,15 @@ indagine, che restava "solo lettura in attesa di OK"):
   state toccate**: finché 023 resta pendente, un pagamento 1:1 stagionale reale continua a fallire
   quell'update — ma ora in modo tracciato/rumoroso invece che silenzioso. Dettagli in STATO.md.
 
+### 7. Seguito — 21 agosto 2026: deciso lo scope di `marketing.leads`/`marketing.test_results`
+
+Su indicazione esplicita, la domanda aperta al §4 ("da chiarire con te") è stata risolta: le due
+tabelle restano deny-all per la lettura ma ottengono ora **scrittura pubblica minima** (INSERT
+only) per `anon`, pensata per un form/funnel esterno che deve poter inviare lead/risultati senza
+mai poterli rileggere. Pre-check ripetuto prima di applicare (zero policy/grant preesistenti,
+coerente col §4) e test reale con la anon key (INSERT 201, SELECT/UPDATE 401) — dettagli completi
+in STATO.md. `migration_035_marketing_anon_scope.sql`, ledger `20260821143252`.
+
 ---
 
 ## S-0 (bis) — ricognizione 21 agosto 2026 · Claude Code (solo lettura, nessun fix)
