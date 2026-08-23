@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { WaveLogo } from "@/components/brand/wave-logo";
+import { LegalFooter } from "@/components/legal/legal-footer";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Accedi" };
@@ -19,6 +20,7 @@ export default async function LoginPage({
         </p>
       </div>
       <LoginForm justReset={sp.reset === "1"} />
+      <LegalFooter className="text-[#aebbdd] dark:text-muted" />
     </main>
   );
 }
