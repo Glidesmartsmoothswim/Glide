@@ -33,6 +33,7 @@ export type Resource =
   | "library:one_to_one"
   | "open:week" // settimana corrente Canale Open
   | "open:archive" // archivio storico completo (12.4)
+  | "open:self" // builder allenamento self-service (ADR-012, Onda 29.5)
   | "video:review" // videoanalisi inclusa nel percorso (13.4)
   | "events:book" // prenotazione eventi singoli
   | "profile"; // area profilo
@@ -45,6 +46,7 @@ export const ACCESS_MATRIX: Record<Resource, readonly Tier[]> = {
   "library:one_to_one": ["one_to_one"],
   "open:week": ["open", "open_plus"],
   "open:archive": ["open_plus"],
+  "open:self": ["open", "open_plus"],
   // Videoanalisi INCLUSA solo nel percorso 1:1 (13.4). Gli altri tier la
   // prenotano come evento singolo a pagamento (flusso esistente).
   "video:review": ["one_to_one"],

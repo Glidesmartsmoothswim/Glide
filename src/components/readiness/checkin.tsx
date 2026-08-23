@@ -206,7 +206,11 @@ function PostForm({ workouts }: { workouts: WorkoutOpt[] }) {
             <option value="">— non lo dico —</option>
             {workouts.map((w) => (
               <option key={w.id} value={w.id}>
-                {w.kind === "open_channel" ? "Open" : "Scheda"}
+                {w.kind === "open_channel"
+                  ? "Open"
+                  : w.kind === "self"
+                    ? "Tuo"
+                    : "Scheda"}
                 {w.week_day ? ` ${w.week_day}` : ""} · {w.title}
               </option>
             ))}

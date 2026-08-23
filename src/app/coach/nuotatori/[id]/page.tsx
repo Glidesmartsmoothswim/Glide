@@ -226,6 +226,9 @@ export default async function SwimmerDetail({
         .from("workout_completions")
         .select("total_meters, completed_at")
         .eq("swimmer_id", id)
+        // ADR-012 (Onda 29.5): esclude il self-service dal riepilogo —
+        // non è aderenza al programma, resta solo nell'archivio personale.
+        .eq("source", "open_channel")
         .order("completed_at", { ascending: false })
         .limit(300)
     : { data: [] as { total_meters: number | null; completed_at: string }[] };
@@ -424,7 +427,13 @@ export default async function SwimmerDetail({
                     <span className="text-xs text-muted">
                       {fmtDate(r.created_at)}
                       {wo
-                        ? ` · ${wo.kind === "open_channel" ? "Open" : "Scheda"} · ${wo.title}`
+                        ? ` · ${
+                            wo.kind === "open_channel"
+                              ? "Open"
+                              : wo.kind === "self"
+                                ? "Suo (self-service)"
+                                : "Scheda"
+                          } · ${wo.title}`
                         : ""}
                     </span>
                     <span className="text-sm font-semibold text-foreground">

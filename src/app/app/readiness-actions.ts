@@ -172,7 +172,15 @@ export async function savePost(
         focus: woMeta.focus,
         week_start: woMeta.week_start,
         total_meters: woMeta.total_meters,
-        source: woMeta.kind === "open_channel" ? "open_channel" : "personal",
+        // ADR-012 (Onda 29.5): il self-service NON conta come aderenza al
+        // programma — source proprio, escluso dalle query "open_channel"
+        // che alimentano le statistiche del coach (/coach/open, /coach/social).
+        source:
+          woMeta.kind === "open_channel"
+            ? "open_channel"
+            : woMeta.kind === "self"
+              ? "self"
+              : "personal",
         completed_at: new Date().toISOString(),
       },
       { onConflict: "swimmer_id,workout_id" },

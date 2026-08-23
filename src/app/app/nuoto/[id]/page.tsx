@@ -38,8 +38,10 @@ export default async function WorkoutDetail({
       </Link>
       <WorkoutCard w={w} />
       {/* L'allenamento lo scrive Alessio (ADR-001): niente self-scaling, solo
-          la richiesta. */}
-      <RequestChangeButton workoutId={w.id} />
+          la richiesta. Non per le schede "self" (ADR-012): quelle le hai
+          scritte tu, non c'è nessuno a cui chiedere di cambiarle — si
+          modificano da /app/nuoto. */}
+      {w.kind !== "self" && <RequestChangeButton workoutId={w.id} />}
       <p className="text-sm text-muted">
         Per registrare la sessione, apri il check-in dalla home (Oggi) e scegli
         questo allenamento.
