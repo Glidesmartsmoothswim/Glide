@@ -86,7 +86,7 @@ export default async function SwimmerVideo() {
           return (
             <Card key={v.id} className="flex flex-col gap-3">
               {purgeIn != null && v.retention_state !== "preserved" && (
-                <p className="rounded-xl bg-background p-3 text-xs text-muted">
+                <p className="rounded-xl bg-background p-3 text-sm text-muted">
                   Programma chiuso ·{" "}
                   {purgeIn > 0
                     ? `questo video verrà rimosso tra ${purgeIn} giorni`
@@ -96,8 +96,8 @@ export default async function SwimmerVideo() {
               )}
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="font-semibold text-foreground">{v.event}</h3>
-                  <p className="text-xs text-muted">
+                  <h3 className="font-bold text-foreground">{v.event}</h3>
+                  <p className="text-sm text-muted">
                     {v.tier === "coaching_1_1" ? "1:1 · inclusa" : "Open"}
                     {v.race_date ? ` · ${v.race_date}` : ""}
                   </p>
@@ -125,11 +125,11 @@ export default async function SwimmerVideo() {
                     <input type="hidden" name="video_id" value={v.id} />
                     <button
                       type="submit"
-                      className="inline-flex items-center gap-2 rounded-xl bg-[#F59E0B] px-4 py-2.5 font-semibold text-white"
+                      className="inline-flex items-center gap-2 rounded-xl bg-[#F59E0B] px-4 py-2.5 font-bold text-white"
                     >
                       <Beer size={16} /> Paga €5 e sblocca
                       {!clientFeatures.stripe && (
-                        <span className="ml-1 rounded bg-white/20 px-1.5 text-xs">
+                        <span className="ml-1 rounded bg-white/20 px-1.5 text-sm">
                           simulato
                         </span>
                       )}
@@ -146,7 +146,7 @@ export default async function SwimmerVideo() {
 
               {vc.length > 0 && (
                 <div className="flex flex-col gap-2 rounded-xl bg-background p-3">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-blu">
+                  <span className="t-label text-blu">
                     Analisi del coach
                   </span>
                   {vc.map((c) => (
@@ -175,7 +175,7 @@ export default async function SwimmerVideo() {
           </h2>
           {deleted.map((d) => (
             <Card key={d.id} className="flex flex-col gap-1">
-              <span className="font-semibold text-foreground">{d.event}</span>
+              <span className="font-bold text-foreground">{d.event}</span>
               <UndoDelete videoId={d.id} />
             </Card>
           ))}

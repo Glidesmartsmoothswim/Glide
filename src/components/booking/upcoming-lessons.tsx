@@ -54,7 +54,7 @@ export function UpcomingLessons({ lessons }: { lessons: Lesson[] }) {
         {lessons.map((l) => (
           <li key={l.id} className="rounded-xl border border-border bg-background p-3">
             <div className="flex items-center gap-2">
-              <p className="flex-1 font-semibold">{l.service}</p>
+              <p className="flex-1 font-bold">{l.service}</p>
               {l.status === "pending" && <Pill tone="warn">In attesa</Pill>}
               {l.mode === "remote" ? (
                 <Pill tone="ok">Video</Pill>
@@ -76,14 +76,14 @@ export function UpcomingLessons({ lessons }: { lessons: Lesson[] }) {
             <div className="mt-2 flex gap-2">
               <a
                 href={`/api/booking/ics?booking=${l.id}`}
-                className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-ink hover:bg-surface"
+                className="rounded-lg border border-border px-3 py-1.5 text-sm font-bold text-ink hover:bg-surface"
               >
                 Aggiungi al calendario
               </a>
               <button
                 onClick={() => cancel(l.id)}
                 disabled={busy === l.id}
-                className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-[#DC2626] hover:bg-surface disabled:opacity-50"
+                className="rounded-lg border border-border px-3 py-1.5 text-sm font-bold text-[#DC2626] hover:bg-surface disabled:opacity-50"
               >
                 Disdici
               </button>

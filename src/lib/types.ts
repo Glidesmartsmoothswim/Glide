@@ -4,7 +4,7 @@ import type { Tier } from "@/lib/access";
 export type ServiceType = "coaching_1_1" | "open" | "both";
 export type SwimmerStatus = "attivo" | "in_pausa" | "scaduto";
 export type CertStatus = "valido" | "in_scadenza" | "assente";
-export type WorkoutKind = "personal" | "open_channel" | "template";
+export type WorkoutKind = "personal" | "open_channel" | "template" | "self";
 export type WeekDay = "Lun" | "Mar" | "Mer" | "Gio" | "Ven" | "Sab" | "Dom";
 
 export const WEEK_DAYS: WeekDay[] = [

@@ -10,8 +10,6 @@ import { EfficiencyCurves, type EffPoint } from "@/components/readiness/efficien
 import { OndaCard, GlideScoreCard } from "@/components/score/score-cards";
 import { OpenRecapPie, type PieSlice } from "@/components/coach/open-recap-pie";
 import { computeScore } from "@/lib/score/compute";
-import { BadgeShelf, type EarnedBadge } from "@/components/badges/badge-shelf";
-import { ConferBadges } from "@/components/badges/confer-badges";
 import { IdentityCard } from "@/components/identity/identity-card";
 import { computeIdentity } from "@/lib/identity/compute";
 import type { VReadinessRow } from "@/lib/readiness";
@@ -228,6 +226,9 @@ export default async function SwimmerDetail({
         .from("workout_completions")
         .select("total_meters, completed_at")
         .eq("swimmer_id", id)
+        // ADR-012 (Onda 29.5): esclude il self-service dal riepilogo —
+        // non è aderenza al programma, resta solo nell'archivio personale.
+        .eq("source", "open_channel")
         .order("completed_at", { ascending: false })
         .limit(300)
     : { data: [] as { total_meters: number | null; completed_at: string }[] };
@@ -263,37 +264,6 @@ export default async function SwimmerDetail({
     lastScore?.onda ?? null,
   );
   const identity = await computeIdentity(supabase, id);
-
-  // Badge: guadagnati + catalogo dei conferibili.
-  const [{ data: sbData }, { data: catData }] = await Promise.all([
-    supabase
-      .from("swimmer_badges")
-      .select("badge_code, note, badges(name, description, kind, sort)")
-      .eq("swimmer_id", id),
-    supabase
-      .from("badges")
-      .select("code, name, description")
-      .eq("kind", "conferred")
-      .order("sort"),
-  ]);
-  const earned: EarnedBadge[] = (sbData ?? [])
-    .map((r) => {
-      const b = r.badges as unknown as {
-        name: string;
-        description: string;
-        kind: string;
-        sort: number;
-      } | null;
-      return {
-        code: r.badge_code as string,
-        name: b?.name ?? r.badge_code,
-        description: b?.description ?? "",
-        note: (r.note as string | null) ?? null,
-        conferred: b?.kind === "conferred",
-        sort: b?.sort ?? 99,
-      };
-    })
-    .sort((a, b) => a.sort - b.sort);
 
   return (
     <div className="flex max-w-3xl flex-col gap-6">
@@ -457,7 +427,13 @@ export default async function SwimmerDetail({
                     <span className="text-xs text-muted">
                       {fmtDate(r.created_at)}
                       {wo
-                        ? ` · ${wo.kind === "open_channel" ? "Open" : "Scheda"} · ${wo.title}`
+                        ? ` · ${
+                            wo.kind === "open_channel"
+                              ? "Open"
+                              : wo.kind === "self"
+                                ? "Suo (self-service)"
+                                : "Scheda"
+                          } · ${wo.title}`
                         : ""}
                     </span>
                     <span className="text-sm font-semibold text-foreground">
@@ -484,24 +460,6 @@ export default async function SwimmerDetail({
         <GlideScoreCard result={score} showBreakdown />
         <ReadinessProgress rows={readiness} />
         <EfficiencyCurves points={effPoints} />
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h2 className="font-display text-lg text-foreground">Badge</h2>
-        <BadgeShelf
-          earned={earned}
-          emptyHint="Ancora nessuno: i badge si guadagnano, non si regalano."
-        />
-        <ConferBadges
-          swimmerId={id}
-          conferred={(catData ?? []) as {
-            code: string;
-            name: string;
-            description: string;
-          }[]}
-          earnedCodes={earned.map((b) => b.code)}
-          paused={(swimmer.status ?? "attivo").toLowerCase() !== "attivo"}
-        />
       </section>
 
       <section className="flex flex-col gap-3">

@@ -7,7 +7,6 @@ import { CheckCircle2, Plus, Trash2, Waves } from "lucide-react";
 import {
   ZONES,
   woMeters,
-  lineLabel,
   parseLine,
   type Block,
   type ZoneId,
@@ -233,9 +232,9 @@ function EditorForm({
                 .map((l, k) => {
                   const p = parseLine(l);
                   return (
-                    <li key={k} className="text-xs text-muted">
+                    <li key={k} className="text-sm text-muted">
                       <span
-                        className="mr-1 inline-block rounded px-1 font-semibold"
+                        className="mr-1 inline-block rounded px-1 font-bold"
                         style={{
                           background: ZONES[p.zone ?? b.z].tint,
                           color: ZONES[p.zone ?? b.z].text,
@@ -243,7 +242,7 @@ function EditorForm({
                       >
                         {p.zone ?? b.z}
                       </span>
-                      {lineLabel(l)} · {p.reps * p.dist} m
+                      {l.trim()} · {p.reps * p.dist} m
                     </li>
                   );
                 })}

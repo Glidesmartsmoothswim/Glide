@@ -106,7 +106,7 @@ export function WorkoutHand({ workouts }: { workouts: HandWorkout[] }) {
                 className="flex h-9 items-center justify-between rounded-t-xl px-2"
                 style={{ background: suit, color: suitText }}
               >
-                <span className="text-[10px] font-bold uppercase tracking-wide">
+                <span className="t-label">
                   {w.zone ?? (w.focus ? w.focus.slice(0, 10) : "Open")}
                 </span>
                 <Waves size={13} />
@@ -116,8 +116,8 @@ export function WorkoutHand({ workouts }: { workouts: HandWorkout[] }) {
                 <span className="font-display text-lg leading-none text-foreground">
                   {(w.total_meters ?? 0).toLocaleString("it-IT")}
                 </span>
-                <span className="text-[10px] text-muted">m · {w.pool ?? 25}m</span>
-                <span className="mt-1 line-clamp-2 text-[11px] font-semibold text-foreground">
+                <span className="text-sm text-muted">m · {w.pool ?? 25}m</span>
+                <span className="mt-1 line-clamp-2 text-sm font-bold text-foreground">
                   {w.title}
                 </span>
               </div>
@@ -134,10 +134,10 @@ export function WorkoutHand({ workouts }: { workouts: HandWorkout[] }) {
       {shown ? (
         <div className="flex w-full items-center gap-3 rounded-xl border border-blu/40 bg-surface p-3">
           <div className="flex-1">
-            <p className="text-sm font-semibold text-foreground">
+            <p className="text-sm font-bold text-foreground">
               {shown.title}
             </p>
-            <p className="text-xs text-muted">
+            <p className="text-sm text-muted">
               {shown.zone ? `${shown.zone} · ` : shown.focus ? `${shown.focus} · ` : ""}
               {(shown.total_meters ?? 0).toLocaleString("it-IT")} m · {shown.pool ?? 25} m
               {shown.done ? " · già svolto" : ""}
@@ -145,13 +145,13 @@ export function WorkoutHand({ workouts }: { workouts: HandWorkout[] }) {
           </div>
           <Link
             href={`/app/nuoto/${shown.id}`}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-br from-blu to-navy px-3 py-2 text-sm font-semibold text-white"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-br from-blu to-navy px-3 py-2 text-sm font-bold text-white"
           >
             Apri <ArrowRight size={15} />
           </Link>
         </div>
       ) : (
-        <p className="text-xs text-muted">
+        <p className="text-sm text-muted">
           Passa il dito sulle carte per l&apos;anteprima, tocca per aprire.
         </p>
       )}

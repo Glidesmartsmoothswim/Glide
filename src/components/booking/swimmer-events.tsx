@@ -77,7 +77,7 @@ function SimpleRow({ ev }: { ev: Ev }) {
   return (
     <li className="rounded-xl border border-border bg-background p-3">
       <div className="flex items-center gap-2">
-        <p className="flex-1 font-semibold">{ev.title}</p>
+        <p className="flex-1 font-bold">{ev.title}</p>
         <Pill tone="neutral">{ev.kind.replace(/_/g, " ")}</Pill>
       </div>
       <p className="t-small capitalize text-muted">
@@ -93,7 +93,7 @@ function SimpleRow({ ev }: { ev: Ev }) {
           <button
             onClick={join}
             disabled={busy}
-            className="rounded-lg bg-blu px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+            className="rounded-lg bg-blu px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50"
           >
             Ci sono
           </button>
@@ -153,7 +153,7 @@ function VideoanalisiRow({ ev }: { ev: Ev }) {
   if (ev.slot) {
     return (
       <li className="rounded-xl border border-blu/40 bg-blu/5 p-3">
-        <p className="font-semibold">Il tuo orario · {ev.title}</p>
+        <p className="font-bold">Il tuo orario · {ev.title}</p>
         <div className="mt-1 flex flex-col gap-0.5 t-small">
           <span>🔵 <b>{hm(ev.slot.warmup)}</b> — entra a scaldare</span>
           <span>🟢 <b>{hm(ev.slot.test)}</b> — in acqua, corsia {ev.slot.lane}</span>
@@ -164,7 +164,7 @@ function VideoanalisiRow({ ev }: { ev: Ev }) {
         </p>
         <a
           href={`/api/events/ics?event=${ev.id}`}
-          className="mt-2 inline-block rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-ink hover:bg-surface"
+          className="mt-2 inline-block rounded-lg border border-border px-3 py-1.5 text-sm font-bold text-ink hover:bg-surface"
         >
           Aggiungi al calendario
         </a>
@@ -177,7 +177,7 @@ function VideoanalisiRow({ ev }: { ev: Ev }) {
   return (
     <li className="rounded-xl border border-border bg-background p-3">
       <div className="flex items-center gap-2">
-        <p className="flex-1 font-semibold">{ev.title}</p>
+        <p className="flex-1 font-bold">{ev.title}</p>
         <Pill tone="neutral">videoanalisi</Pill>
       </div>
       <p className="t-small capitalize text-muted">
@@ -203,7 +203,7 @@ function VideoanalisiRow({ ev }: { ev: Ev }) {
           </label>
         ))}
       </div>
-      <p className="t-small mt-2 font-semibold">
+      <p className="t-small mt-2 font-bold">
         Il tuo pacchetto: {packageMin} minuti in acqua.
       </p>
       {status === "waitlist" && <Pill tone="warn">In lista d&apos;attesa</Pill>}
@@ -211,7 +211,7 @@ function VideoanalisiRow({ ev }: { ev: Ev }) {
       <button
         onClick={submit}
         disabled={busy}
-        className="mt-2 rounded-lg bg-blu px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+        className="mt-2 rounded-lg bg-blu px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50"
       >
         {joined ? "Aggiorna iscrizione" : "Iscriviti"}
       </button>

@@ -32,7 +32,7 @@ export function CertificateDeclaration() {
 
   return (
     <form action={onSubmit} className="flex flex-col gap-3">
-      <label className="flex flex-col gap-1 text-xs text-muted">
+      <label className="flex flex-col gap-1 text-sm text-muted">
         Scadenza *
         <input type="date" name="data_scadenza" required className={field} />
       </label>
@@ -54,12 +54,12 @@ export function CertificateDeclaration() {
       <button
         type="submit"
         disabled={busy}
-        className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-blu to-navy py-3 font-semibold text-white disabled:opacity-60"
+        className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-blu to-navy py-3 font-bold text-white disabled:opacity-60"
       >
         <ShieldPlus size={18} />
         {busy ? "Registro…" : "Registra scadenza"}
       </button>
-      <p className="text-xs text-muted">
+      <p className="text-sm text-muted">
         Non conserviamo il documento: registriamo solo la scadenza e la tua
         dichiarazione. Tieni il certificato con te.
       </p>

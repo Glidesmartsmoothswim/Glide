@@ -8,6 +8,7 @@ import { WorkoutHand } from "@/components/workout/workout-hand";
 import { UpgradeHint } from "@/components/access/upgrade-hint";
 import { Archive } from "lucide-react";
 import { canAccess } from "@/lib/access";
+import { SelfWorkoutManager } from "@/components/workout/self-editor";
 import { mainZone } from "@/lib/workout";
 import { currentMonday, formatWeek } from "@/lib/week";
 import type { WorkoutRow } from "@/lib/types";
@@ -32,8 +33,9 @@ export default async function SwimmerNuoto() {
   // Onda 14.2: le tre query sono indipendenti → in parallelo (Promise.all),
   // non più a cascata. La RLS gata comunque il Canale Open per tier.
   const weekAccess = canAccess(tier, "open:week");
+  const selfAccess = canAccess(tier, "open:self");
   const sid = profile?.id ?? "";
-  const [personalRes, openRes, doneRes] = await Promise.all([
+  const [personalRes, openRes, doneRes, selfRes] = await Promise.all([
     supabase
       .from("workouts")
       .select("*")
@@ -56,10 +58,20 @@ export default async function SwimmerNuoto() {
       .eq("swimmer_id", sid)
       .order("completed_at", { ascending: false })
       .limit(60),
+    // ADR-012 (Onda 29.5): il proprio builder self-service, solo Open/Open+.
+    selfAccess
+      ? supabase
+          .from("workouts")
+          .select("*")
+          .eq("kind", "self")
+          .eq("swimmer_id", sid)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] as WorkoutRow[] }),
   ]);
   const personal = (personalRes.data ?? []) as WorkoutRow[];
   const week = (openRes.data ?? []) as WorkoutRow[];
   const done = (doneRes.data ?? []) as CompletionRow[];
+  const selfWorkouts = (selfRes.data ?? []) as WorkoutRow[];
   const doneIds = new Set(done.map((d) => d.workout_id).filter(Boolean));
 
   return (
@@ -114,6 +126,19 @@ export default async function SwimmerNuoto() {
         )}
       </section>
 
+      {selfAccess && (
+        <section className="flex flex-col gap-3">
+          <div>
+            <h2 className="font-display text-lg text-foreground">Il tuo allenamento</h2>
+            <p className="text-sm text-muted">
+              Scrivi una seduta tua, con la stessa notazione del coach. Resta
+              tua: non entra nel Canale Open né nell&apos;aderenza al programma.
+            </p>
+          </div>
+          <SelfWorkoutManager items={selfWorkouts} />
+        </section>
+      )}
+
       {canAccess(tier, "open:archive") ? (
         <Link
           href="/app/nuoto/archivio"
@@ -123,8 +148,8 @@ export default async function SwimmerNuoto() {
             <Archive size={18} />
           </span>
           <div className="flex-1">
-            <p className="font-semibold text-foreground">Archivio Open</p>
-            <p className="text-xs text-muted">
+            <p className="font-bold text-foreground">Archivio Open</p>
+            <p className="text-sm text-muted">
               Tutti gli allenamenti passati — scegli e rifai.
             </p>
           </div>
@@ -151,8 +176,8 @@ export default async function SwimmerNuoto() {
                 <CalendarRange size={17} />
               </span>
               <div className="flex-1">
-                <p className="font-semibold text-foreground">{d.title}</p>
-                <p className="text-xs text-muted">
+                <p className="font-bold text-foreground">{d.title}</p>
+                <p className="text-sm text-muted">
                   {new Date(d.completed_at).toLocaleDateString("it-IT", {
                     day: "numeric",
                     month: "short",
@@ -167,7 +192,7 @@ export default async function SwimmerNuoto() {
               {d.workout_id && (
                 <Link
                   href={`/app/nuoto/${d.workout_id}`}
-                  className="text-sm font-semibold text-blu"
+                  className="text-sm font-bold text-blu"
                 >
                   Apri
                 </Link>

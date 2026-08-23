@@ -2,9 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentProfile } from "@/lib/auth";
 import { WorkoutCard } from "@/components/workout/workout-card";
-import { WorkoutAdjust } from "@/components/workout/workout-adjust";
+import { RequestChangeButton } from "@/components/workout/request-change";
 import type { WorkoutRow } from "@/lib/types";
 
 export const metadata = { title: "Allenamento" };
@@ -21,7 +20,6 @@ export default async function WorkoutDetail({
 }) {
   const { id } = await params;
   const supabase = await createClient();
-  const profile = await getCurrentProfile();
   const { data } = await supabase
     .from("workouts")
     .select("*")
@@ -29,20 +27,6 @@ export default async function WorkoutDetail({
     .maybeSingle();
   if (!data) notFound();
   const w = data as WorkoutRow;
-
-  // Onda 27.3 — personalizzazione (riduci/aumenta) solo per il Canale Open.
-  let lastRpe: number | null = null;
-  if (w.kind === "open_channel" && profile) {
-    const { data: last } = await supabase
-      .from("readiness")
-      .select("rpe")
-      .eq("swimmer_id", profile.id)
-      .eq("phase", "post")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    lastRpe = (last?.rpe as number | null) ?? null;
-  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -52,11 +36,12 @@ export default async function WorkoutDetail({
       >
         <ArrowLeft size={16} /> Nuoto
       </Link>
-      {w.kind === "open_channel" ? (
-        <WorkoutAdjust w={w} lastRpe={lastRpe} />
-      ) : (
-        <WorkoutCard w={w} />
-      )}
+      <WorkoutCard w={w} />
+      {/* L'allenamento lo scrive Alessio (ADR-001): niente self-scaling, solo
+          la richiesta. Non per le schede "self" (ADR-012): quelle le hai
+          scritte tu, non c'è nessuno a cui chiedere di cambiarle — si
+          modificano da /app/nuoto. */}
+      {w.kind !== "self" && <RequestChangeButton workoutId={w.id} />}
       <p className="text-sm text-muted">
         Per registrare la sessione, apri il check-in dalla home (Oggi) e scegli
         questo allenamento.

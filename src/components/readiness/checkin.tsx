@@ -59,7 +59,7 @@ function Scale({
           </button>
         ))}
       </div>
-      <div className="mt-1 flex justify-between text-[13px] text-muted">
+      <div className="mt-1 flex justify-between text-sm text-muted">
         <span>{anchors[1]}</span>
         <span>{anchors[max]}</span>
       </div>
@@ -206,7 +206,11 @@ function PostForm({ workouts }: { workouts: WorkoutOpt[] }) {
             <option value="">— non lo dico —</option>
             {workouts.map((w) => (
               <option key={w.id} value={w.id}>
-                {w.kind === "open_channel" ? "Open" : "Scheda"}
+                {w.kind === "open_channel"
+                  ? "Open"
+                  : w.kind === "self"
+                    ? "Tuo"
+                    : "Scheda"}
                 {w.week_day ? ` ${w.week_day}` : ""} · {w.title}
               </option>
             ))}

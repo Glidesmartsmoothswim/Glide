@@ -154,7 +154,7 @@ export function AssistantWidget() {
     <div className="fixed inset-x-0 bottom-0 z-50 mx-auto flex h-[70dvh] max-w-md flex-col rounded-t-2xl border border-border bg-surface shadow-2xl">
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <div>
-          <p className="font-semibold">Assistente GLIDE</p>
+          <p className="font-bold">Assistente GLIDE</p>
           <p className="t-small text-muted">
             Spiega, non prescrive. Il carico resta di Alessio.
           </p>

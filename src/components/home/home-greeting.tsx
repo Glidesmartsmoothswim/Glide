@@ -68,12 +68,12 @@ export function HomeGreeting({
       )}
 
       <p
-        className={`mt-3 text-base font-semibold ${isPaused ? "text-muted" : "text-blu"}`}
+        className={`mt-3 text-base font-bold ${isPaused ? "text-muted" : "text-blu"}`}
       >
         {sub}
       </p>
 
-      <span className="mt-1 block text-xs tracking-wide text-muted/60">
+      <span className="mt-1 block text-sm tracking-wide text-muted/60">
         vasca dopo vasca
       </span>
     </div>

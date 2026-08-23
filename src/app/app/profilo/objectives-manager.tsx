@@ -54,7 +54,7 @@ export function ObjectivesManager({ items }: { items: ObjectiveRow[] }) {
         {state.info && <p className="text-sm text-teal">{state.info}</p>}
         <button
           type="submit"
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-blu to-navy py-2.5 text-sm font-semibold text-white"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-blu to-navy py-2.5 text-sm font-bold text-white"
         >
           <Plus size={16} /> Aggiungi obiettivo
         </button>
@@ -69,8 +69,8 @@ export function ObjectivesManager({ items }: { items: ObjectiveRow[] }) {
             >
               <Target size={16} className="shrink-0 text-blu" />
               <div className="flex-1">
-                <p className="text-sm font-semibold text-foreground">{o.title}</p>
-                <p className="text-xs text-muted">
+                <p className="text-sm font-bold text-foreground">{o.title}</p>
+                <p className="text-sm text-muted">
                   {OBJECTIVE_KIND_LABEL[o.kind]}
                   {o.target_date ? ` · entro ${o.target_date}` : ""}
                 </p>
@@ -120,12 +120,12 @@ export function ObjectivesManager({ items }: { items: ObjectiveRow[] }) {
                 <Archive size={14} />
               )}
               <span className="flex-1 line-through/none">{o.title}</span>
-              <span className="text-xs">{OBJECTIVE_STATUS_LABEL[o.status]}</span>
+              <span className="text-sm">{OBJECTIVE_STATUS_LABEL[o.status]}</span>
               <button
                 type="button"
                 disabled={pending}
                 onClick={() => start(() => setObjectiveStatus(o.id, "attivo"))}
-                className="text-xs text-blu hover:underline disabled:opacity-50"
+                className="text-sm text-blu hover:underline disabled:opacity-50"
               >
                 Riattiva
               </button>

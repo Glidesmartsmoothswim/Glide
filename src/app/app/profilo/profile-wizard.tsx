@@ -71,7 +71,7 @@ function Chip({ label, on, onClick }: { label: string; on: boolean; onClick: () 
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors ${
+      className={`rounded-full border px-3 py-1.5 text-sm font-bold transition-colors ${
         on ? "border-navy bg-navy text-white" : "border-border bg-surface text-foreground"
       }`}
     >
@@ -111,7 +111,7 @@ function TimeInput({
         }}
         className="w-14 rounded-lg border border-border bg-background px-2 py-2 text-center text-lg outline-none focus:border-blu"
       />
-      <span className="mt-1 text-[11px] text-muted">{label}</span>
+      <span className="mt-1 text-sm text-muted">{label}</span>
     </div>
   );
   return (
@@ -514,7 +514,7 @@ export function ProfileWizard({ initial }: { initial: WizardInitial }) {
             <button
               type="button"
               onClick={() => setStep("storia")}
-              className="rounded-xl bg-gradient-to-br from-blu to-navy px-5 py-2.5 font-semibold text-white"
+              className="rounded-xl bg-gradient-to-br from-blu to-navy px-5 py-2.5 font-bold text-white"
             >
               Continua
             </button>
@@ -553,7 +553,7 @@ export function ProfileWizard({ initial }: { initial: WizardInitial }) {
               type="button"
               disabled={saving}
               onClick={() => saveStoria(true)}
-              className="rounded-xl bg-gradient-to-br from-blu to-navy px-5 py-2.5 font-semibold text-white disabled:opacity-60"
+              className="rounded-xl bg-gradient-to-br from-blu to-navy px-5 py-2.5 font-bold text-white disabled:opacity-60"
             >
               {saving ? "Salvo…" : "Fine"}
             </button>
@@ -606,7 +606,7 @@ export function ProfileWizard({ initial }: { initial: WizardInitial }) {
                       : "border-border bg-surface text-foreground"
                   }`}
                 >
-                  <span className="font-semibold">{n}</span> · {AUTOVAL_ANCORE[n]}
+                  <span className="font-bold">{n}</span> · {AUTOVAL_ANCORE[n]}
                 </button>
               ))}
             </div>
@@ -633,7 +633,7 @@ export function ProfileWizard({ initial }: { initial: WizardInitial }) {
               type="button"
               disabled={saving}
               onClick={() => saveLibero(true)}
-              className="rounded-xl bg-gradient-to-br from-blu to-navy px-5 py-2.5 font-semibold text-white disabled:opacity-60"
+              className="rounded-xl bg-gradient-to-br from-blu to-navy px-5 py-2.5 font-bold text-white disabled:opacity-60"
             >
               {saving ? "Salvo…" : "Fine"}
             </button>
@@ -672,7 +672,7 @@ function StepButtons({
           type="button"
           disabled={saving}
           onClick={onNext}
-          className="rounded-xl bg-gradient-to-br from-blu to-navy px-5 py-2.5 font-semibold text-white disabled:opacity-60"
+          className="rounded-xl bg-gradient-to-br from-blu to-navy px-5 py-2.5 font-bold text-white disabled:opacity-60"
         >
           {saving ? "Salvo…" : "Continua"}
         </button>
@@ -745,7 +745,7 @@ function PBList({ pbs, setPbs }: { pbs: PB[]; setPbs: (v: PB[]) => void }) {
           className="flex items-center justify-between rounded-xl border border-border bg-surface px-3 py-2 text-sm"
         >
           <span>
-            <span className="font-semibold text-foreground">
+            <span className="font-bold text-foreground">
               {pb.distanza_m} {pb.stile}
             </span>{" "}
             <span className="text-muted">
@@ -859,7 +859,7 @@ function PBAdd({ onAdded }: { onAdded: (pb: PB) => void }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <TimeInput value={t} onChange={setT} />
         {cc !== null && (
-          <span className="text-lg font-semibold text-foreground">
+          <span className="text-lg font-bold text-foreground">
             {formatTempo(cc)}
           </span>
         )}
@@ -879,7 +879,7 @@ function PBAdd({ onAdded }: { onAdded: (pb: PB) => void }) {
         type="button"
         disabled={saving}
         onClick={add}
-        className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground hover:border-blu disabled:opacity-60"
+        className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-bold text-foreground hover:border-blu disabled:opacity-60"
       >
         <Plus size={16} /> {saving ? "Salvo…" : "Aggiungi tempo"}
       </button>
