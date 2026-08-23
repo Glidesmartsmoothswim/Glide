@@ -10,8 +10,12 @@ import { TIER_LABEL, TIERS } from "@/lib/access";
 const field =
   "rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-blu";
 
-async function uploadTo(bucket: string, file: File, prefix: string) {
-  const supabase = createClient();
+async function uploadTo(
+  supabase: ReturnType<typeof createClient>,
+  bucket: string,
+  file: File,
+  prefix: string,
+) {
   const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
   const key = `${prefix}/${Date.now()}-${safe}`;
   const { error } = await supabase.storage
@@ -34,15 +38,31 @@ export function LibraryForm() {
     setMsg({});
     setBusy(true);
     try {
+      const supabase = createClient();
+      // Forza l'idratazione della sessione PRIMA della prima chiamata a
+      // storage: un client appena creato non ha ancora l'header Authorization
+      // col JWT (arriva async dai cookie). Senza questo await, l'upload può
+      // partire come anonimo e la policy storage ("to authenticated") lo
+      // rifiuta — nel browser sembra un errore di rete/CORS, ma è un 403 RLS.
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setMsg({ error: "Sessione scaduta, rientra." });
+        return;
+      }
       if (kind === "pdf") {
         if (!file) {
           setMsg({ error: "Scegli il file PDF." });
           return;
         }
-        formData.set("file_key", await uploadTo("library", file, "pdf"));
+        formData.set("file_key", await uploadTo(supabase, "library", file, "pdf"));
       }
       if (cover) {
-        formData.set("cover_key", await uploadTo("library", cover, "cover"));
+        formData.set(
+          "cover_key",
+          await uploadTo(supabase, "library", cover, "cover"),
+        );
       }
       const res = await createLibraryItem({}, formData);
       setMsg(res);
