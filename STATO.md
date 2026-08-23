@@ -33,6 +33,13 @@ Ledger 025/026 tracciato + fix fallimento silenzioso webhook Stripe · S-0 (bis)
 - Nessuna migration/DROP eseguita: solo codice, come richiesto ("le tabelle sono già state svuotate a DB").
 - `npx tsc --noEmit` verde. `npx eslint` sui file toccati: pulito. `npm test`: **28/28 verdi** (nessun test copriva i badge).
 
+### 29.3 — Via l'etichetta "stile" da ogni riga workout
+- **Causa:** `lineLabel()` (`lib/workout.ts`) non affiancava un tag alla riga — la **sostituiva**: ricostruiva l'intera riga da `parseLine()` espandendo lo stile (`STROKES[p.stroke]`, es. `SL`→`"Stile"`), così il render mostrava solo la versione ricostruita, mai lo shorthand esatto scritto dal coach.
+- **Le due viste che renderizzano le righe** (coprono editor coach, anteprima nuotatore e digest, che riusano lo stesso componente): `components/workout/editor.tsx` (anteprima live nell'editor) e `components/workout/workout-card.tsx` → `BlockList` (usato da `WorkoutCard`/`CoachWorkoutCard` — scheda coach, scheda nuotatore, `/coach/open`, `/app/nuoto`, archivio — e da `workout-adjust.tsx`, personalizzazione Open 27.3, che eredita il fix senza modifiche proprie).
+- **Fix:** entrambe ora mostrano la riga **raw** (`l.trim()`, esattamente ciò che il coach ha scritto) invece di `lineLabel(l)`. Rimossa `lineLabel()` da `lib/workout.ts` (dead code, nessun altro consumer). Il chip colorato di zona (Z1–Z5/NM) resta — non è "il tag stile", è l'indicatore visivo già presente prima.
+- **Non toccata `sigLabel()`** (`lib/workout.ts`): serve la curva di efficienza (Onda 16), un'etichetta di grafico aggregata, non il render riga-per-riga — fuori dallo scope di questo task.
+- `npx tsc --noEmit` verde. `npx eslint` pulito. `npm test`: 28/28 verdi.
+
 ## 🔓 migration_035 — scope pubblico anon su `marketing.leads`/`marketing.test_results` (21 ago, modalità autonoma)
 
 - **Contesto:** l'audit di ieri (S-0 bis) aveva trovato queste due tabelle "fantasma" (origine esterna, non create da nessuna migration del repo) con RLS attiva ma **zero policy e zero grant** per `anon` — deny-all totale, lasciato come domanda aperta ("da chiarire con te"). Richiesta esplicita di oggi: aprire **solo la scrittura minima** (form pubblico di lead/quiz), mai la lettura.

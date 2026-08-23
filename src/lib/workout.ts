@@ -182,19 +182,6 @@ export function scaleBlocks(blocks: Block[], direction: AdjustDirection): Block[
 export const euro = (n: number): string =>
   "€ " + Number(n).toLocaleString("it-IT");
 
-/** Etichetta leggibile di una riga, es "8×50 Stile @1'20\" · palette · Z3". */
-export function lineLabel(raw: string): string {
-  const p = parseLine(raw);
-  const bits: string[] = [];
-  bits.push(p.reps > 1 ? `${p.reps}×${p.dist}` : `${p.dist}`);
-  bits.push(STROKES[p.stroke] ?? p.stroke);
-  if (p.mode !== "completo") bits.push(p.mode);
-  if (p.interval != null) bits.push("@" + fmtTime(p.interval));
-  if (p.equip.length) bits.push(p.equip.map((e) => EQUIP[e]).join(" · "));
-  if (p.note) bits.push(p.note);
-  return bits.join(" · ");
-}
-
 // NM (neuromuscolare) è massimale: lo trattiamo come set chiave (rank alto).
 const zoneRank = (z: string) => (z === "NM" ? 6 : Number(z[1]) || 0);
 

@@ -1,4 +1,4 @@
-import { ZONES, lineLabel, parseLine, blockMeters, type Block } from "@/lib/workout";
+import { ZONES, parseLine, blockMeters, type Block } from "@/lib/workout";
 import type { WorkoutRow } from "@/lib/types";
 import { Card, Pill } from "@/components/ui/card";
 
@@ -37,7 +37,7 @@ export function BlockList({ blocks }: { blocks: Block[] }) {
                     >
                       {z}
                     </span>
-                    {lineLabel(l)}
+                    {l.trim()}
                   </li>
                 );
               })}
