@@ -2,6 +2,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { clientFeatures } from "@/lib/flags";
 import { Card, Pill } from "@/components/ui/card";
 import { PricingCard, type Feature } from "@/components/pricing/pricing-card";
+import { CheckoutConsent } from "@/components/pricing/checkout-consent";
 import { TIER_LABEL } from "@/lib/access";
 import { startSubscription, startSeason } from "./actions";
 
@@ -56,7 +57,12 @@ function CtaButton({
 export default async function Abbonamenti({
   searchParams,
 }: {
-  searchParams: Promise<{ ok?: string; canceled?: string; sim?: string }>;
+  searchParams: Promise<{
+    ok?: string;
+    canceled?: string;
+    sim?: string;
+    consent?: string;
+  }>;
 }) {
   const sp = await searchParams;
   const profile = await getCurrentProfile();
@@ -74,6 +80,13 @@ export default async function Abbonamenti({
       </header>
 
       {sp.ok && <Card className="text-teal">Pagamento completato. Grazie!</Card>}
+      {sp.consent && (
+        <Card className="text-muted">
+          Per procedere devi prima spuntare la casella sulla rinuncia al
+          recesso: il servizio parte subito, quindi la legge chiede il tuo
+          consenso esplicito prima del pagamento.
+        </Card>
+      )}
       {sp.sim && (
         <Card className="text-muted">
           Checkout in modalità simulata: per attivare i pagamenti reali servono i
@@ -100,14 +113,14 @@ export default async function Abbonamenti({
             badge="Consigliato"
             features={OPEN}
             cta={
-              <form action={startSubscription}>
-                <input type="hidden" name="tier" value="open" />
-                <CtaButton
-                  label={cur("open") ? "Piano attuale" : "Attiva Open"}
-                  color={C.open}
-                  disabled={cur("open")}
-                />
-              </form>
+              cur("open") ? (
+                <CtaButton label="Piano attuale" color={C.open} disabled />
+              ) : (
+                <form action={startSubscription}>
+                  <input type="hidden" name="tier" value="open" />
+                  <CheckoutConsent label="Attiva Open" color={C.open} />
+                </form>
+              )
             }
           />
           <PricingCard
@@ -115,14 +128,14 @@ export default async function Abbonamenti({
             color={C.openPlus}
             features={OPEN_PLUS}
             cta={
-              <form action={startSubscription}>
-                <input type="hidden" name="tier" value="open_plus" />
-                <CtaButton
-                  label={cur("open_plus") ? "Piano attuale" : "Attiva Open+"}
-                  color={C.openPlus}
-                  disabled={cur("open_plus")}
-                />
-              </form>
+              cur("open_plus") ? (
+                <CtaButton label="Piano attuale" color={C.openPlus} disabled />
+              ) : (
+                <form action={startSubscription}>
+                  <input type="hidden" name="tier" value="open_plus" />
+                  <CheckoutConsent label="Attiva Open+" color={C.openPlus} />
+                </form>
+              )
             }
           />
         </div>
@@ -139,7 +152,7 @@ export default async function Abbonamenti({
             cta={
               <form action={startSubscription}>
                 <input type="hidden" name="tier" value="one_to_one_monthly" />
-                <CtaButton label="Attiva mensile" color={C.monthly} />
+                <CheckoutConsent label="Attiva mensile" color={C.monthly} />
               </form>
             }
           />
@@ -150,7 +163,7 @@ export default async function Abbonamenti({
             features={ONE_TO_ONE}
             cta={
               <form action={startSeason}>
-                <CtaButton label="Attiva stagionale" color={C.season} />
+                <CheckoutConsent label="Attiva stagionale" color={C.season} />
               </form>
             }
           />

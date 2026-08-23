@@ -1,4 +1,6 @@
 import "server-only";
+import { headers } from "next/headers";
+import { createHash } from "node:crypto";
 import { getStripe, stripePrices } from "@/lib/stripe";
 import { publicEnv } from "@/lib/env";
 
@@ -73,12 +75,44 @@ export async function createBirraCheckout(opts: {
 }
 
 /**
+ * Prova server-side della rinuncia al recesso (glide-ext-recesso.md §3):
+ * timestamp + hash IP, generati QUI — mai passati come li manda il client.
+ * Viaggiano nella metadata della sessione Checkout e da lì nel webhook.
+ */
+export type WithdrawalWaiver = {
+  waivedAt: string;
+  ipHash: string | null;
+};
+
+/**
+ * Costruisce la prova server-side qui, mai a partire da un valore che manda
+ * il client. L'IP non viene mai conservato in chiaro, solo il suo hash.
+ */
+export async function buildWithdrawalWaiver(): Promise<WithdrawalWaiver> {
+  const h = await headers();
+  const ip =
+    h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    h.get("x-real-ip") ||
+    null;
+  return {
+    waivedAt: new Date().toISOString(),
+    ipHash: ip ? createHash("sha256").update(ip).digest("hex") : null,
+  };
+}
+
+/** glide-ext-recesso.md §2/§4: senza la checkbox spuntata, niente checkout. */
+export function withdrawalWaived(fd: FormData): boolean {
+  return fd.get("withdrawal_waived") === "on";
+}
+
+/**
  * Checkout abbonamento (Open/Open Water/Elite).
  * Ritorna l'URL di Stripe, o null se Stripe/price non configurati.
  */
 export async function createSubscriptionCheckout(opts: {
   tier: SubTier;
   swimmerId: string;
+  waiver: WithdrawalWaiver;
 }): Promise<string | null> {
   const stripe = getStripe();
   const prices = stripePrices();
@@ -98,7 +132,13 @@ export async function createSubscriptionCheckout(opts: {
     mode: "subscription",
     line_items: [{ price: priceId, quantity: 1 }],
     allow_promotion_codes: true,
-    metadata: { type: "subscription", tier: opts.tier, swimmer_id: opts.swimmerId },
+    metadata: {
+      type: "subscription",
+      tier: opts.tier,
+      swimmer_id: opts.swimmerId,
+      withdrawal_waived_at: opts.waiver.waivedAt,
+      withdrawal_waiver_ip_hash: opts.waiver.ipHash ?? "",
+    },
     success_url: `${appUrl()}/app/abbonamenti?ok=1`,
     cancel_url: `${appUrl()}/app/abbonamenti?canceled=1`,
   });
@@ -111,6 +151,7 @@ export async function createSubscriptionCheckout(opts: {
  */
 export async function createSeasonCheckout(opts: {
   swimmerId: string;
+  waiver: WithdrawalWaiver;
 }): Promise<string | null> {
   const stripe = getStripe();
   const prices = stripePrices();
@@ -125,6 +166,8 @@ export async function createSeasonCheckout(opts: {
       tier: "one_to_one",
       swimmer_id: opts.swimmerId,
       season_end: seasonEnd().toISOString(),
+      withdrawal_waived_at: opts.waiver.waivedAt,
+      withdrawal_waiver_ip_hash: opts.waiver.ipHash ?? "",
     },
     success_url: `${appUrl()}/app/abbonamenti?ok=1`,
     cancel_url: `${appUrl()}/app/abbonamenti?canceled=1`,
