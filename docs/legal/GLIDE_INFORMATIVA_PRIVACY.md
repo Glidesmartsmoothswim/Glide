@@ -1,79 +1,100 @@
-<!-- Destinazione nel repo: docs/legal/ · BOZZA di lavoro, da validare con privacy lawyer/DPO.
-     Segnaposto [DA COMPLETARE] = dato tuo. [PROPOSTA] = default da confermare. ⚖️ = nodo da far validare. -->
-# Informativa sul trattamento dei dati personali
-### GLIDE — app di coaching per nuotatori Master · **BOZZA**
+# GLIDE — Informativa Privacy
 
-> **Nota di lavoro (da rimuovere in pubblicazione).** Questa è una bozza tecnica, non un testo legale definitivo. I punti ⚖️ e i segnaposto vanno completati e validati da un legale/DPO prima della pubblicazione. Un'unica informativa può coprire app e sito, con le differenze segnalate nel testo.
+**Bozza pre-legale.** Basata sulla mappa dati e le basi giuridiche già definite in `GLIDE_SECURITY_AUDIT_v1.md` e `GLIDE_PRIVACY_SECURITY_REVIEW.md`. Non sostituisce la validazione di un legale/DPO — obbligatoria prima del lancio pubblico (voce G3/G6 del runbook: informativa + DPIA). Campi tra `[ ]` da completare.
 
-*Ai sensi degli artt. 13 e 14 del Regolamento (UE) 2016/679 (GDPR) e del D.Lgs. 196/2003 come modificato dal D.Lgs. 101/2018.*
+**Ultimo aggiornamento:** [data]
 
 ---
 
 ## 1. Titolare del trattamento
-Il titolare è **[DA COMPLETARE: Alessio Coppola / eventuale denominazione]**, **[DA COMPLETARE: P.IVA / C.F.]**, con sede in **[DA COMPLETARE: indirizzo]**.
-Per ogni questione relativa ai tuoi dati puoi scrivere a **[DA COMPLETARE: email dedicata, es. privacy@glideswim.it]**.
 
-## 2. Responsabile della protezione dei dati (DPO)
-Il titolare **non ha nominato un DPO**, non ricorrendone ad oggi l'obbligo. ⚖️ *Da rivalutare con la crescita del servizio (trattamento sanitario su larga scala).*
+Alessio Coppola — Coach Nuoto (Glide)
+P.IVA: 02381880505
+Sede: Via Beato Pio IX n.4, interno 1 `[città/CAP da aggiungere]`
+Email: glide.smartswim@gmail.com
+PEC: coach.coppola@pec.it
 
-## 3. Quali dati trattiamo
-- **Dati identificativi e di contatto:** nome, cognome, email, telefono.
-- **Dati dell'account e di utilizzo:** credenziali, preferenze, attività nell'app.
-- **Dati relativi alla salute (categorie particolari, art. 9 GDPR):** certificato medico sportivo (o sua data di scadenza), dati di *readiness* fisica e mentale, informazioni su dolori/sintomi eventualmente comunicati in chat, video delle sessioni di nuoto ai fini dell'analisi tecnica.
-- **Dati di pagamento:** gestiti direttamente dal fornitore di pagamento (Stripe); il titolare **non conserva** i dati della carta.
-- **Solo per il sito:** dati inseriti nel *Test del Nuotatore Master* (tempi di gara, parametri di nuotata) e relative inferenze.
+---
 
-## 4. Perché trattiamo i tuoi dati e con quale base giuridica
+## 2. Dati trattati, finalità, base giuridica, conservazione
 
-| Finalità | Base giuridica | Conferimento |
+| Dato | Finalità | Base giuridica | Conservazione |
+|---|---|---|---|
+| Nome, email, telefono, data di nascita | Erogazione del servizio | Contratto (Art. 6.1.b) | Durata del rapporto + 10 anni (obblighi fiscali) |
+| Codice fiscale | Fatturazione | Obbligo di legge | 10 anni |
+| Readiness (sonno, energia, dolori, umore, motivazione) | Personalizzazione dell'allenamento | **Consenso esplicito (Art. 9.2.a)** | 24 mesi, poi aggregazione anonima |
+| RPE e note post-sessione | Tracciamento | **Consenso esplicito (Art. 9.2.a)** | 24 mesi |
+| Video di allenamento/gara | Analisi tecnica | **Consenso dedicato, separato dagli altri** | 12 mesi, salvo richiesta di conservazione più lunga |
+| Messaggi in chat con il coach | Comunicazione e supporto all'allenamento | **Consenso esplicito** (la chat può contenere contenuti sanitari, es. dolori riferiti) | 24 mesi |
+| Prenotazioni, allenamenti assegnati, badge | Erogazione del servizio | Contratto | Durata del rapporto |
+| Dati di pagamento | Fatturazione | Contratto + obbligo fiscale | Gestiti da Stripe — **non conservati da Glide** |
+| Risposte al Test del Nuotatore Master (non ancora cliente) | Contatto commerciale | Consenso (double opt-in) | 24 mesi dall'ultimo contatto, poi cancellazione automatica |
+| Email marketing / newsletter | Comunicazioni promozionali | Consenso (opt-in, revocabile) | Fino a revoca |
+
+I dati di categoria particolare (Art. 9 GDPR — readiness, sintomi, certificati medici, video, contenuto sanitario della chat) sono raccolti solo previo **consenso esplicito, specifico per ciascuna finalità, revocabile in ogni momento**, mai richiesto tramite casella pre-selezionata. Il consenso al servizio (contratto) e il consenso ai dati sanitari sono **richiesti separatamente**: rifiutare il secondo non preclude l'uso base del servizio, ma limita la personalizzazione dell'allenamento.
+
+---
+
+## 3. Soggetti che trattano i dati per conto del Titolare
+
+| Fornitore | Funzione | Nota |
 |---|---|---|
-| Erogare il servizio di coaching e gestire l'account | Esecuzione del contratto (art. 6.1.b) | Necessario |
-| Trattare i tuoi **dati sulla salute** per programmare e seguire l'allenamento | **Consenso esplicito (art. 9.2.a)** | Necessario per il coaching |
-| Gestire i pagamenti e gli obblighi fiscali | Contratto + obbligo legale (art. 6.1.b/c) | Necessario |
-| Inviarti comunicazioni informative/promozionali (nurture) | **Consenso (art. 6.1.a)** | Facoltativo |
-| *(Sito)* Elaborare il Test e ricontattarti | **Consenso (art. 6.1.a / 9.2.a)** | Facoltativo |
-| Garantire la sicurezza del servizio e prevenire abusi | Legittimo interesse (art. 6.1.f) | — |
+| Supabase | Database e autenticazione | Regione UE — `[da confermare]` |
+| Vercel | Hosting applicativo | Funzioni configurate su regione UE |
+| Stripe | Pagamenti | I dati della carta non transitano mai su Glide (Stripe Checkout ospitato) |
+| Resend | Invio email transazionali | Regione — `[da confermare]` |
+| Cloudflare R2 | Storage dei video | Bucket privato, mai pubblico |
+| `[Provider assistente AI]` | Assistente in-app | Riceve solo segnali pseudonimizzati, mai nome/email/data di nascita insieme al contenuto |
 
-## 5. Dati sulla salute — trattamento specifico
-I dati sulla salute sono trattati **esclusivamente sulla base del tuo consenso esplicito**, che puoi **revocare in qualsiasi momento** (vedi §11), senza che ciò pregiudichi la liceità del trattamento precedente. La revoca del consenso ai dati sanitari comporta l'impossibilità di erogare il servizio di coaching, che su tali dati si fonda. I video e i dati di readiness non sono usati per decisioni automatizzate sul carico di allenamento: **le decisioni tecniche sono sempre prese dal coach** (l'assistente digitale legge e segnala, non prescrive).
+Tutti i fornitori operano come responsabili del trattamento (Art. 28 GDPR), con accordo (DPA) sottoscritto o accettato. Per i fornitori con infrastruttura extra-UE si applicano le Clausole Contrattuali Standard (SCC) previste dalla normativa vigente.
 
-## 6. Come raccogliamo i dati
-Direttamente da te, quando crei l'account, compili i questionari, carichi documenti o video, scrivi in chat o usi il Test sul sito.
+---
 
-## 7. A chi comunichiamo i dati (responsabili del trattamento)
-Ci avvaliamo di fornitori che trattano i dati **per nostro conto**, sulla base di appositi accordi (art. 28 GDPR):
+## 4. Diritti dell'interessato
 
-| Fornitore | Ruolo |
-|---|---|
-| Supabase | Database, autenticazione, archiviazione |
-| Stripe | Pagamenti |
-| Resend | Invio email |
-| Cloudflare (R2) | Archiviazione video |
-| Vercel | Hosting dell'applicazione |
-| **[DA COMPLETARE: eventuale provider AI]** | Assistente digitale (riceve solo dati pseudonimizzati) |
+In qualsiasi momento puoi richiedere:
 
-I dati **non vengono venduti** né ceduti a terzi per finalità loro proprie.
+- accesso ai tuoi dati
+- rettifica di dati inesatti
+- cancellazione (diritto all'oblio)
+- limitazione del trattamento
+- portabilità dei dati
+- opposizione al trattamento
+- revoca del consenso, senza effetto retroattivo su quanto già trattato
 
-## 8. Trasferimenti fuori dall'Unione Europea
-Ove possibile i dati sono trattati su server nell'**Unione Europea**. Alcuni fornitori possono trattare dati negli **Stati Uniti**: in tal caso il trasferimento è garantito dalla loro certificazione al **EU-U.S. Data Privacy Framework** e/o dalle **Clausole Contrattuali Standard** approvate dalla Commissione Europea. ⚖️ *Allegare/riferire la mappa trasferimenti aggiornata.*
+Puoi inoltre proporre reclamo al **Garante per la protezione dei dati personali** (www.garanteprivacy.it).
 
-## 9. Per quanto tempo conserviamo i dati
-- **Dati dell'account e sanitari:** per la durata del rapporto e per **[PROPOSTA: 12 mesi]** successivi, salvo obblighi di legge o esercizio/difesa di un diritto.
-- **Certificato medico:** fino alla scadenza + **[PROPOSTA: 12 mesi]**, poi cancellato/anonimizzato. ⚖️ *Valutare se conservare il file o la sola data di scadenza.*
-- **Dati fiscali:** **10 anni** (obbligo di legge).
-- **Consensi marketing / lead / Test:** fino a revoca o **[PROPOSTA: 24 mesi]** di inattività.
-Al termine, i dati sono cancellati o resi anonimi.
+Per esercitare questi diritti: glide.smartswim@gmail.com (o PEC: coach.coppola@pec.it).
 
-## 10. Cookie e tecnologie simili
-Il sito e l'app usano **cookie tecnici** necessari al funzionamento (es. sessione, autenticazione), per i quali **non è richiesto il consenso**. **[Se attivati]** cookie o strumenti di misurazione non essenziali sono utilizzati **solo previo tuo consenso**, raccolto tramite banner. Il dettaglio è nella **Cookie Policy [link]**. ⚖️ *Sezione da allineare alla scelta analytics: se si adotta una misurazione senza cookie, non serve il banner.*
+---
 
-## 11. I tuoi diritti
-Puoi in ogni momento chiedere: **accesso** ai tuoi dati, **rettifica**, **cancellazione**, **limitazione**, **opposizione**, **portabilità**, e **revocare il consenso** prestato. Per esercitarli scrivi a **[DA COMPLETARE: email]**. La revoca del consenso marketing è possibile anche tramite il link di disiscrizione presente in ogni email.
+## 5. Minori
 
-## 12. Reclamo all'Autorità
-Se ritieni che il trattamento violi il GDPR, puoi proporre reclamo al **Garante per la protezione dei dati personali** (www.garanteprivacy.it).
+Il servizio è riservato a utenti maggiorenni (18 anni compiuti). Non vengono raccolti né trattati dati di minori.
 
-## 13. Modifiche
-Questa informativa può essere aggiornata. La versione vigente è sempre disponibile su **[link]**.
+---
 
-**Ultimo aggiornamento:** [DA COMPLETARE] · **Versione:** [DA COMPLETARE]
+## 6. Sicurezza dei dati
+
+I dati sono protetti con controllo degli accessi basato su ruolo, cifratura a riposo (at-rest) presso i fornitori di infrastruttura, e separazione tecnica tra dati identificativi e dati sanitari dove tecnicamente possibile.
+
+---
+
+## 7. Modifiche a questa informativa
+
+Questa informativa può essere aggiornata. Le modifiche sostanziali saranno comunicate agli utenti attivi prima di diventare efficaci.
+
+---
+
+## Nota interna — cosa manca prima della pubblicazione
+
+Non spuntabile da qui, richiede intervento umano/legale:
+
+- [ ] **DPIA** (Art. 35) — verosimilmente obbligatoria per trattamento su larga scala di dati sanitari + profilazione (Glide Score). Vedi G6.
+- [ ] **Registro dei trattamenti** (Art. 30) — non esente, per via dei dati di categoria particolare. Vedi G7.
+- [ ] **DPA firmate/accettate** con ognuno dei fornitori in tabella 3. Vedi G4.
+- [ ] **Conferma regione EU** di Supabase e Resend. Vedi C3/G5.
+- [ ] Aggiungere città/CAP alla sede legale
+- [ ] Validazione finale da parte di un legale/DPO prima della pubblicazione pubblica.
+
+Fonte: `GLIDE_SECURITY_AUDIT_v1.md` §4 (G1–G12), `GLIDE_PRIVACY_SECURITY_REVIEW.md` §2–3.

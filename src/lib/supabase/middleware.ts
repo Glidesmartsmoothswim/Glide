@@ -10,6 +10,8 @@ const PUBLIC_PATHS = [
   "/auth",
   "/api",
   "/offline",
+  "/termini",
+  "/privacy",
 ];
 
 function isPublic(pathname: string) {
