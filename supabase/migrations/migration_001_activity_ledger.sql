@@ -56,12 +56,19 @@ create policy "activity_insert" on public.activity_events
 --   event.signup         { event_id, kind }
 --   videoanalisi.done    { event_id, test_codes: [] }
 --
---   -- Onda 27 — personalizzazione Canale Open
+--   -- Onda 27 — personalizzazione Canale Open (RIMOSSA in Onda 29: il
+--   -- self-scaling +/- non esiste più, sostituito da "Chiedi una modifica"
+--   -- — vedi workout.change_requested sotto. Righe storiche non toccate.)
 --   workout.adjusted     { workout_id, direction: 'riduci'|'standard'|'aumenta' }
 --
 --   -- Onda 28 — riepilogo contenuti + feedback settimanale (planner social)
 --   library.opened        { item_id }
 --   feedback.weekly       { week_start, rating, topics: [], has_note: bool }
+--
+--   -- Onda 29 — "Chiedi una modifica" sulla singola seduta (sostituisce il
+--   -- self-scaling). Il testo della richiesta NON entra qui (vedi regola
+--   -- sotto): va solo alla notifica del coach (lib/notify.ts).
+--   workout.change_requested { workout_id }
 --
 -- Regole payload:
 --   - MAI testo libero del nuotatore (solo has_note: true/false)
