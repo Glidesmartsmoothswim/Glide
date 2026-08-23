@@ -123,8 +123,8 @@ export default async function SwimmerNuoto() {
             <Archive size={18} />
           </span>
           <div className="flex-1">
-            <p className="font-semibold text-foreground">Archivio Open</p>
-            <p className="text-xs text-muted">
+            <p className="font-bold text-foreground">Archivio Open</p>
+            <p className="text-sm text-muted">
               Tutti gli allenamenti passati — scegli e rifai.
             </p>
           </div>
@@ -151,8 +151,8 @@ export default async function SwimmerNuoto() {
                 <CalendarRange size={17} />
               </span>
               <div className="flex-1">
-                <p className="font-semibold text-foreground">{d.title}</p>
-                <p className="text-xs text-muted">
+                <p className="font-bold text-foreground">{d.title}</p>
+                <p className="text-sm text-muted">
                   {new Date(d.completed_at).toLocaleDateString("it-IT", {
                     day: "numeric",
                     month: "short",
@@ -167,7 +167,7 @@ export default async function SwimmerNuoto() {
               {d.workout_id && (
                 <Link
                   href={`/app/nuoto/${d.workout_id}`}
-                  className="text-sm font-semibold text-blu"
+                  className="text-sm font-bold text-blu"
                 >
                   Apri
                 </Link>

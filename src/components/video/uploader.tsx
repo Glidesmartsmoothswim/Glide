@@ -60,7 +60,7 @@ export function VideoUploader() {
         placeholder="Gara (es. 50 SL — Regionali)"
         className={field}
       />
-      <label className="flex flex-col gap-1 text-xs text-muted">
+      <label className="flex flex-col gap-1 text-sm text-muted">
         Data gara (facoltativa)
         <input type="date" name="race_date" className={field} />
       </label>
@@ -75,7 +75,7 @@ export function VideoUploader() {
       <button
         type="submit"
         disabled={busy}
-        className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-blu to-navy py-3 font-semibold text-white disabled:opacity-60"
+        className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-blu to-navy py-3 font-bold text-white disabled:opacity-60"
       >
         <UploadCloud size={18} />
         {busy ? "Carico…" : "Carica video gara"}

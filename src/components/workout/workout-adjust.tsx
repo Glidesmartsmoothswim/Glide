@@ -59,13 +59,13 @@ export function WorkoutAdjust({
           <h3 className="font-display text-lg text-foreground">{w.title}</h3>
           {w.focus && <p className="text-sm text-muted">{w.focus}</p>}
         </div>
-        <span className="shrink-0 text-xs text-muted">
+        <span className="shrink-0 text-sm text-muted">
           {meters.toLocaleString("it-IT")} m · {w.pool ?? 25} m
         </span>
       </div>
 
       {suggestion && (
-        <p className="rounded-lg bg-[#FFF7E6] px-3 py-2 text-xs text-navy">
+        <p className="rounded-lg bg-[#FFF7E6] px-3 py-2 text-sm text-navy">
           {suggestion}
         </p>
       )}
@@ -76,7 +76,7 @@ export function WorkoutAdjust({
             key={o.id}
             type="button"
             onClick={() => choose(o.id)}
-            className={`flex-1 rounded-lg py-2 font-semibold transition-colors ${
+            className={`flex-1 rounded-lg py-2 font-bold transition-colors ${
               direction === o.id ? "bg-navy text-white" : "text-muted"
             }`}
           >

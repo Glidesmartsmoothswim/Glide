@@ -197,7 +197,7 @@ export function Onboarding({ done }: { done: boolean }) {
             {last ? "Inizia" : "Avanti"}
           </button>
         </div>
-        <p className="mt-2 text-center text-xs text-white/30">
+        <p className="mt-2 text-center text-sm text-white/30">
           Scorri lateralmente o usa il pulsante
         </p>
       </div>

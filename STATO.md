@@ -4,7 +4,24 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-08-21 — **migration_035: scope pubblico anon su `marketing.leads`/`test_results` (solo INSERT)** · Ledger 025/026 tracciato + fix fallimento silenzioso webhook Stripe (modalità autonoma) · S-0 (bis): ricognizione sicurezza, solo lettura, scritta in `SECURITY_AUDIT.md` · Versione di prova: prezzi rimossi da `/app/abbonamenti` (19 ago) · Onda 28 · Onda 27 · Onda 26 · Onda 25.**_
+_Ultimo aggiornamento: 2026-08-23 — **ONDA 29: allineamento grafico vista nuotatore · rimozione badge (codice) ·
+via l'etichetta "stile" dalle righe workout · via il +/- percentuale (sostituito da "Chiedi una modifica") ·
+builder allenamento self-service Canale Open (ADR-012)** (modalità autonoma) · migration_035 (21 ago) ·
+Ledger 025/026 tracciato + fix fallimento silenzioso webhook Stripe · S-0 (bis) · Onda 28 · Onda 27 · Onda 26 · Onda 25.**_
+
+## 🌊 ONDA 29 — Allineamento grafico nuotatore · Rimozione badge · Builder self-service Open (23 ago, modalità autonoma)
+
+### 29.1 — Allineamento grafico vista nuotatore ai token unici (ADR-009 / GLIDE_TIPOGRAFIA.md)
+- **Fonte unica del brand confermata:** `src/app/globals.css` (`@theme inline` + variabili `--ink/--turchese/--navy/--blu/--teal`, classi `.t-display/.t-h1…t-label/.t-data`) + `src/app/fonts.ts` (Glacial Indifference 400/700 via `next/font/local`). **`lib/tokens.ts` NON è la fonte del brand** — nome fuorviante, contiene solo i *lesson token* delle lezioni 1:1 (Onda 13.6), dominio diverso; non toccato.
+- **Audit vista nuotatore (27 file, `src/app/app/**` + componenti condivisi importati dalla vista nuotatore):**
+  - **`font-weight: 600` (VIETATO, TIPOGRAFIA §1) ovunque** — Tailwind `font-semibold`/`font-medium` erano il pattern dominante per l'enfasi (bottoni, titoli card, prezzi…). **Sostituito con `font-bold` (700, peso reale)** in tutti e 27 i file: `app/app/**` (nuoto, libreria, abbonamenti, video, profilo…) + componenti condivisi (`ui/card.tsx`, `pricing-card.tsx`, `workout-card/-hand/-adjust.tsx`, `booking/*`, `home-greeting.tsx`, `upgrade-hint.tsx`, `notif-list.tsx`, `placeholder.tsx`, `swimmer-tabbar.tsx`, `video/uploader.tsx`, `assistant-widget.tsx`). **Nota:** questo era presente **identicamente anche lato coach** (44 occorrenze) — non toccato lì, fuori dallo scope di questo task (solo vista nuotatore).
+  - **Testo sotto 14px (VIETATO, TIPOGRAFIA §2 — "niente scende sotto i 14px, nemmeno le didascalie")** — `text-xs` (12px) usato per didascalie/etichette/errori in 22 file lato nuotatore: **portato a `text-sm` (14px)**. Più alcune taglie arbitrarie sotto i 14px (`text-[10px]/[11px]/[13px]`) in `profile-wizard.tsx`, `pricing-card.tsx`, `checkin.tsx`, `swimmer-tabbar.tsx`, `libreria/page.tsx`, `workout-hand.tsx`: stessa correzione.
+  - **Pattern "etichetta" ricostruito ad-hoc invece del token `.t-label`** (es. `text-xs font-semibold uppercase tracking-wide text-blu`, il tag "occhiello" descritto in TIPOGRAFIA §3) in 4 punti (`libreria/page.tsx`, `video/page.tsx`, `program-home-card.tsx`, `workout-hand.tsx`): **sostituito con la classe `.t-label`** già definita in `globals.css` — stessa resa, ma ora dalla fonte unica invece che da una combinazione di utility ricostruita a mano.
+  - **Colori hardcoded fuori palette:** nessun hex nuovo introdotto lato nuotatore. Trovati `#DC2626` (errori form) e `#B45309`/`#FFF7E6`/`bg-amber-500` (stato "warning", da `ui/card.tsx` Card/Pill variant) — **non toccati**: sono baked-in nel componente `Card`/`Pill` condiviso, **identici lato coach** (nessuna disallineamento nuotatore↔coach da correggere) e la palette chiusa (TIPOGRAFIA §6) non prevede un colore di stato "attenzione/errore" alternativo — ridisegnare l'intero sistema di stato è una decisione più ampia, non richiesta qui, e non è la causa del sintomo segnalato ("vista nuotatore con grafiche vecchie").
+  - **Font diversi da Glacial Indifference:** nessuno trovato lato nuotatore (nessun `font-family`/`fontFamily` custom fuori da `fonts.ts`/`globals.css`).
+  - **Body 17px minimo + `font-synthesis: none`:** già globali in `globals.css` (`body{font-size:17px}` e `*{font-synthesis:none}`), coprono l'intera app inclusa la vista nuotatore — nessuna modifica necessaria, verificato.
+- **Non toccato (fuori scope, per completezza):** `src/components/shell/coach-sidebar.tsx` ha un `text-[10px]` — è lato coach, non nuotatore.
+- `npx tsc --noEmit` verde. `npx eslint` sui 29 file toccati: **0 nuovi errori** — i 2 preesistenti (`assistant-widget.tsx`, `home-greeting.tsx`, regola `react-hooks/set-state-in-effect`, non relativi a questo cambio) restano, non toccati.
 
 ## 🔓 migration_035 — scope pubblico anon su `marketing.leads`/`marketing.test_results` (21 ago, modalità autonoma)
 

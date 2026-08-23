@@ -33,7 +33,7 @@ export function PricingCard({
     <div className="relative flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface px-3 pb-4 pt-9 shadow-sm">
       {badge && (
         <span
-          className="absolute left-1/2 top-2 -translate-x-1/2 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
+          className="absolute left-1/2 top-2 -translate-x-1/2 rounded-full px-2 py-0.5 text-sm font-bold text-white"
           style={{ background: color }}
         >
           {badge}
@@ -48,14 +48,14 @@ export function PricingCard({
 
       <div className="text-center">
         {price && <p className="font-display text-2xl text-foreground">{price}</p>}
-        {period && <p className="text-xs text-muted">{period}</p>}
-        {saving && <p className="mt-0.5 text-xs font-semibold text-teal">{saving}</p>}
-        {tagline && <p className="text-xs text-muted">{tagline}</p>}
+        {period && <p className="text-sm text-muted">{period}</p>}
+        {saving && <p className="mt-0.5 text-sm font-bold text-teal">{saving}</p>}
+        {tagline && <p className="text-sm text-muted">{tagline}</p>}
       </div>
 
       <ul className="flex w-full flex-1 flex-col gap-1.5">
         {features.map((f) => (
-          <li key={f.label} className="flex items-start gap-2 text-xs">
+          <li key={f.label} className="flex items-start gap-2 text-sm">
             {f.included ? (
               <Check size={14} className="mt-0.5 shrink-0 text-[#16A34A]" />
             ) : (

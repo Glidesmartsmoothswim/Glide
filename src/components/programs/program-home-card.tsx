@@ -24,7 +24,7 @@ export function ProgramHomeCard({
 
   return (
     <Card className="flex flex-col gap-1">
-      <span className="text-xs font-semibold uppercase tracking-wide text-blu">
+      <span className="t-label text-blu">
         Il tuo programma
       </span>
       <h2 className="font-display text-lg text-foreground">

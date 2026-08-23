@@ -135,7 +135,7 @@ export default async function SwimmerProfilo({
           <h2 className="font-display text-lg text-foreground">Profilo atleta</h2>
           <Link
             href="/app/profilo/crea"
-            className="text-sm font-semibold text-blu"
+            className="text-sm font-bold text-blu"
           >
             {hasProfile ? "Modifica" : "Completa"}
           </Link>
@@ -170,7 +170,7 @@ export default async function SwimmerProfilo({
                     <span className="text-muted">
                       {pb.distanza_m} {pb.stile} · vasca {pb.vasca}
                     </span>
-                    <span className="font-semibold text-foreground">
+                    <span className="font-bold text-foreground">
                       {formatTempo(pb.tempo_cc)}
                     </span>
                   </div>
@@ -181,7 +181,7 @@ export default async function SwimmerProfilo({
         ) : (
           <Card className="text-sm text-muted">
             Racconta chi sei: categoria, specialità e i tuoi tempi.{" "}
-            <Link href="/app/profilo/crea" className="font-semibold text-blu">
+            <Link href="/app/profilo/crea" className="font-bold text-blu">
               Inizia →
             </Link>
           </Card>
@@ -207,10 +207,10 @@ export default async function SwimmerProfilo({
               style={{ background: CERT_LIGHT_DOT[light] }}
             />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-foreground">
+              <p className="text-sm font-bold text-foreground">
                 {CERT_LIGHT_LABEL[light]}
               </p>
-              <p className="text-xs text-muted">
+              <p className="text-sm text-muted">
                 Scadenza {cert.data_scadenza}
               </p>
             </div>
@@ -234,7 +234,7 @@ export default async function SwimmerProfilo({
           {tokenAvail > 0 ? (
             <Card className="text-foreground">
               Hai{" "}
-              <span className="font-semibold">
+              <span className="font-bold">
                 {tokenAvail === 1
                   ? "1 lezione inclusa"
                   : `${tokenAvail} lezioni incluse`}
@@ -291,12 +291,12 @@ export default async function SwimmerProfilo({
           className="flex items-center justify-between rounded-2xl border border-border bg-surface p-4 hover:border-blu"
         >
           <div>
-            <p className="font-semibold text-foreground">Vedi i piani</p>
+            <p className="font-bold text-foreground">Vedi i piani</p>
             <p className="text-sm text-muted">
               Canale Open e Percorso 1:1 — scegli e confronta.
             </p>
           </div>
-          <span className="rounded-xl bg-gradient-to-br from-blu to-navy px-4 py-2.5 text-sm font-semibold text-white">
+          <span className="rounded-xl bg-gradient-to-br from-blu to-navy px-4 py-2.5 text-sm font-bold text-white">
             Apri
           </span>
         </Link>
@@ -318,7 +318,7 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between">
       <span className="text-muted">{label}</span>
-      <span className="font-semibold text-foreground">{value}</span>
+      <span className="font-bold text-foreground">{value}</span>
     </div>
   );
 }

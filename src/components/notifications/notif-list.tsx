@@ -26,7 +26,7 @@ export function NotifList({
         <form action={markAllRead} className="self-end">
           <button
             type="submit"
-            className="text-sm font-semibold text-blu hover:underline"
+            className="text-sm font-bold text-blu hover:underline"
           >
             Segna tutte come lette ({unread})
           </button>
@@ -46,9 +46,9 @@ export function NotifList({
               {n.type ? NOTIF_EMOJI[n.type] : "🔔"}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="font-semibold text-foreground">{n.title}</p>
+              <p className="font-bold text-foreground">{n.title}</p>
               {n.body && <p className="text-sm text-muted">{n.body}</p>}
-              <p className="mt-0.5 text-xs text-muted">
+              <p className="mt-0.5 text-sm text-muted">
                 {shortDate(n.created_at)}
               </p>
             </div>

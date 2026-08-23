@@ -59,7 +59,7 @@ function Scale({
           </button>
         ))}
       </div>
-      <div className="mt-1 flex justify-between text-[13px] text-muted">
+      <div className="mt-1 flex justify-between text-sm text-muted">
         <span>{anchors[1]}</span>
         <span>{anchors[max]}</span>
       </div>

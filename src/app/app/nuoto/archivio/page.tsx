@@ -93,7 +93,7 @@ export default async function OpenArchive({
       </header>
 
       <form method="get" className="flex flex-wrap items-end gap-2">
-        <label className="flex flex-1 flex-col gap-1 text-xs text-muted">
+        <label className="flex flex-1 flex-col gap-1 text-sm text-muted">
           Cerca
           <span className="flex items-center gap-2 rounded-xl border border-border bg-background px-3">
             <Search size={15} className="text-muted" />
@@ -105,7 +105,7 @@ export default async function OpenArchive({
             />
           </span>
         </label>
-        <label className="flex flex-col gap-1 text-xs text-muted">
+        <label className="flex flex-col gap-1 text-sm text-muted">
           Focus
           <select name="focus" defaultValue={focus} className={field}>
             <option value="">Tutti</option>
@@ -118,7 +118,7 @@ export default async function OpenArchive({
         </label>
         <button
           type="submit"
-          className="rounded-xl bg-navy px-4 py-2 text-sm font-semibold text-white"
+          className="rounded-xl bg-navy px-4 py-2 text-sm font-bold text-white"
         >
           Filtra
         </button>
@@ -129,10 +129,10 @@ export default async function OpenArchive({
       ) : (
         byWeek.map((g) => (
           <section key={g.week || "no-week"} className="flex flex-col gap-3">
-            <h2 className="text-sm font-semibold text-muted">
+            <h2 className="text-sm font-bold text-muted">
               {g.week ? formatWeek(g.week) : "Senza settimana"}
               {g.isCurrent && (
-                <span className="ml-2 rounded bg-turchese/15 px-1.5 py-0.5 text-xs text-teal">
+                <span className="ml-2 rounded bg-turchese/15 px-1.5 py-0.5 text-sm text-teal">
                   corrente
                 </span>
               )}

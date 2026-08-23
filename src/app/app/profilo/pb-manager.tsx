@@ -129,7 +129,7 @@ export function PbManager({ items }: { items: Pb[] }) {
               }`}
             >
               <span>
-                <span className="font-semibold text-foreground">
+                <span className="font-bold text-foreground">
                   {pb.distanza_m} {pb.stile}
                 </span>{" "}
                 <span className="text-muted">
@@ -167,13 +167,13 @@ export function PbManager({ items }: { items: Pb[] }) {
       >
         {editId && (
           <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-blu">
+            <span className="text-sm font-bold text-blu">
               Modifica tempo
             </span>
             <button
               type="button"
               onClick={resetForm}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-muted hover:text-foreground"
+              className="inline-flex items-center gap-1 text-sm font-bold text-muted hover:text-foreground"
             >
               <X size={14} /> Annulla
             </button>
@@ -245,13 +245,13 @@ export function PbManager({ items }: { items: Pb[] }) {
             />
           </div>
           {cc !== null && (
-            <span className="text-lg font-semibold text-foreground">
+            <span className="text-lg font-bold text-foreground">
               {formatTempo(cc)}
             </span>
           )}
         </div>
 
-        <label className="flex flex-col gap-1 text-xs text-muted">
+        <label className="flex flex-col gap-1 text-sm text-muted">
           Data (facoltativa)
           <input
             type="date"
@@ -267,12 +267,12 @@ export function PbManager({ items }: { items: Pb[] }) {
           type="button"
           disabled={busy}
           onClick={save}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-blu to-navy py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-blu to-navy py-2.5 text-sm font-bold text-white disabled:opacity-60"
         >
           {editId ? <Pencil size={16} /> : <Plus size={16} />}{" "}
           {busy ? "Salvo…" : editId ? "Aggiorna tempo" : "Salva tempo"}
         </button>
-        <p className="text-xs text-muted">
+        <p className="text-sm text-muted">
           Programma individuale completo (staffette escluse). Usa la matita per
           correggere un tempo senza rifarlo da capo.
         </p>

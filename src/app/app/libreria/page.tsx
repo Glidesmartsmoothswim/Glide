@@ -84,19 +84,19 @@ export default async function SwimmerLibreria() {
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-blu">
+                <div className="t-label flex items-center gap-1.5 text-blu">
                   <Icon size={12} /> {KIND_LABEL[i.kind]}
                 </div>
-                <p className="text-sm font-semibold leading-snug text-foreground">
+                <p className="text-sm font-bold leading-snug text-foreground">
                   {i.title}
                 </p>
                 {i.description && (
-                  <p className="line-clamp-2 text-xs text-muted">
+                  <p className="line-clamp-2 text-sm text-muted">
                     {i.description}
                   </p>
                 )}
                 {!unlocked && target && (
-                  <p className="mt-auto text-[11px] text-muted">
+                  <p className="mt-auto text-sm text-muted">
                     Con il piano {TIER_LABEL[target]}
                   </p>
                 )}
@@ -122,7 +122,7 @@ export default async function SwimmerLibreria() {
         </div>
       )}
 
-      <p className="flex items-center gap-2 text-xs text-muted">
+      <p className="flex items-center gap-2 text-sm text-muted">
         <BookOpen size={14} /> I contenuti bloccati si sbloccano con il piano
         indicato.
       </p>

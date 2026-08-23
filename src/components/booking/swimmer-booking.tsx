@@ -171,7 +171,7 @@ export function SwimmerBooking({
                   : "border-border bg-surface hover:border-blu/40"
               }`}
             >
-              <p className="font-semibold">{s.name.split(" · ")[0]}</p>
+              <p className="font-bold">{s.name.split(" · ")[0]}</p>
               <p className="t-small text-muted">{s.duration_min}′ · {s.mode === "remote" ? "Video" : "Vasca"}</p>
             </button>
           ))}
@@ -226,7 +226,7 @@ export function SwimmerBooking({
                 <button
                   key={iso}
                   onClick={() => setSlot(iso)}
-                  className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
+                  className={`rounded-lg border px-3 py-2 text-sm font-bold ${
                     slot === iso
                       ? "border-blu bg-blu text-white"
                       : "border-border bg-surface text-ink hover:border-blu/40"
@@ -255,7 +255,7 @@ export function SwimmerBooking({
           {tokensAvailable > 0 && (
             <button
               onClick={() => setUseToken((v) => !v)}
-              className={`mt-3 w-full rounded-lg border px-3 py-2 text-left text-sm font-semibold ${
+              className={`mt-3 w-full rounded-lg border px-3 py-2 text-left text-sm font-bold ${
                 willUseToken
                   ? "border-teal bg-teal/10"
                   : "border-border bg-surface"
@@ -275,7 +275,7 @@ export function SwimmerBooking({
               {stripeEnabled && (
                 <button
                   onClick={() => setMethod("stripe")}
-                  className={`rounded-lg border px-3 py-2 text-left text-sm font-semibold ${
+                  className={`rounded-lg border px-3 py-2 text-left text-sm font-bold ${
                     method === "stripe"
                       ? "border-blu bg-blu/10"
                       : "border-border bg-surface"
@@ -286,7 +286,7 @@ export function SwimmerBooking({
               )}
               <button
                 onClick={() => setMethod("cash")}
-                className={`rounded-lg border px-3 py-2 text-left text-sm font-semibold ${
+                className={`rounded-lg border px-3 py-2 text-left text-sm font-bold ${
                   method === "cash"
                     ? "border-navy bg-navy/10"
                     : "border-border bg-surface"

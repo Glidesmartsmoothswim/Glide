@@ -19,7 +19,7 @@ export function Placeholder({
       <div className="flex items-center gap-3">
         <h1 className="font-display text-2xl text-foreground">{title}</h1>
         {simulated && (
-          <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-[#B45309]">
+          <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-sm font-bold text-[#B45309]">
             simulato
           </span>
         )}

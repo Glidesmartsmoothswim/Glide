@@ -41,7 +41,7 @@ export function VideoActions({
           })
         }
         disabled={pending}
-        className={`inline-flex items-center gap-1 font-semibold ${
+        className={`inline-flex items-center gap-1 font-bold ${
           preserved ? "text-blu" : "text-muted hover:text-foreground"
         }`}
       >
@@ -59,7 +59,7 @@ export function VideoActions({
         </button>
       ) : (
         <div className="ml-auto flex flex-col items-end gap-2">
-          <p className="max-w-xs text-right text-xs text-muted">{warn}</p>
+          <p className="max-w-[16rem] text-right text-sm text-muted">{warn}</p>
           <div className="flex gap-2">
             <button
               type="button"
@@ -78,7 +78,7 @@ export function VideoActions({
                   setConfirm(false);
                 })
               }
-              className="rounded-lg bg-[#DC2626] px-3 py-1.5 font-semibold text-white disabled:opacity-60"
+              className="rounded-lg bg-[#DC2626] px-3 py-1.5 font-bold text-white disabled:opacity-60"
             >
               Elimina
             </button>
@@ -86,7 +86,7 @@ export function VideoActions({
         </div>
       )}
 
-      {msg && <p className="w-full text-xs text-muted">{msg}</p>}
+      {msg && <p className="w-full text-sm text-muted">{msg}</p>}
     </div>
   );
 }
@@ -109,7 +109,7 @@ export function UndoDelete({ videoId }: { videoId: string }) {
             setMsg(r.error ?? null);
           })
         }
-        className="inline-flex items-center gap-1 text-sm font-semibold text-blu disabled:opacity-60"
+        className="inline-flex items-center gap-1 text-sm font-bold text-blu disabled:opacity-60"
       >
         <RotateCcw size={15} /> Annulla
       </button>

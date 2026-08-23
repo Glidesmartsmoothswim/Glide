@@ -14,11 +14,11 @@ export function BlockList({ blocks }: { blocks: Block[] }) {
           style={{ borderLeft: `4px solid ${ZONES[b.z]?.color ?? "#ccc"}` }}
         >
           <div className="mb-1 flex items-center justify-between">
-            <span className="text-sm font-semibold text-foreground">
+            <span className="text-sm font-bold text-foreground">
               {b.rounds > 1 ? `${b.rounds}× ` : ""}
               {b.name || b.z}
             </span>
-            <span className="text-xs text-muted">{blockMeters(b)} m</span>
+            <span className="text-sm text-muted">{blockMeters(b)} m</span>
           </div>
           <ul className="flex flex-col gap-0.5">
             {b.lines
@@ -29,7 +29,7 @@ export function BlockList({ blocks }: { blocks: Block[] }) {
                 return (
                   <li key={k} className="text-sm text-foreground/80">
                     <span
-                      className="mr-1.5 inline-block rounded px-1 text-xs font-semibold"
+                      className="mr-1.5 inline-block rounded px-1 text-sm font-bold"
                       style={{
                         background: ZONES[z]?.tint,
                         color: ZONES[z]?.text,
@@ -67,7 +67,7 @@ export function WorkoutCard({ w }: { w: WorkoutRow }) {
         <div className="flex shrink-0 flex-col items-end gap-1">
           {updated && <Pill tone="brand">Aggiornato</Pill>}
           {w.week_day && <Pill tone="brand">{w.week_day}</Pill>}
-          <span className="text-xs text-muted">
+          <span className="text-sm text-muted">
             {(w.total_meters ?? 0).toLocaleString("it-IT")} m · {w.pool ?? 25} m
           </span>
         </div>

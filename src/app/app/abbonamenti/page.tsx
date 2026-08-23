@@ -46,7 +46,7 @@ function CtaButton({
       type="submit"
       disabled={disabled}
       style={disabled ? undefined : { background: color }}
-      className="w-full rounded-lg py-2.5 text-sm font-semibold text-white disabled:bg-background disabled:text-muted"
+      className="w-full rounded-lg py-2.5 text-sm font-bold text-white disabled:bg-background disabled:text-muted"
     >
       {label}
     </button>
@@ -68,7 +68,7 @@ export default async function Abbonamenti({
       <header>
         <h1 className="font-display text-2xl text-foreground">Scegli il tuo piano</h1>
         <p className="flex items-center gap-2 text-sm text-muted">
-          Piano attuale: <span className="font-semibold">{TIER_LABEL[tier]}</span>
+          Piano attuale: <span className="font-bold">{TIER_LABEL[tier]}</span>
           {!clientFeatures.stripe && <Pill tone="warn">simulato</Pill>}
         </p>
       </header>
@@ -86,7 +86,7 @@ export default async function Abbonamenti({
 
       {/* FREE — fascia semplice, non una carta di vendita */}
       <div className="rounded-xl border border-border bg-background p-3 text-sm text-muted">
-        <span className="font-semibold text-foreground">Free</span> — Registrati
+        <span className="font-bold text-foreground">Free</span> — Registrati
         gratis: Libreria e prenotazione eventi singoli.
       </div>
 
@@ -157,7 +157,7 @@ export default async function Abbonamenti({
         </div>
       </section>
 
-      <p className="text-xs text-muted">
+      <p className="text-sm text-muted">
         Puoi usare un codice promozionale al momento del pagamento.
       </p>
     </div>
