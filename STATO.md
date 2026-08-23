@@ -23,6 +23,16 @@ Ledger 025/026 tracciato + fix fallimento silenzioso webhook Stripe · S-0 (bis)
 - **Non toccato (fuori scope, per completezza):** `src/components/shell/coach-sidebar.tsx` ha un `text-[10px]` — è lato coach, non nuotatore.
 - `npx tsc --noEmit` verde. `npx eslint` sui 29 file toccati: **0 nuovi errori** — i 2 preesistenti (`assistant-widget.tsx`, `home-greeting.tsx`, regola `react-hooks/set-state-in-effect`, non relativi a questo cambio) restano, non toccati.
 
+### 29.2 — Rimozione badge (codice)
+- **Contesto:** tabelle `badges`/`swimmer_badges` **già svuotate a DB** (richiesta esplicita). Rimosso tutto ciò che le usava lato codice.
+- **File eliminati:** `lib/badges/detect.ts` (detection automatica, ex FASE 6.3 `PROMPT_CODE_MASTER.md`), `components/badges/badge-shelf.tsx` (rendering badge, nuotatore+coach), `components/badges/confer-badges.tsx` (UI coach "Conferisci badge", ex FASE 6.1), `app/coach/nuotatori/[id]/badge-actions.ts` (server action di conferimento).
+- **File modificati (rimossi import/query/sezioni):** `app/coach/nuotatori/[id]/page.tsx` (tolta la sezione "Badge" + la query `swimmer_badges`/`badges`), `app/app/progressi/page.tsx` (tolta `<BadgeShelf>` + la query dei badge guadagnati), `app/api/cron/digest/route.ts` (tolta la chiamata notturna `detectAndAward`, ex FASE 6.4).
+- **Falsi positivi verificati e NON toccati** (stessa parola "badge" ma è la UI generica a "pillola/etichetta", non gamification): `pricing-card.tsx` (prop `badge` = ribbon "Consigliato"), `abbonamenti/page.tsx` (passa quella prop), `shell/placeholder.tsx` (pill "simulato"), `agenda/coach-agenda.tsx` (`ModeBadge`/`PayBadge`, pillole modalità/pagamento lezione), `lib/flags.ts` (commento).
+- **Non toccato, per esplicita indicazione:** Glide Score, Onda, Effetto Acqua — invariati. `lib/identity` (§6, Esploratore/Costante/Tecnico/Competitore/Mentore) **non è un badge**, resta: ma la sua lettura di `swimmer_badges`/`badge_code='capitano'` per riconoscere l'identità **Mentore** ora non scatterà mai più (tabella vuota per sempre) — **nota aperta, non decisa qui** (lasciare dormiente / agganciare "Mentore" a un altro segnale / rimuovere il ramo).
+- **`docs/GLIDE_GAMIFICATION.md` §5** marcata **🔴 RIMOSSA** con nota (sezione storica lasciata sotto, non cancellata — richiesto).
+- Nessuna migration/DROP eseguita: solo codice, come richiesto ("le tabelle sono già state svuotate a DB").
+- `npx tsc --noEmit` verde. `npx eslint` sui file toccati: pulito. `npm test`: **28/28 verdi** (nessun test copriva i badge).
+
 ## 🔓 migration_035 — scope pubblico anon su `marketing.leads`/`marketing.test_results` (21 ago, modalità autonoma)
 
 - **Contesto:** l'audit di ieri (S-0 bis) aveva trovato queste due tabelle "fantasma" (origine esterna, non create da nessuna migration del repo) con RLS attiva ma **zero policy e zero grant** per `anon` — deny-all totale, lasciato come domanda aperta ("da chiarire con te"). Richiesta esplicita di oggi: aprire **solo la scrittura minima** (form pubblico di lead/quiz), mai la lettura.

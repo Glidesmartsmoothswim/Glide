@@ -134,6 +134,15 @@ con un altro nuotatore.
 
 ## 5. I badge
 
+> **🔴 RIMOSSA — 23 ago 2026 (Onda 29, modalità autonoma).** Tabelle `badges`/`swimmer_badges`
+> svuotate a DB; rimossi dal codice ogni componente/vista che li renderizzava (nuotatore e coach),
+> la UI coach "Conferisci badge" (ex FASE 6.1 di `PROMPT_CODE_MASTER.md`) e la detection automatica
+> (ex FASE 6.3). Sezione lasciata sotto **com'era, per storico** — non è più lo stato del prodotto.
+> **Nota aperta:** `lib/identity` (§6) leggeva il badge "capitano" per riconoscere l'identità
+> **Mentore** — quella lettura resta nel codice (non è "un badge", è l'identità, fuori scope qui),
+> ma con la tabella vuota per sempre non scatterà più. Da decidere: lasciarla dormiente, agganciare
+> "Mentore" a un altro segnale, o togliere quel ramo — non deciso qui.
+
 ### Il difetto della lista attuale
 
 **"Prima Bracciata" per esserti iscritto è un premio di partecipazione.** Un adulto lo riconosce

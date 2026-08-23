@@ -1,7 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { computeDigest } from "@/lib/digest";
 import { computeAndStore } from "@/lib/score/compute";
-import { detectAndAward } from "@/lib/badges/detect";
 import { getResend, emailFrom } from "@/lib/resend";
 import { serverFeatures } from "@/lib/flags";
 import { publicEnv } from "@/lib/env";
@@ -36,7 +35,6 @@ async function run(req: Request) {
     .eq("role", "swimmer");
   for (const s of swimmers ?? []) {
     await computeAndStore(admin, s.id);
-    await detectAndAward(admin, s.id);
   }
 
   const sections = await computeDigest(admin);
