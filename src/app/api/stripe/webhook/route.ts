@@ -77,6 +77,10 @@ export async function POST(req: Request) {
           tier: meta.tier ?? null,
           price_cents: amount,
           status: "active",
+          // glide-ext-recesso.md §3: prova della rinuncia al recesso,
+          // scritta dal server alla creazione del Checkout (mai dal client).
+          withdrawal_waived_at: meta.withdrawal_waived_at || null,
+          withdrawal_waiver_ip_hash: meta.withdrawal_waiver_ip_hash || null,
         },
         { onConflict: "stripe_subscription_id" },
       );
@@ -100,6 +104,12 @@ export async function POST(req: Request) {
     } else if (meta.type === "season" && meta.swimmer_id) {
       // 1:1 stagionale (one-off): tier one_to_one fino a fine giugno; poi il
       // job pg_cron giornaliero lo riporta a free.
+      //
+      // NB glide-ext-recesso.md: la rinuncia al recesso viene comunque
+      // raccolta e passata in metadata (vedi actions.ts/stripe-checkout.ts),
+      // ma qui non c'è una riga `subscriptions` su cui scriverla (percorso
+      // one-off, non un abbonamento Stripe ricorrente). La prova resta nella
+      // sessione Checkout su Stripe stesso (immutabile, consultabile per id).
       const { error: seasonTierError } = await admin
         .from("profiles")
         .update({
