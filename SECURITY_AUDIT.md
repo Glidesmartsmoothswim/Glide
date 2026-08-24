@@ -5,6 +5,83 @@
 
 ---
 
+## C-6 / C-7 — RPC lesson token (IDOR) + grant_monthly_tokens pubblica — 23 agosto 2026 (modalità autonoma)
+
+> Seguito diretto della voce "Extra" dell'indagine S-0 (bis) del 21 agosto (sotto): quel giro
+> aveva trovato 7 funzioni `SECURITY DEFINER` chiamabili via `/rest/v1/rpc/...` da anon/authenticated,
+> segnalando `grant_monthly_tokens`/`reserve_lesson_token`/`release_lesson_token`/`link_lesson_token`
+> come "corpo non verificato in questo giro". Verificato ora, con fix.
+
+### C-6 — IDOR su RPC lesson token — nessun controllo ownership
+
+**Problema:** nessuna delle tre funzioni verificava che il token/swimmer passato come argomento
+appartenesse al chiamante. Un utente `authenticated` qualsiasi poteva chiamare
+`/rest/v1/rpc/reserve_lesson_token` con `p_swimmer` di un altro nuotatore (o `link_lesson_token`/
+`release_lesson_token` con l'`id` del token altrui) e operarci sopra — riservare/collegare/rilasciare
+un token lezione 1:1 non suo.
+
+**Fix (`migration_039_rpc_ownership_checks.sql`):** aggiunto in ciascuna, prima di qualunque update,
+un controllo `auth.uid() = <proprietario> OR is_coach()` (stessa regola già in vigore nello schema —
+non decisa in questa sessione), con `raise exception` esplicito (mai un update silenzioso a 0 righe).
+Esentato il solo `auth.role() = 'service_role'`: è il percorso interno reale
+(`src/app/api/booking/create/route.ts` chiama tutte e tre via `admin.rpc(...)`, service_role, con
+l'id del nuotatore già autenticato a monte nella route) — senza l'esenzione il fix avrebbe rotto la
+prenotazione con token in produzione.
+
+**Bug scoperto e corretto in corsa durante il test live:** la forma naturale
+`not (auth.uid() = p_swimmer or is_coach())` in `reserve_lesson_token` è **NULL, non TRUE**, quando
+`auth.uid()` è NULL (chiamante `anon`, nessun `sub` nel JWT) — logica a tre valori SQL:
+`NULL or false = NULL`, `not NULL = NULL`, e `if NULL then` non entra mai nel ramo. Con quella forma
+un `anon` **senza alcuna identità** avrebbe bypassato silenziosamente il controllo (non essendo mai
+`= p_swimmer` per costruzione, ma nemmeno mai bloccato). Corretto con `(...) IS NOT TRUE`
+(NULL-safe: vale true sia per `false` sia per `NULL`). `link_lesson_token`/`release_lesson_token`
+non avevano lo stesso bug: il loro check passa da un `EXISTS(... WHERE swimmer_id = auth.uid() ...)`,
+e in un `WHERE` una riga con `NULL = NULL` è comunque esclusa (non "indecisa") — `EXISTS` ritorna
+sempre un booleano definito, mai NULL.
+
+**Verifica — LIVE sul DB reale**, impersonando due nuotatori distinti (id reali, esistenti) + un
+coach + `anon` + `service_role` via `set_config('request.jwt.claims', …, true); set local role …;`
+dentro una transazione con rollback finale (stesso metodo di Onda 29.5, `STATO.md`):
+
+| # | Scenario | Atteso | Esito |
+|---|---|---|---|
+| S1 | B chiama `reserve_lesson_token(p_swimmer=A)` | errore 42501 | ✅ |
+| S2 | A riserva il proprio token | riuscito | ✅ |
+| S3 | Coach riserva un token per conto di B | riuscito (regola schema) | ✅ |
+| S4 | B chiama `link_lesson_token` sul token di A | errore 42501 | ✅ |
+| S5 | A collega il proprio token | riuscito | ✅ |
+| S6 | B chiama `release_lesson_token` sul token di A | errore 42501 | ✅ |
+| S7 | B rilascia il proprio token | riuscito | ✅ |
+| S8 | `service_role` riserva per conto di B (percorso `/api/booking/create`) | riuscito, non esentato dal check | ✅ |
+| S9 | `anon` (nessun `sub`) chiama `reserve_lesson_token` | errore 42501 | ✅ (bug NULL-safety trovato e corretto qui) |
+| S10 | `authenticated` chiama `grant_monthly_tokens` | `permission denied` (42501) | ✅ |
+| S11 | `anon` chiama `grant_monthly_tokens` | `permission denied` (42501) | ✅ |
+
+**11/11 come atteso.** Cleanup verificato: `rollback` + conteggio righe di test residue = 0.
+Test strutturale di regressione: `test/security/rpc-ownership-lesson-tokens.sql` (verifica che il
+check ownership + `IS NOT TRUE` + `raise exception` siano nel corpo delle funzioni, e che il grant
+resti tolto — stesso stile di `role-lock.sql`/`workouts-self-kind.sql`; verificato che fallisce
+davvero se il fix viene rimosso, non solo che passa oggi).
+
+### C-7 — grant_monthly_tokens() chiamabile pubblicamente
+
+**Problema:** `SECURITY DEFINER` pensata per il solo cron (`pg_cron`, ruolo `postgres`), ma con
+`EXECUTE` ancora concesso a `anon`/`authenticated` — verificato live su
+`information_schema.routine_privileges`, nonostante il `revoke execute ... from public` già presente
+in `migration_024`/`migration_027` (quel revoke toglie il grant implicito a `PUBLIC`, ma
+`anon`/`authenticated` avevano un grant esplicito separato, non coperto).
+
+**Fix:** `revoke execute on function public.grant_monthly_tokens() from anon, authenticated;`.
+`service_role`/`postgres` non sono soggetti al revoke: il cron (`select cron.schedule(...)`,
+`migration_024`/`027`) continua a funzionare invariato — non ri-verificato via impersonazione `postgres`
+in questo giro (il ruolo `postgres` non è mai stato nel revoke, quindi non c'è nulla da regredire lì),
+ma confermato che il grant a `postgres`/`service_role` resta intatto (vedi tabella grant sopra).
+
+**Non toccato:** `is_coach`, `my_tier`, `test_mode` — restano chiamabili da anon/authenticated per
+design (il client legge il proprio stato), come già annotato nell'indagine del 21 agosto sotto.
+
+---
+
 ## Indagine mirata — 21 agosto 2026 (modalità autonoma, solo lettura)
 
 > Richiesta: elenco completo migration + verifica applicata/non applicata sul DB live per

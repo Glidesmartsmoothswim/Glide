@@ -4,10 +4,45 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-08-23 — **ONDA 29: allineamento grafico vista nuotatore · rimozione badge (codice) ·
-via l'etichetta "stile" dalle righe workout · via il +/- percentuale (sostituito da "Chiedi una modifica") ·
-builder allenamento self-service Canale Open (ADR-012)** (modalità autonoma) · migration_035 (21 ago) ·
+_Ultimo aggiornamento: 2026-08-23 — **Sec fix C-6/C-7: ownership check RPC lesson token (IDOR) +
+grant_monthly_tokens non più pubblica** (modalità autonoma, migration_039) · ONDA 29: allineamento
+grafico vista nuotatore · rimozione badge (codice) · via l'etichetta "stile" dalle righe workout ·
+via il +/- percentuale (sostituito da "Chiedi una modifica") · builder allenamento self-service
+Canale Open (ADR-012)** (modalità autonoma) · migration_035 (21 ago) ·
 Ledger 025/026 tracciato + fix fallimento silenzioso webhook Stripe · S-0 (bis) · Onda 28 · Onda 27 · Onda 26 · Onda 25.**_
+
+## 🔒 Sec fix C-6/C-7 — Ownership RPC lesson token + grant_monthly_tokens (23 ago, modalità autonoma)
+
+- **Contesto:** l'indagine S-0 (bis) del 21 agosto (sezione "Extra" più sotto in questo file/in
+  `SECURITY_AUDIT.md`) aveva trovato 7 funzioni `SECURITY DEFINER` chiamabili via RPC da
+  anon/authenticated, senza verificarne il corpo. Richiesta di oggi: verificare e correggere
+  `grant_monthly_tokens` (ARANCIO) e `reserve_lesson_token`/`link_lesson_token`/`release_lesson_token`
+  (ROSSO, IDOR).
+- **Vincoli sessione rispettati:** nessuna funzione droppata/rinominata, nessun'altra `SECURITY DEFINER`
+  toccata, nessuna decisione nuova sulla regola coach-per-conto-di-swimmer (riusata quella già in
+  vigore: `auth.uid() = proprietario OR is_coach()`), nessun `git push --force`, fix applicato **solo**
+  come migration tracciata (`migration_039_rpc_ownership_checks.sql`, ledger `20260823...` — baseline
+  già attiva, coerente col resto del progetto).
+- **C-7 (grant_monthly_tokens):** `revoke execute ... from anon, authenticated`. Verificato live che
+  il grant a `postgres`/`service_role` (usato dal cron `pg_cron`) resta intatto.
+- **C-6 (IDOR lesson token):** aggiunto in tutte e tre un check di ownership con `raise exception`
+  esplicito prima di qualunque update. **Bug trovato e corretto durante il test live:** la forma
+  ovvia `not (auth.uid() = p_swimmer or is_coach())` è NULL (non TRUE) quando `auth.uid()` è NULL
+  (chiamante `anon` senza `sub`) — un anon senza identità avrebbe bypassato il check silenziosamente.
+  Corretto con `(...) IS NOT TRUE` (NULL-safe). `link_lesson_token`/`release_lesson_token` non avevano
+  questo bug (il loro check passa da un `EXISTS(...)`, già NULL-safe per costruzione).
+- **TEST OBBLIGATORIO — eseguito LIVE sul DB reale**, impersonando due nuotatori reali distinti (A, B)
+  + un coach reale + `anon` + `service_role` via `set_config('request.jwt.claims', …, true); set local
+  role …;` dentro una transazione, poi rollback + cleanup verificato (0 righe residue) — stesso metodo
+  di Onda 29.5: **11/11 scenari attesi confermati**, incluso che il percorso interno
+  `/api/booking/create` (via `service_role`) resta intatto e non regredisce nell'esenzione dal check.
+  Dettaglio scenari in `SECURITY_AUDIT.md`. Test strutturale di regressione aggiunto in
+  `test/security/rpc-ownership-lesson-tokens.sql` (stesso stile di `role-lock.sql`/
+  `workouts-self-kind.sql`) — verificato che fallisce davvero se un fix viene rimosso, non solo che
+  passa oggi.
+- **Non toccato:** `is_coach`, `my_tier`, `test_mode` (chiamabili da anon/authenticated per design,
+  già annotato nell'indagine del 21 agosto) — nessun'altra funzione `SECURITY DEFINER` toccata, come
+  da vincolo.
 
 ## 🌊 ONDA 29 — Allineamento grafico nuotatore · Rimozione badge · Builder self-service Open (23 ago, modalità autonoma)
 
