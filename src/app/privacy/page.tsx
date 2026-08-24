@@ -9,8 +9,7 @@ import {
  * Testo copiato 1:1 da docs/legal/GLIDE_INFORMATIVA_PRIVACY.md — solo le
  * sezioni numerate (1–7). Escluso l'header "bozza pre-legale" e la nota
  * interna finale (uso interno, non per pubblicazione). Nessuna modifica al
- * contenuto: non "migliorarlo". Il segnaposto città/CAP in §1 è nel
- * documento sorgente e resta com'è (gap noto, non da inventare).
+ * contenuto: non "migliorarlo".
  */
 export const metadata: Metadata = { title: "Informativa Privacy" };
 
@@ -23,7 +22,7 @@ export default function PrivacyPage() {
           <br />
           P.IVA: 02381880505
           <br />
-          Sede: Via Beato Pio IX n.4, interno 1 [città/CAP da aggiungere]
+          Sede: Via Beato Pio IX n.4, interno 1 — 56043 Fauglia (PI)
           <br />
           Email:{" "}
           <a href="mailto:glide.smartswim@gmail.com" className="underline">

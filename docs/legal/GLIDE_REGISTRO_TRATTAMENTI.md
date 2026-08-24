@@ -9,7 +9,7 @@
 ## Titolare del trattamento
 
 Alessio Coppola — Coach Nuoto (Glide)
-P.IVA: 02381880505 · Sede: Via Beato Pio IX n.4, interno 1 `[città/CAP]` · Email: glide.smartswim@gmail.com · PEC: coach.coppola@pec.it
+P.IVA: 02381880505 · Sede: Via Beato Pio IX n.4, interno 1 — 56043 Fauglia (PI) · Email: glide.smartswim@gmail.com · PEC: coach.coppola@pec.it
 DPO: non nominato — non obbligatorio alla dimensione attuale, da rivalutare se cresce il volume di dati sanitari trattati.
 
 ---
@@ -146,7 +146,7 @@ DPO: non nominato — non obbligatorio alla dimensione attuale, da rivalutare se
 - [ ] Confermare regione Resend e Cloudflare R2
 - [ ] Base giuridica Events ledger (§11) — conferma legale
 - [ ] Valutare nomina DPO se cresce il volume di dati sanitari
-- [ ] Aggiungere città/CAP alla sede legale
+- [x] Aggiungere città/CAP alla sede legale — Fauglia (PI), 56043
 - [ ] Validazione legale finale
 
 Fonte: mappa dati `GLIDE_PRIVACY_SECURITY_REVIEW.md` §2–3, `GLIDE_SECURITY_AUDIT_v1.md` §4.
