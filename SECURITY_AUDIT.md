@@ -5,6 +5,100 @@
 
 ---
 
+## S-5 — C-6 (EXECUTE anon su RPC lesson token) + C-7 (zone_rpe_bands pubblica) — 24 agosto 2026 (modalità autonoma)
+
+> Seguito di `GLIDE_SECURITY_AUDIT_v2.md` (verificato live via MCP, non solo documentale) e
+> `PROMPT_CODE_SEC_S5.md`. Continua la numerazione C-6/C-7 già usata il 23/8 per l'IDOR sui token —
+> qui sono due finding **diversi**, stesso identificativo riusato dal documento sorgente per la
+> superficie EXECUTE/RLS residua sulle stesse funzioni/tabelle.
+
+### C-6 (S-5) — EXECUTE su `link/release/reserve_lesson_token` ancora aperto ad `anon`
+
+**Contesto:** il fix IDOR del 23/8 (`migration_039`) rende le tre funzioni già sicure nella
+sostanza — un `anon` che le chiama riceve `not authorized` dal check di ownership interno, perché
+`auth.uid()` è NULL. Ma restavano **chiamabili anche da chi non è nemmeno autenticato**: nessun
+caso d'uso legittimo pre-login le richiede (riscattare/collegare/rilasciare un token lezione 1:1
+presuppone per forza un account).
+
+**Verificato live prima del fix** (`information_schema.routine_privileges`): `anon` aveva ancora
+`EXECUTE` su tutte e tre.
+
+**Fix (`migration_040_s5_anon_execute_zone_bands.sql`):**
+```sql
+revoke execute on function public.link_lesson_token(uuid, uuid)    from anon;
+revoke execute on function public.release_lesson_token(uuid)       from anon;
+revoke execute on function public.reserve_lesson_token(uuid)       from anon;
+```
+`authenticated` non toccato (per vincolo esplicito di sessione): gli swimmer autenticati continuano
+a chiamarle regolarmente.
+
+**Verifica — LIVE sul DB reale**, stesso metodo del 23/8 (`set_config('request.jwt.claims', …,
+true); set local role …;` dentro una transazione con rollback finale, cleanup verificato):
+
+| # | Scenario | Atteso | Esito |
+|---|---|---|---|
+| T1 | `anon` chiama `reserve_lesson_token` | `permission denied` (42501, **prima** del check ownership) | ✅ |
+| T1b | `anon` chiama `link_lesson_token` | `permission denied` (42501) | ✅ |
+| T1c | `anon` chiama `release_lesson_token` | `permission denied` (42501) | ✅ |
+| T2 | `authenticated` (swimmer proprietario) riserva il proprio token | riuscito, percorso legittimo intatto | ✅ |
+
+**Regressione simulata e confermata:** ri-concesso `EXECUTE` ad `anon` su `reserve_lesson_token`
+dentro una transazione con rollback — il test strutturale (sotto) lo intercetta correttamente.
+
+### C-7 (S-5) — `zone_rpe_bands` leggibile anche da `anon`
+
+**Contesto:** la policy `bands_read` (`migration_002_readiness_v2.sql`) usava `for select using
+(true)` **senza clausola `to`**, quindi scoped a `PUBLIC` — la mappatura Z1-Z5/RPE del protocollo
+(metodologia interna, volutamente non esposta nel copy customer-facing) era interrogabile via `GET
+/rest/v1/zone_rpe_bands` da chiunque, anche senza login. Non un problema GDPR (zero dati
+personali), ma di proprietà del metodo.
+
+**Verificato live prima del fix** (`pg_policy.polroles`): `bands_read` aveva `polroles = {-}`
+(oid `0` = PUBLIC, nessun nome) e `using (true)` — nessuna restrizione di ruolo.
+
+**Fix:**
+```sql
+drop policy if exists bands_read on public.zone_rpe_bands;
+create policy bands_read on public.zone_rpe_bands
+  for select to authenticated using (true);
+```
+`bands_write` (già scoped a `is_coach()`) **non toccata**, per vincolo esplicito di sessione.
+
+**Verifica — LIVE sul DB reale:**
+
+| # | Scenario | Atteso | Esito |
+|---|---|---|---|
+| T3 | `anon` legge `zone_rpe_bands` | 0 righe (RLS filtra — il grant SELECT a livello tabella resta, come ovunque nello schema; lo scoping vive nella policy) | ✅ |
+| T4 | `authenticated` legge `zone_rpe_bands` | tutte e 5 le bande (Z1–Z5) | ✅ |
+
+**Regressione simulata e confermata:** ripristinata `bands_read` senza `to authenticated` dentro
+una transazione con rollback — il test strutturale la intercetta correttamente.
+
+### Test di regressione
+
+`test/security/lesson-token-anon-execute.sql` (C-6) e `test/security/zone-bands-anon-read.sql`
+(C-7) — stesso stile strutturale di `role-lock.sql`/`workouts-self-kind.sql`/
+`rpc-ownership-lesson-tokens.sql`, entrambi verificati che falliscono davvero se il fix viene
+rimosso (regressione simulata + rollback, non solo che passano oggi).
+
+**Deviazione dal prompt sorgente, dichiarata:** `PROMPT_CODE_SEC_S5.md` chiedeva
+`test/security/*.test.ts`. `package.json` fa girare `npm test` **solo** su `src/**/*.test.ts`; un
+test `.test.ts` che verifichi davvero il 401/403 end-to-end dovrebbe colpire l'API REST live di
+Supabase con credenziali reali — fragile in CI, rischio di introdurre nel repo un test di rete
+contro il progetto di produzione. Scelto invece lo stesso pattern `.sql` strutturale già in uso e
+già provato in questo repo, con verifica **comunque eseguita live** (tabelle sopra) a colmare la
+differenza. Segnalato qui esplicitamente, non deciso in silenzio.
+
+### Vincoli sessione rispettati
+
+Non toccato `EXECUTE` su `is_coach()`/`my_tier()`/`test_mode()` (chiamate da dentro le policy RLS
+stesse — revocarle avrebbe rotto ogni policy che le usa). Non toccata la policy `"profili: modifica
+propria o coach"` (C-8, decisione di tenancy che aspetta un ADR — fuori scope qui). Nessuna funzione
+droppata o rinominata. Fix applicato solo come migration tracciata (`migration_040`), niente SQL
+Editor a mano.
+
+---
+
 ## C-6 / C-7 — RPC lesson token (IDOR) + grant_monthly_tokens pubblica — 23 agosto 2026 (modalità autonoma)
 
 > Seguito diretto della voce "Extra" dell'indagine S-0 (bis) del 21 agosto (sotto): quel giro
