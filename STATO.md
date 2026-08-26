@@ -6,6 +6,8 @@
 
 _Ultimo aggiornamento: 2026-08-26 — **ADR-013: rimozione blocco dolore strutturato dal readiness
 (PROPOSTO, codice pronto, migration NON applicata)** (modalità autonoma) ·
+MFA (TOTP) sull'account, FASE 1: enrollment (modalità autonoma; FASE 2 bloccata, attende conferma
+umana) ·
 **S-5: revoke EXECUTE anon su RPC lesson token (C-6) +
 zone_rpe_bands ristretta a authenticated (C-7)** (modalità autonoma, migration_040) ·
 Sec fix C-6/C-7 (23 ago): ownership check RPC lesson token (IDOR) + grant_monthly_tokens non più
@@ -83,6 +85,49 @@ S-0 (bis) · Onda 28 · Onda 27 · Onda 26 · Onda 25.**_
   (profili/readiness/certificati/video dei tester); 2) ADR-013 PROPOSTO → ACCETTATO; 3) applicare
   `migration_041...sql` al progetto live; 4) rigirare `test/db/readiness-schema.test.ts` con le
   env configurate per confermare che passi davvero.
+
+## 🔐 MFA (TOTP) sull'account — FASE 1: enrollment (26 ago, modalità autonoma)
+
+- **Contesto:** `PROMPT_CODE_COACH_MFA.md` — B-1 di `GLIDE_SECURITY_AUDIT_v2.md` (account coach
+  senza MFA, unico ruolo che vede dati sanitari di tutti). Finora era trattato come puro gate
+  umano da dashboard Supabase; questo prompt chiede una UI in-app per l'enrollment, in due fasi
+  con uno stop obbligatorio in mezzo.
+- **Verificato prima di scrivere codice (come richiesto):** nessun flusso 2FA/MFA/TOTP esisteva
+  già nel repo — solo menzioni nei documenti di audit/DPIA come azione da fare. Nessuna
+  duplicazione.
+- **Vincolo di sessione rispettato: FASE 2 NON eseguita.** Solo enrollment (FASE 1). `is_coach()`
+  non è stato toccato. Serve conferma esplicita "MFA attivo, ho verificato" dopo un login reale
+  del coach prima di procedere alla FASE 2 (irrigidire `is_coach()` a `aal2`).
+- **`src/lib/mfa.ts`** (nuovo): logica pura di orchestrazione (`getMfaStatus`, `enrollTotp`,
+  `verifyTotpCode`, `unenrollFactor`, `isAal2`), tipizzata contro un sottoinsieme strutturale di
+  `SupabaseClient["auth"]["mfa"]` — testabile con un fake sincrono, nessun progetto Supabase live
+  richiesto per i test. `unenrollFactor` rifiuta (`needsStepUp: true`) se la sessione corrente non
+  è già `aal2`, come richiesto dal prompt; non chiama mai `unenroll()` reale in quel caso.
+- **`src/components/account/mfa-settings.tsx`** (nuovo, client component): UI — stato attuale
+  (`listFactors`), "Attiva 2FA" → QR code (`totp.qr_code`, già gestito come possibile data-URI o
+  SVG grezzo) + secret in chiaro + campo codice a 6 cifre → verifica; messaggio esplicito post-
+  attivazione su registrare un fattore di backup; "Disattiva" che, se la sessione non è aal2,
+  propone uno step-up (verifica un codice adesso, senza serve un nuovo login) prima di procedere.
+  Nessun gating per ruolo nel componente stesso — lo decide la pagina che lo monta.
+- **Montato in due punti**, nessuna eccezione per ruolo: `src/app/app/profilo/page.tsx` (nuova
+  sezione "Sicurezza", nuotatore) e `src/app/coach/sicurezza/page.tsx` (nuovo, route statica che
+  ha precedenza su `/coach/[section]`; aggiunta voce "Sicurezza" alla sidebar coach, nuovo gruppo
+  "Account").
+- **Test — `test/auth/mfa-enrollment.test.ts`** (nuovo), contro un fake locale del client MFA
+  (nessuna rete, nessun Supabase live): (1) enroll → verify con codice corretto → fattore
+  `verified`; (2) verify con codice sbagliato → fattore resta `unverified`, sessione resta aal1
+  (nessun accesso concesso); (3) `listFactors` dopo enrollment riuscito mostra il fattore; (4)
+  `unenroll` rifiutato su sessione aal1, riuscito dopo uno step-up che eleva ad aal2. Aggiunto
+  `test/**/*.test.ts` al glob di `npm test` in `package.json` (stesso fix già fatto su un altro
+  branch per `test/db/`, qui rifatto perché questo branch parte da `main`).
+- **Verificato:** `npx tsc --noEmit` pulito (incluso allineare i tipi di `src/lib/mfa.ts` ai tipi
+  reali di `@supabase/auth-js` — `factor_type` non `factorType` sull'oggetto fattore,
+  `AuthenticatorAssuranceLevels` è `'aal1'|'aal2'|(string & {})` non un'unione chiusa), `npx
+  eslint` pulito sui file toccati, `npm test` → 32/32 (28 preesistenti + 4 nuovi).
+- **Prossimi passi (bloccati, non fatti qui):** 1) login reale del coach fuori da questa
+  sessione, attiva il fattore con la sua app authenticator, verifica al login successivo
+  (logout/login, chiede il codice); 2) conferma esplicita in chat; 3) solo allora, FASE 2 —
+  `is_coach()` richiede `aal2` — in una sessione separata, mai insieme alla FASE 1.
 
 ## 🔒 S-5 — Revoke EXECUTE anon su RPC lesson token (C-6) + zone_rpe_bands → authenticated (C-7) (24 ago, modalità autonoma)
 

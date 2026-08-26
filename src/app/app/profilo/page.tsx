@@ -7,6 +7,7 @@ import { signOut } from "@/app/login/actions";
 import { Card, Pill } from "@/components/ui/card";
 import { ObjectivesManager } from "./objectives-manager";
 import { CertificateDeclaration } from "./certificate-declaration";
+import { MfaSettings } from "@/components/account/mfa-settings";
 import { PbManager, type Pb } from "./pb-manager";
 import type { ObjectiveRow } from "@/lib/objectives";
 import {
@@ -197,6 +198,13 @@ export default async function SwimmerProfilo({
           le chiavi Stripe (Price ID) in <code>.env.local</code>.
         </Card>
       )}
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-display text-lg text-foreground">Sicurezza</h2>
+        <Card>
+          <MfaSettings />
+        </Card>
+      </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-lg text-foreground">Certificato medico</h2>
