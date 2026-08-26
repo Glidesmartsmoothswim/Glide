@@ -5,7 +5,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * Ledger append-only `activity_events` (ADR-003 / migration_001).
  * Vocabolario chiuso. Regole payload (ADR-004):
  *  - MAI testo libero del nuotatore → solo `has_note` boolean.
- *  - MAI le sedi del dolore → solo `health_flag` boolean.
  *  - MAI valori derivati (XP, Glide Score): si calcolano a valle.
  */
 export type EventType =

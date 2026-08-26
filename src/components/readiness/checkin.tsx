@@ -4,13 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  PRE_QUESTIONS,
-  RPE_ANCHORS,
-  MOOD_ANCHORS,
-  PAIN_SITES,
-  RED_FLAG_LABEL,
-} from "@/lib/readiness";
+import { PRE_QUESTIONS, RPE_ANCHORS, MOOD_ANCHORS } from "@/lib/readiness";
 import { savePre, savePost, type ReadinessState } from "@/app/app/readiness-actions";
 
 function Submit({ label }: { label: string }) {
@@ -79,30 +73,16 @@ function PreForm() {
   const router = useRouter();
   const [state, action] = useActionState(savePre, {} as ReadinessState);
   const [vals, setVals] = useState<Record<string, number>>({});
-  const [pains, setPains] = useState<string[]>([]);
-  const [red, setRed] = useState(false);
   const set = (k: string, v: number) => setVals((s) => ({ ...s, [k]: v }));
-  const togglePain = (p: string) =>
-    setPains((s) => (s.includes(p) ? s.filter((x) => x !== p) : [...s, p]));
 
-  const corpo = vals["corpo"] ?? 0;
-
-  // Pre salvato con successo (e nessun red flag): diamo un feedback e portiamo
-  // il nuotatore alla scelta degli allenamenti.
-  const done = Boolean(state.info) && !state.redFlag;
+  // Pre salvato con successo: diamo un feedback e portiamo il nuotatore
+  // alla scelta degli allenamenti.
+  const done = Boolean(state.info);
   useEffect(() => {
     if (!done) return;
     const t = setTimeout(() => router.push("/app/nuoto"), 1800);
     return () => clearTimeout(t);
   }, [done, router]);
-
-  if (state.redFlag) {
-    return (
-      <div className="rounded-xl border-2 border-turchese bg-background p-4">
-        <p className="t-body font-bold text-foreground">{state.info}</p>
-      </div>
-    );
-  }
 
   if (done) {
     const nums = Object.values(vals);
@@ -132,8 +112,6 @@ function PreForm() {
 
   return (
     <form action={action} className="flex flex-col gap-4">
-      <input type="hidden" name="pain_sites" value={pains.join(",")} />
-      <input type="hidden" name="red_flag" value={red ? "true" : ""} />
       <p className="t-small text-muted">
         Da 1 a 5. Non ci sono risposte giuste: la verità, com&apos;è oggi.
       </p>
@@ -147,39 +125,8 @@ function PreForm() {
             value={vals[q.key] ?? 0}
             onChange={(v) => set(q.key, v)}
           />
-          {q.key === "corpo" && corpo > 0 && corpo <= 3 && (
-            <div className="mt-2 rounded-xl border border-border bg-background p-3">
-              <div className="t-label mb-2 text-muted">Dove? (obbligatorio)</div>
-              <div className="flex flex-wrap gap-2">
-                {PAIN_SITES.map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => togglePain(p)}
-                    className={`rounded-full border px-3 py-1.5 t-small font-bold ${
-                      pains.includes(p)
-                        ? "border-blu bg-blu text-white"
-                        : "border-border text-foreground"
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       ))}
-
-      <button
-        type="button"
-        onClick={() => setRed((r) => !r)}
-        className={`rounded-xl border-2 px-3 py-2.5 t-body font-bold ${
-          red ? "border-turchese bg-turchese/10 text-foreground" : "border-border text-muted"
-        }`}
-      >
-        {RED_FLAG_LABEL}
-      </button>
 
       {state.error && <p className="t-small font-bold text-[#B45309]">{state.error}</p>}
       <Submit label="Invia al coach" />

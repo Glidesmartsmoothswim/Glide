@@ -4,7 +4,9 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-08-24 — **S-5: revoke EXECUTE anon su RPC lesson token (C-6) +
+_Ultimo aggiornamento: 2026-08-26 — **ADR-013: rimozione blocco dolore strutturato dal readiness
+(PROPOSTO, codice pronto, migration NON applicata)** (modalità autonoma) ·
+**S-5: revoke EXECUTE anon su RPC lesson token (C-6) +
 zone_rpe_bands ristretta a authenticated (C-7)** (modalità autonoma, migration_040) ·
 Sec fix C-6/C-7 (23 ago): ownership check RPC lesson token (IDOR) + grant_monthly_tokens non più
 pubblica (migration_039) · ONDA 29: allineamento grafico vista nuotatore · rimozione badge (codice) ·
@@ -12,6 +14,75 @@ via l'etichetta "stile" dalle righe workout · via il +/- percentuale (sostituit
 modifica") · builder allenamento self-service Canale Open (ADR-012) (modalità autonoma) ·
 migration_035 (21 ago) · Ledger 025/026 tracciato + fix fallimento silenzioso webhook Stripe ·
 S-0 (bis) · Onda 28 · Onda 27 · Onda 26 · Onda 25.**_
+
+## 🩺 ADR-013 — Rimozione blocco dolore strutturato dal readiness (26 ago, modalità autonoma)
+
+- **Contesto:** seguito di `PROMPT_CODE_READINESS_V3.md` + `GLIDE_QUESTIONARIO.md` (v3) +
+  `GLIDE_SECURITY_AUDIT_v2.md`/DPIA — `pain_sites`/`corpo`/`health_flag`/`red_flag` in `readiness`
+  sono dato sanitario ai sensi del GDPR a prescindere dall'uso. Rimozione completa (nessuna
+  eccezione), come da ADR-013.
+- **Numerazione ADR:** il prompt sorgente citava questa decisione come "ADR-012", ma quel numero
+  è già in uso ovunque nel codice per il builder self-service Canale Open (Onda 29.5 — vedi riga
+  sopra), mai formalizzato in `GLIDE_ADR.md` ma citato come esistente in 9+ file/test. Rinumerata
+  **ADR-013** per non collidere (confermato con l'utente prima di scrivere).
+- **Stato: PROPOSTO, non ACCETTATO.** Come da vincoli del prompt sorgente, non cambio lo stato
+  senza conferma esplicita.
+- **Migration `migration_041_readiness_remove_pain_fields.sql`: scritta, NON applicata al
+  progetto Supabase live.** È un DROP COLUMN irreversibile su dati reali; il prerequisito
+  "pulizia dati di test" non risultava confermato in questa sessione e l'ADR è ancora PROPOSTO —
+  confermato con l'utente di preparare tutto senza eseguire nulla sul DB reale. Drop viste
+  (`v_readiness` cascade) + colonne + ricreazione delle 3 viste con `readiness_fisica =
+  (sonno+energia)/2` (era `/3` con `corpo`); query di verifica post-apply e grant incluse nel
+  file. Da applicare (via MCP Supabase o dashboard) solo dopo: pulizia dati tester confermata,
+  ADR-013 passato ad ACCETTATO.
+- **Applicativo:** rimossi da `src/lib/readiness.ts` (`PRE_QUESTIONS.corpo`, `PAIN_SITES`,
+  `RED_FLAG_LABEL`, `L2_TEMPLATE`, campi dal tipo `VReadinessRow`); `readiness-actions.ts`
+  (`savePre` non gestisce più corpo/pain_sites/health_flag/red_flag, niente più notifica coach
+  da qui); `checkin.tsx` (via la scala "Come sta il corpo?", il chip "Dove?", il chip rosso
+  ⚠️ Petto/respiro/testa); `progress.tsx` (via la card "Dolori segnalati", dati sparsi con la
+  colonna). Il matcher L1/L2 di ADR-004 (chat/nota, testo libero) **non toccato**: resta l'unico
+  canale per segnalare dolore/sintomi.
+- **Digest coach (`src/lib/digest.ts`):** rimosse le sezioni "Da chiamare" (da `red_flag`) e
+  "Corpo" (dolore ricorrente da `pain_sites`) — la loro unica fonte dati sparisce con la
+  migration, lasciarle avrebbe rotto la query in produzione. Confermato con l'utente prima di
+  toccarle (non erano nella lista "segnala soltanto" del prompt sorgente). Corretta anche una
+  formula duplicata trovata durante il giro: "Sta scivolando" calcolava `readiness_fisica` come
+  `(sonno+energia+corpo)/3` invece che tramite la vista — ora `(sonno+energia)/2`, coerente con
+  ADR-013. Il segnale rosso resta comunque immediato via `notifyCoaches` dal matcher ADR-004,
+  indipendente dal digest settimanale.
+- **Copy onboarding:** aggiornato sia `src/components/onboarding/onboarding.tsx` sia
+  `docs/GLIDE_ONBOARDING.md` (dovevano restare identici) — "5 domande" → "4 domande", via il
+  riferimento a "dove fa male", esplicitato che dolore/sintomi si scrivono in chat o nella nota
+  ("il tap guidato non c'è più", checklist del prompt sorgente). Aggiornata anche la checklist
+  di collaudo B1/B2 nello stesso file.
+- **`docs/GLIDE_QUESTIONARIO.md`** sostituito con la v3 (fornita nel prompt sorgente): 4 domande
+  invece di 5, formula `readiness_fisica` a 2 termini, nota su dove segnalare dolore/sintomi.
+- **Test — `test/db/readiness-schema.test.ts`** (nuovo): (1) insert con `corpo` deve fallire
+  colonna-inesistente, (2) select dalle 3 viste deve riuscire, (3) `readiness_fisica` letto da
+  `v_readiness` deve combaciare con `(sonno+energia)/2` su una riga reale. **Non importa**
+  `@/lib/supabase/admin`/`@/lib/env` (quel modulo fa crash a import-time se le env pubbliche
+  mancano): costruisce un client Supabase proprio, e salta con `test.skip` se
+  `NEXT_PUBLIC_SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` non sono configurate — verificato che
+  in questo stato **salta pulito, non fallisce**. Aggiunto `test/**/*.test.ts` al glob di `npm
+  test` in `package.json` (prima solo `src/**/*.test.ts`): senza, questo file non sarebbe mai
+  girato. A differenza della deviazione dichiarata in S-5 (SQL invece di `.test.ts` per non
+  "colpire l'API REST live con credenziali reali"), qui il file resta `.test.ts` come chiesto
+  perché le sue query live sono a sola lettura o a fallimento voluto (nessuna scrittura reale):
+  girare in CI con secrets configurati non avrebbe lo stesso rischio.
+- **Verificato:** `npx tsc --noEmit` pulito, `npx eslint` pulito sui file toccati, `npm test` →
+  28/28 pass preesistenti + 3 nuovi test **skip** (nessuna migration applicata, come da scelta
+  sopra) — nessuna regressione.
+- **Non toccato (fuori scope, come da vincoli):** il matcher ADR-004 (`safety.ts`/`router.ts`,
+  solo un commento di `router.ts` corretto perché parlava di un `health_flag` non più esistente);
+  il riferimento obsoleto al certificato medico in ADR-004 (già segnalato in ADR-013 stesso); la
+  soglia `readiness_fisica >= 3.5`; `GLIDE_PRODUCT_BIBLE_v1.0.md`/`GLIDE_GAMIFICATION.md` (la
+  sezione §8 lì descritta già non combacia 1:1 con `digest.ts` da prima di questa sessione —
+  riconciliarla è un lavoro più ampio, non di questo ADR); i `PROMPT_CODE_*.md` storici (sono
+  verbali di sessioni passate, non spec vive).
+- **Prossimi passi (non fatti qui, serve conferma umana):** 1) pulizia dati di test
+  (profili/readiness/certificati/video dei tester); 2) ADR-013 PROPOSTO → ACCETTATO; 3) applicare
+  `migration_041...sql` al progetto live; 4) rigirare `test/db/readiness-schema.test.ts` con le
+  env configurate per confermare che passi davvero.
 
 ## 🔒 S-5 — Revoke EXECUTE anon su RPC lesson token (C-6) + zone_rpe_bands → authenticated (C-7) (24 ago, modalità autonoma)
 

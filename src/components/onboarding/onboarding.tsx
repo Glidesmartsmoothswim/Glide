@@ -30,8 +30,8 @@ const SCREENS: Screen[] = [
     body: (
       <>
         <p>
-          Prima di ogni seduta ti chiedo cinque cose. Come hai dormito, quanta
-          energia hai, come sta il corpo, come stai di testa, quanta voglia hai.
+          Prima di ogni seduta ti chiedo quattro cose. Come hai dormito, quanta
+          energia hai, come stai di testa, quanta voglia hai.
         </p>
         <p>
           <b>Non esistono risposte giuste.</b> Nessuno ti giudica, nessuno ti dà
@@ -47,19 +47,15 @@ const SCREENS: Screen[] = [
     ),
   },
   {
-    title: "Cinque domande. Trenta secondi.",
+    title: "Quattro domande. Venti secondi.",
     body: (
       <>
         <p>
-          <b>5 è sempre la risposta migliore.</b> Sempre. Su tutte e cinque. Non
+          <b>5 è sempre la risposta migliore.</b> Sempre. Su tutte e quattro. Non
           devi ricordarti quale scala va al contrario, perché non ce n&apos;è
           nessuna.
         </p>
         <p>Sotto ogni numero c&apos;è scritto cosa significa. Leggi e tappa.</p>
-        <p>
-          Se il corpo fa male, ti chiedo <b>dove</b>. Serve a capire se una cosa
-          torna, o se è capitata una volta.
-        </p>
       </>
     ),
   },
@@ -94,10 +90,11 @@ const SCREENS: Screen[] = [
           ti abbassa i metri.
         </p>
         <p>
-          <b>GLIDE non è un medico.</b> Se hai dolore, lo segnalo a me. Se il
-          dolore è forte o non passa, vai da un medico — non da un&apos;app. Se
-          senti qualcosa al petto, al respiro o alla testa: fermati e chiama un
-          medico.
+          <b>GLIDE non è un medico.</b> Se hai dolore o qualcosa non va nel
+          fisico, scrivimelo in chat o nella nota dopo la seduta — te lo leggo.
+          Se il dolore è forte o non passa, vai da un medico — non da
+          un&apos;app. Se senti qualcosa al petto, al respiro o alla testa:
+          fermati e chiama un medico.
         </p>
         <p>
           <b>Il cronometro non è tutto.</b> A 50 anni i tempi rallentano. La
