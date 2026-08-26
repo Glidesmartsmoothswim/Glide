@@ -4,12 +4,46 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-08-23 — **Sec fix C-6/C-7: ownership check RPC lesson token (IDOR) +
-grant_monthly_tokens non più pubblica** (modalità autonoma, migration_039) · ONDA 29: allineamento
-grafico vista nuotatore · rimozione badge (codice) · via l'etichetta "stile" dalle righe workout ·
-via il +/- percentuale (sostituito da "Chiedi una modifica") · builder allenamento self-service
-Canale Open (ADR-012)** (modalità autonoma) · migration_035 (21 ago) ·
-Ledger 025/026 tracciato + fix fallimento silenzioso webhook Stripe · S-0 (bis) · Onda 28 · Onda 27 · Onda 26 · Onda 25.**_
+_Ultimo aggiornamento: 2026-08-24 — **S-5: revoke EXECUTE anon su RPC lesson token (C-6) +
+zone_rpe_bands ristretta a authenticated (C-7)** (modalità autonoma, migration_040) ·
+Sec fix C-6/C-7 (23 ago): ownership check RPC lesson token (IDOR) + grant_monthly_tokens non più
+pubblica (migration_039) · ONDA 29: allineamento grafico vista nuotatore · rimozione badge (codice) ·
+via l'etichetta "stile" dalle righe workout · via il +/- percentuale (sostituito da "Chiedi una
+modifica") · builder allenamento self-service Canale Open (ADR-012) (modalità autonoma) ·
+migration_035 (21 ago) · Ledger 025/026 tracciato + fix fallimento silenzioso webhook Stripe ·
+S-0 (bis) · Onda 28 · Onda 27 · Onda 26 · Onda 25.**_
+
+## 🔒 S-5 — Revoke EXECUTE anon su RPC lesson token (C-6) + zone_rpe_bands → authenticated (C-7) (24 ago, modalità autonoma)
+
+- **Contesto:** seguito di `GLIDE_SECURITY_AUDIT_v2.md` (verificato live via MCP, non solo
+  documentale) e `PROMPT_CODE_SEC_S5.md` — due fix a basso rischio sulla superficie EXECUTE/RLS
+  residua, entrambi confermati da query dirette prima di scrivere qualunque cosa (non da ipotesi).
+- **Vincoli sessione rispettati:** non toccato `EXECUTE` su `is_coach()`/`my_tier()`/`test_mode()`
+  (chiamate da dentro le policy RLS stesse — revocarle avrebbe rotto ogni policy che le usa); non
+  toccata la policy `"profili: modifica propria o coach"` (C-8, decisione di tenancy che aspetta un
+  ADR); nessuna funzione droppata/rinominata; fix applicato **solo** come migration tracciata
+  (`migration_040_s5_anon_execute_zone_bands.sql`, ledger `20260824...`).
+- **C-6:** `link_lesson_token`/`release_lesson_token`/`reserve_lesson_token` avevano già il check di
+  ownership interno (23 ago), ma restavano chiamabili da `anon` — nessun caso d'uso legittimo
+  pre-login le richiede. `revoke execute ... from anon` su tutte e tre; `authenticated` invariato
+  (verificato live che uno swimmer autenticato continua a riservare il proprio token).
+- **C-7:** policy `bands_read` su `zone_rpe_bands` era `using(true)` senza clausola `to` (scoped a
+  PUBLIC di fatto, `polroles={-}`) — la mappatura Z1-Z5/RPE del protocollo era leggibile via REST
+  anche senza login. Ristretta a `to authenticated`; `bands_write` (già `is_coach()`) non toccata.
+- **TEST — eseguito LIVE sul DB reale**, impersonando `anon` e `authenticated` (swimmer reale) via
+  `set_config('request.jwt.claims', …, true); set local role …;` dentro una transazione con
+  rollback finale, cleanup verificato: **6/6 scenari attesi confermati** (3× `anon` → `permission
+  denied` 42501 sulle tre RPC prima del check ownership, swimmer autenticato → riuscito; `anon` su
+  `zone_rpe_bands` → 0 righe, `authenticated` → 5 righe). Regressione simulata per entrambi i fix
+  (ri-concesso il grant/riaperta la policy dentro una transazione con rollback) e confermato che i
+  test strutturali la intercettano.
+- **Deviazione dichiarata dal prompt sorgente:** chiedeva `test/security/*.test.ts` — `npm test`
+  gira solo su `src/**/*.test.ts` (`package.json`), e un test `.test.ts` che verifichi il 401/403
+  end-to-end colpirebbe l'API REST live di produzione con credenziali reali (fragile in CI). Scritti
+  invece `test/security/lesson-token-anon-execute.sql` e `test/security/zone-bands-anon-read.sql`,
+  stesso pattern strutturale già in uso in questo repo (`role-lock.sql`/`workouts-self-kind.sql`/
+  `rpc-ownership-lesson-tokens.sql`), con la verifica comportamentale comunque eseguita live a
+  colmare la differenza. Dettaglio completo in `SECURITY_AUDIT.md`.
 
 ## 🔒 Sec fix C-6/C-7 — Ownership RPC lesson token + grant_monthly_tokens (23 ago, modalità autonoma)
 
