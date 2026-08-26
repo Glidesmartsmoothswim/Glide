@@ -17,6 +17,7 @@ import {
   CalendarClock,
   ClipboardList,
   Activity,
+  Shield,
   LogOut,
   Menu,
   X,
@@ -70,6 +71,10 @@ const NAV: Group[] = [
       { href: "/coach/notifiche", label: "Notifiche", icon: Bell },
       { href: "/coach/chat", label: "Chat", icon: MessageCircle },
     ],
+  },
+  {
+    title: "Account",
+    items: [{ href: "/coach/sicurezza", label: "Sicurezza", icon: Shield }],
   },
 ];
 
