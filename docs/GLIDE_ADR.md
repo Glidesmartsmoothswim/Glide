@@ -386,3 +386,37 @@ Estende il digest coach (GLIDE_GAMIFICATION.md §8) con una riga operativa nella
 Motivo: il contante si dimentica. Se il software offre il saldo diretto ma poi non ricorda
 al coach cosa deve ancora incassare, il coach perde soldi veri. Questa riga trasforma la modalità
 `cash` da buco a registro. Ed è anche la ragione pratica per cui tracciare conviene più che nascondere.
+
+---
+
+## ADR-013 — Rimozione dei campi dolore strutturati dal readiness
+
+**Stato:** PROPOSTO — 26/08/2026, in attesa di conferma per l'applicazione
+**Supersede parzialmente:** il meccanismo "chip readiness" descritto in `GLIDE_QUESTIONARIO.md` v2. Non tocca ADR-004 (matcher chat-based), vedi §Conseguenze.
+**Nota sulla numerazione:** questa decisione era stata redatta come "ADR-012", ma quel numero è già in uso nel codice per il builder self-service Canale Open (Onda 29.5 — vedi `src/lib/access.ts`, `src/app/app/nuoto/self-actions.ts`, `migration_037_workouts_self_kind.sql`, `test/security/workouts-self-kind.sql`), mai formalizzato qui ma citato ovunque come esistente. Rinumerata ADR-013 per non collidere.
+
+## Contesto
+
+`GLIDE_SECURITY_AUDIT_v2.md` e la valutazione DPIA hanno evidenziato che `pain_sites` (sede del dolore), `corpo` (scala di intensità del dolore), e i flag derivati `health_flag`/`red_flag` nella tabella `readiness` sono dato sanitario ai sensi dell'art. 4(15)/9 GDPR — indipendentemente dal fatto che l'app non agisca in automatico su questi valori. Il certificato medico è già stato rimosso dal prodotto in una decisione precedente per lo stesso motivo. Si valuta se estendere la minimizzazione al questionario readiness.
+
+## Alternative considerate
+
+1. **Rimuovere solo `pain_sites`** (la sede), tenere `corpo` (l'intensità) e isolare il chip di emergenza. Riduce la granularità ma lascia comunque dato sanitario esplicito: `corpo` è letteralmente una scala "1=Dolore forte…5=Zero dolori".
+2. **Rimuovere l'intero blocco dolore** — `pain_sites`, `corpo`, `health_flag`, `red_flag` — nessuna eccezione. Massima minimizzazione; il chip readiness come canale di allerta sparisce.
+3. **Non toccare il prodotto**, gestire il rischio solo via DPIA + consenso. Zero impatto su UX, ma non riduce l'impronta dati.
+
+## Decisione
+
+Opzione 2. Rimozione completa del blocco dolore dal questionario readiness, incluso il chip ⚠️ *Petto/respiro/testa* nella sua forma di trigger strutturato via readiness.
+
+## Conseguenze
+
+- `readiness_fisica` passa da 3 componenti (`sonno`, `energia`, `corpo`) a 2 (`sonno`, `energia`). La soglia di filtro della Curva di Efficienza (≥ 3.5, §5 `GLIDE_QUESTIONARIO.md`) resta invariata nella formula ma ora misura solo sonno/energia — da ricalibrare se l'uso reale lo suggerisce.
+- **Il matcher L1/L2 di ADR-004 (chat-based, keyword su testo libero) resta attivo e del tutto invariato.** È un sistema separato dal chip readiness: opera su qualunque testo scritto all'assistente AI. Questa decisione elimina il *secondo* canale di trigger (il chip strutturato), non l'unico. Un nuotatore che scrive "dolore al petto" in chat continua a far scattare il template fisso L2 — nessuna perdita lì.
+- **Perdita reale:** il chip offriva un tap guidato, senza dover scrivere nulla. Dopo questa modifica, un segnale di dolore passa solo se il nuotatore lo scrive attivamente (chat o nota libera). È un attrito in più sul reporting, non solo una questione di dato — compensato nel copy di onboarding ("se qualcosa non va fisicamente, scrivilo ad Alessio in chat o nella nota").
+- **Digest coach:** le sezioni "Da chiamare" (da `red_flag`) e "Corpo" (dolore ricorrente da `pain_sites`) sono state rimosse da `src/lib/digest.ts` insieme alle colonne che le alimentavano — non c'è più dato strutturato da cui derivarle. Il segnale rosso resta comunque immediato: il matcher ADR-004 notifica il coach in tempo reale (`notifyCoaches`) indipendentemente dal digest settimanale.
+- **Nota indipendente:** ADR-004 contiene un riferimento ormai obsoleto — *"Il certificato medico resta un gate... scaduto = niente assegnazione carichi"* — dalla rimozione del certificato medico come funzionalità di prodotto (decisione precedente, non di questo ADR). Segnalato qui per traccia; l'aggiornamento di ADR-004 resta fuori scope e richiede approvazione separata.
+
+## Link
+
+`GLIDE_QUESTIONARIO.md` (v3) · `migration_041_readiness_remove_pain_fields.sql` · `PROMPT_CODE_READINESS_V3.md` · `GLIDE_SECURITY_AUDIT_v2.md` §4

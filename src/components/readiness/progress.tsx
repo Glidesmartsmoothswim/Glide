@@ -23,10 +23,6 @@ export function ReadinessProgress({ rows }: { rows: VReadinessRow[] }) {
     .map((r) => ({ label: shortDate(r.created_at), value: Number(r.readiness_mentale) }))
     .slice(-12);
 
-  const withPain = [...rows]
-    .filter((r) => r.pain_sites && r.pain_sites.length)
-    .slice(0, 5);
-
   return (
     <div className="flex flex-col gap-4">
       <Card>
@@ -37,18 +33,6 @@ export function ReadinessProgress({ rows }: { rows: VReadinessRow[] }) {
         <h3 className="t-label mb-2 text-muted">Readiness mentale (1–5)</h3>
         <ReadinessChart points={mentale} color="#203979" max={5} />
       </Card>
-      {withPain.length > 0 && (
-        <Card>
-          <h3 className="t-label mb-2 text-muted">Dolori segnalati</h3>
-          <ul className="flex flex-col gap-1">
-            {withPain.map((r) => (
-              <li key={r.id} className="t-small text-foreground">
-                {shortDate(r.created_at)} · {r.pain_sites!.join(", ")}
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
     </div>
   );
 }

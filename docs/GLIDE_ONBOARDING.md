@@ -31,8 +31,8 @@ Voce: `GLIDE_VOICE.md`. Registro "tu", adulto, sobrio, zero emoji, zero "campion
 
 > ## Non è un esame.
 >
-> Prima di ogni seduta ti chiedo cinque cose. Come hai dormito, quanta energia hai, come sta il
-> corpo, come stai di testa, quanta voglia hai.
+> Prima di ogni seduta ti chiedo quattro cose. Come hai dormito, quanta energia hai, come stai di
+> testa, quanta voglia hai.
 >
 > **Non esistono risposte giuste.** Nessuno ti giudica, nessuno ti dà un voto.
 >
@@ -50,14 +50,12 @@ E un dato lievemente falso è peggio di nessun dato: sembra vero.
 
 ## 3 · Prima di entrare in acqua
 
-> ## Cinque domande. Trenta secondi.
+> ## Quattro domande. Venti secondi.
 >
-> **5 è sempre la risposta migliore.** Sempre. Su tutte e cinque.
+> **5 è sempre la risposta migliore.** Sempre. Su tutte e quattro.
 > Non devi ricordarti quale scala va al contrario, perché non ce n'è nessuna.
 >
 > Sotto ogni numero c'è scritto cosa significa. Leggi e tappa.
->
-> Se il corpo fa male, ti chiedo **dove**. Serve a capire se una cosa torna, o se è capitata una volta.
 
 *(mini-anteprima interattiva: una scala vera, con le ancore visibili)*
 
@@ -88,7 +86,8 @@ E un dato lievemente falso è peggio di nessun dato: sembra vero.
 > ti alza o ti abbassa i metri.
 >
 > **GLIDE non è un medico.**
-> Se hai dolore, lo segnalo a me. Se il dolore è forte o non passa, vai da un medico — non da un'app.
+> Se hai dolore o qualcosa non va nel fisico, scrivimelo in chat o nella nota dopo la seduta — te lo
+> leggo. Se il dolore è forte o non passa, vai da un medico — non da un'app.
 > Se senti qualcosa al petto, al respiro o alla testa: **fermati e chiama un medico.**
 >
 > **Il cronometro non è tutto.**
@@ -117,10 +116,10 @@ irreversibile e invisibile. Si collauda per primo.
 
 - [ ] Ogni scala mostra le **ancore agli estremi** senza dover tappare niente
 - [ ] Tappando un valore, sotto compare **l'etichetta di quel valore**
-- [ ] **Nessuna scala è invertita**: su tutte e cinque, 5 = la condizione migliore
+- [ ] **Nessuna scala è invertita**: su tutte e quattro, 5 = la condizione migliore
 - [ ] Nel codice **non esiste nessun `6 - x`**. Se c'è, la domanda è formulata male
-- [ ] "Corpo" ≤ 3 → si apre **obbligatoriamente** la scelta della sede
-- [ ] Chip **⚠︎ Petto / respiro / testa** → messaggio fisso + notifica a te. **L'AI non risponde**
+- [ ] Non esiste più il chip **"Dove?"**/l'emergenza strutturata (ADR-013): dolore e sintomi si
+      scrivono in chat o nella nota — il matcher L1/L2 di ADR-004 resta attivo su entrambe
 - [ ] Nel post c'è **"E adesso come stai?"** — stessa scala dell'umore pre
 - [ ] Il nuotatore **non vede da nessuna parte** il proprio indice di readiness
 - [ ] Esistono **due indici separati** (fisica, mentale). Non esiste un totale unico
@@ -129,10 +128,10 @@ irreversibile e invisibile. Si collauda per primo.
 
 Compila due check-in finti e verifica che il gestionale **li distingua**:
 
-| | Sonno | Energia | Corpo | Umore | Motiv. | Cosa devi vedere |
-|---|---|---|---|---|---|---|
-| **A** — vita dura, corpo ok | 4 | 4 | 5 | **1** | **2** | *Fisica 4.3 · Mentale 1.5* → **non alleggerire** |
-| **B** — corpo rotto, testa ok | 2 | 2 | **1** | 5 | 4 | *Fisica 1.7 · Mentale 4.5* → **alleggerisci** |
+| | Sonno | Energia | Umore | Motiv. | Cosa devi vedere |
+|---|---|---|---|---|---|
+| **A** — vita dura, fisico ok | 4 | 4 | **1** | **2** | *Fisica 4.0 · Mentale 1.5* → **non alleggerire** |
+| **B** — a terra fisicamente, testa ok | 2 | 2 | 5 | 4 | *Fisica 2.0 · Mentale 4.5* → **alleggerisci** |
 
 - [ ] I due casi **non** producono lo stesso valore
 - [ ] Il caso A **non** genera nessun suggerimento di ridurre il carico

@@ -4,10 +4,16 @@ import { fullName } from "@/lib/types";
 import { PHASE_LABEL, type PhaseType } from "@/lib/programs";
 
 /**
- * Digest coach (GLIDE FASE 1.5). 4 sezioni, max 3 righe, ogni riga un'azione.
+ * Digest coach (GLIDE FASE 1.5). Max 3 righe per sezione, ogni riga un'azione.
  * Contiene OSSERVAZIONI, mai prescrizioni (ADR-001). Segnale chiave:
  * readiness_fisica buona (>=3.5) MA sedute saltate → è MOTIVAZIONE, non
  * stanchezza → serve una telefonata, non un carico più leggero.
+ *
+ * ADR-013: le sezioni "Da chiamare" (da `red_flag`) e "Corpo" (dolore
+ * ricorrente da `pain_sites`) sono state rimosse insieme alle colonne che le
+ * alimentavano — erano dato sanitario strutturato. Il segnale rosso resta
+ * comunque immediato: il matcher ADR-004 (chat/nota) notifica il coach in
+ * tempo reale via `notifyCoaches`, indipendentemente dal digest.
  */
 export type DigestRow = { swimmerId: string; text: string; href?: string };
 export type DigestSection = { title: string; rows: DigestRow[] };
@@ -19,10 +25,6 @@ type RRow = {
   phase: string;
   sleep: number | null;
   energia: number | null;
-  corpo: number | null;
-  red_flag: boolean | null;
-  health_flag: boolean | null;
-  pain_sites: string[] | null;
   created_at: string;
 };
 
@@ -46,9 +48,7 @@ export async function computeDigest(
 
   const { data: rd } = await supabase
     .from("readiness")
-    .select(
-      "swimmer_id, phase, sleep, energia, corpo, red_flag, health_flag, pain_sites, created_at",
-    )
+    .select("swimmer_id, phase, sleep, energia, created_at")
     .gte("created_at", since)
     .order("created_at", { ascending: false });
   const rows = (rd ?? []) as RRow[];
@@ -91,30 +91,17 @@ export async function computeDigest(
     return c ? `${text} (${c})` : text;
   };
 
-  const chiamare: DigestRow[] = [];
   const scivola: DigestRow[] = [];
-  const corpo: DigestRow[] = [];
   const certificati: DigestRow[] = [];
 
   for (const s of swimmers) {
     const name = nameById.get(s.id) ?? "Atleta";
     const list = byS.get(s.id) ?? [];
 
-    // 1) Da chiamare — red flag salute negli ultimi 7 giorni
-    const red = list.find(
-      (r) => r.red_flag && now - new Date(r.created_at).getTime() <= 7 * DAY,
-    );
-    if (red)
-      chiamare.push({
-        swimmerId: s.id,
-        text: withCtx(s.id, `${name} — segnale salute. Chiamalo.`),
-      });
-
-    // 2) Sta scivolando — ultima fisica buona ma sparito da >= 5 giorni
+    // 1) Sta scivolando — ultima fisica buona ma sparito da >= 5 giorni
     const lastPre = list.find((r) => r.phase === "pre" && r.sleep != null);
     if (lastPre) {
-      const fisica =
-        ((lastPre.sleep ?? 0) + (lastPre.energia ?? 0) + (lastPre.corpo ?? 0)) / 3;
+      const fisica = ((lastPre.sleep ?? 0) + (lastPre.energia ?? 0)) / 2;
       const days = Math.floor((now - new Date(lastPre.created_at).getTime()) / DAY);
       if (fisica >= 3.5 && days >= 5)
         scivola.push({
@@ -126,18 +113,7 @@ export async function computeDigest(
         });
     }
 
-    // 3) Corpo — stessa zona di dolore >= 2 volte
-    const sites = new Map<string, number>();
-    for (const r of list)
-      for (const p of r.pain_sites ?? []) sites.set(p, (sites.get(p) ?? 0) + 1);
-    const recurring = [...sites.entries()].find(([, c]) => c >= 2);
-    if (recurring)
-      corpo.push({
-        swimmerId: s.id,
-        text: withCtx(s.id, `${name} — dolore ricorrente: ${recurring[0]}. Chiedigliene.`),
-      });
-
-    // 4) Certificati — in scadenza o assente
+    // 2) Certificati — in scadenza o assente
     if (s.cert_status === "in_scadenza" || s.cert_status === "assente")
       certificati.push({
         swimmerId: s.id,
@@ -145,7 +121,7 @@ export async function computeDigest(
       });
   }
 
-  // 5) I numeri — incassi in sospeso (ADR-011): il contante si dimentica.
+  // 3) I numeri — incassi in sospeso (ADR-011): il contante si dimentica.
   const numeri: DigestRow[] = [];
   const { data: pend } = await supabase
     .from("bookings")
@@ -170,9 +146,7 @@ export async function computeDigest(
 
   const cut = (rows: DigestRow[]) => rows.slice(0, 3);
   return [
-    { title: "Da chiamare", rows: cut(chiamare) },
     { title: "Sta scivolando", rows: cut(scivola) },
-    { title: "Corpo", rows: cut(corpo) },
     { title: "Certificati", rows: cut(certificati) },
     { title: "I numeri", rows: cut(numeri) },
   ];

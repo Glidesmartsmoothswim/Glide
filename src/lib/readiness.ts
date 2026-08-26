@@ -1,6 +1,12 @@
-// GLIDE — dominio readiness v2 (GLIDE_QUESTIONARIO.md / ADR-006).
+// GLIDE — dominio readiness v3 (GLIDE_QUESTIONARIO.md / ADR-006 / ADR-013).
 // 5 = SEMPRE meglio. Nessuna inversione, nessun "6 - x". Due indici separati,
 // calcolati dalla vista v_readiness. Il nuotatore NON vede mai il suo indice.
+//
+// ADR-013: il blocco dolore strutturato (corpo/pain_sites/health_flag/
+// red_flag) è stato rimosso — è dato sanitario ai sensi del GDPR a
+// prescindere dall'uso. Dolore e sintomi si segnalano in chat o nella nota
+// libera: il matcher ADR-004 (L1/L2, testo libero) resta l'unico canale,
+// invariato.
 
 /** Riga della vista v_readiness (per il COACH). Gli indici stanno qui. */
 export type VReadinessRow = {
@@ -9,17 +15,14 @@ export type VReadinessRow = {
   created_at: string;
   sonno: number | null;
   energia: number | null;
-  corpo: number | null;
   umore_pre: number | null;
   motivazione: number | null;
   rpe: number | null;
   umore_post: number | null;
   main_set_sig: string | null;
-  pain_sites: string[] | null;
-  health_flag: boolean;
   nota: string | null; // nota libera del nuotatore al post-sessione ("per Alessio")
   workout_id: string | null;
-  readiness_fisica: number | null; // (sonno+energia+corpo)/3 — solo coach
+  readiness_fisica: number | null; // (sonno+energia)/2 — solo coach
   readiness_mentale: number | null; // (umore+motivazione)/2 — solo coach
   effetto_acqua: number | null; // umore_post - umore_pre
 };
@@ -35,12 +38,12 @@ export type EffettoAcquaRow = {
 };
 
 /**
- * Domande PRE — 5 scale, 1..5, "5 = meglio" su tutte. Ancore VISIBILI.
- * `key` = colonna DB grezza (energia/corpo sono le ex fatigue/soreness già
- * girate a "5=meglio", non si applica nessun 6-x).
+ * Domande PRE — 4 scale, 1..5, "5 = meglio" su tutte. Ancore VISIBILI.
+ * `key` = colonna DB grezza (energia è l'ex fatigue già girata a "5=meglio",
+ * non si applica nessun 6-x). "Corpo" è stata rimossa (ADR-013).
  */
 export const PRE_QUESTIONS: {
-  key: "sleep" | "energia" | "corpo" | "mood" | "motivation";
+  key: "sleep" | "energia" | "mood" | "motivation";
   label: string;
   anchors: [string, string, string, string, string]; // ancore per 1..5
 }[] = [
@@ -53,11 +56,6 @@ export const PRE_QUESTIONS: {
     key: "energia",
     label: "Quanta energia hai?",
     anchors: ["Sono a terra", "Poca", "Normale", "Bella carica", "Pieno serbatoio"],
-  },
-  {
-    key: "corpo",
-    label: "Come sta il corpo?",
-    anchors: ["Dolore forte", "Fa male", "Qualche fastidio", "Un po' rigido", "Zero dolori"],
   },
   {
     key: "mood",
@@ -89,23 +87,6 @@ export const MOOD_ANCHORS: [string, string, string, string, string] = [
   "Bene",
   "Alla grande",
 ];
-
-/** Sedi del dolore (obbligatorio se corpo <= 3). MAI copiate in activity_events. */
-export const PAIN_SITES = [
-  "Spalla dx",
-  "Spalla sx",
-  "Schiena",
-  "Collo",
-  "Ginocchio",
-  "Anca",
-  "Gomito",
-  "Altro",
-] as const;
-
-/** Chip red flag (ADR-004 L2): bypassa l'LLM, notifica il coach. */
-export const RED_FLAG_LABEL = "⚠︎  Petto / respiro / testa";
-export const L2_TEMPLATE =
-  "Fermati. Questi sintomi vanno visti da un medico, non da un'app. Se stai male ora, chiama il 112.";
 
 export const shortDate = (iso: string) =>
   new Date(iso).toLocaleDateString("it-IT", { day: "2-digit", month: "short" });

@@ -3,21 +3,19 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { notifyCoaches } from "@/lib/notify";
-import { L2_TEMPLATE } from "@/lib/readiness";
 import { mainSetSig, woMeters, blockMeters, type Block } from "@/lib/workout";
 import { logEvent } from "@/lib/ledger";
-import { fullName } from "@/lib/types";
 
-export type ReadinessState = { error?: string; info?: string; redFlag?: boolean };
+export type ReadinessState = { error?: string; info?: string };
 
 const s5 = (v: FormDataEntryValue | null) =>
   Math.min(5, Math.max(1, Number(v ?? 0)));
 
 /**
- * Check-in PRE (v2). Scale "5 = meglio": sonno/energia/corpo/umore/motivazione.
- * corpo <= 3 → sede del dolore obbligatoria. Chip petto/respiro/testa (ADR-004
- * L2) → salva red_flag, notifica il coach, mostra il template fisso. Nessun LLM.
+ * Check-in PRE (v3 / ADR-013). Scale "5 = meglio": sonno/energia/umore/
+ * motivazione. Il blocco dolore strutturato (corpo, sede, chip red flag) è
+ * stato rimosso: dolore e sintomi si segnalano in chat o nella nota post
+ * seduta, dove il matcher L1/L2 di ADR-004 (testo libero) resta invariato.
  */
 export async function savePre(
   _prev: ReadinessState,
@@ -28,20 +26,10 @@ export async function savePre(
 
   const sleep = s5(formData.get("sleep"));
   const energia = s5(formData.get("energia"));
-  const corpo = s5(formData.get("corpo"));
   const mood = s5(formData.get("mood"));
   const motivation = s5(formData.get("motivation"));
-  if (!sleep || !energia || !corpo || !mood || !motivation)
-    return { error: "Valuta tutte e cinque le voci da 1 a 5." };
-
-  const redFlag = String(formData.get("red_flag") ?? "") === "true";
-  const painSites = String(formData.get("pain_sites") ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  if (corpo <= 3 && painSites.length === 0)
-    return { error: "Il corpo fa male: dimmi dove (scegli almeno una zona)." };
+  if (!sleep || !energia || !mood || !motivation)
+    return { error: "Valuta tutte e quattro le voci da 1 a 5." };
 
   const supabase = await createClient();
   const { error } = await supabase.from("readiness").insert({
@@ -49,35 +37,18 @@ export async function savePre(
     phase: "pre",
     sleep,
     energia,
-    corpo,
     mood,
     motivation,
-    pain_sites: painSites.length ? painSites : null,
-    health_flag: corpo <= 3 || redFlag,
-    red_flag: redFlag,
   });
   if (error) return { error: error.message };
 
-  // Ledger (ADR-004): solo booleani/valori-scala, MAI le sedi del dolore.
+  // Ledger (ADR-004): solo valori-scala, MAI testo libero.
   await logEvent(supabase, profile.id, "readiness.pre", {
     sleep,
     energia,
-    corpo,
     umore: mood,
     motivazione: motivation,
-    health_flag: corpo <= 3 || redFlag,
   });
-
-  if (redFlag) {
-    // ADR-004 L2: notifica immediata al coach, template fisso al nuotatore.
-    await notifyCoaches(
-      "cert",
-      "Segnale salute — attenzione",
-      `${fullName(profile)} ha segnalato petto/respiro/testa. Contattalo.`,
-    );
-    revalidatePath("/app");
-    return { info: L2_TEMPLATE, redFlag: true };
-  }
 
   revalidatePath("/app");
   revalidatePath("/app/progressi");

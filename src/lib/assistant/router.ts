@@ -66,8 +66,8 @@ const FALLBACK =
  * Gestisce un messaggio del nuotatore.
  * Se il safety scatta: template fisso + notifica coach. Il CONTENUTO del
  * sintomo non viene propagato da nessuna parte (ADR-004); niente evento nel
- * ledger: il vocabolario è chiuso (ADR-007) e il health_flag appartiene al
- * check-in readiness, non alla chat.
+ * ledger, perché il vocabolario è chiuso (ADR-007) e non esiste un tipo
+ * dedicato ai segnali della chat.
  */
 export async function handleMessage(
   userName: string,
