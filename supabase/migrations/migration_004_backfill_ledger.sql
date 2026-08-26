@@ -12,6 +12,13 @@
 --   readiness.post → solo rpe/umore_post + has_note booleano (MAI la nota)
 --   workout.completed → metri/zone lasciati null: si ricalcolano a valle dai
 --                       blocchi (parsing applicativo, non SQL). backfill:true.
+--
+-- FIX 26/08/2026 (PROMPT_CODE_READINESS_V3_1.md §1bis, per igiene): questo
+-- script è già stato eseguito il 15/7 e non rigira (guard idempotente sopra)
+-- — editarlo ora non tocca il DB. Rimossi `corpo`/`health_flag` dal blocco
+-- readiness.pre: erano dato sanitario finito in activity_events (conservazione
+-- ILLIMITATA), corretto retroattivamente in migration_042. Se questo file
+-- girasse mai su un DB vuoto (disaster recovery), non deve riprodurre il leak.
 -- ============================================================
 
 do $$
@@ -29,10 +36,8 @@ begin
     jsonb_build_object(
       'sleep',       r.sleep,
       'energia',     r.energia,
-      'corpo',       r.corpo,
       'umore',       r.mood,
       'motivazione', r.motivation,
-      'health_flag', coalesce(r.health_flag, false),
       'backfill',    true
     ),
     r.created_at, r.created_at

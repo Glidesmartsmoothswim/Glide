@@ -4,8 +4,11 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-08-26 — **ADR-013: rimozione blocco dolore strutturato dal readiness
-(PROPOSTO, codice pronto, migration NON applicata)** (modalità autonoma) ·
+_Ultimo aggiornamento: 2026-08-26 — **leak retroattivo nel ledger corretto in diretta**
+(`activity_events`, 22 righe con `corpo`/`health_flag`, dato sanitario a conservazione illimitata
+— vedi migration_042) · **ADR-013 v3.1: rimozione blocco dolore strutturato dal readiness
++ fatigue/soreness legacy** (PROPOSTO, codice pronto, migration_041 NON applicata) (modalità
+autonoma) ·
 MFA (TOTP) sull'account, FASE 1: enrollment (modalità autonoma; FASE 2 bloccata, attende conferma
 umana) ·
 **S-5: revoke EXECUTE anon su RPC lesson token (C-6) +
@@ -17,8 +20,39 @@ modifica") · builder allenamento self-service Canale Open (ADR-012) (modalità 
 migration_035 (21 ago) · Ledger 025/026 tracciato + fix fallimento silenzioso webhook Stripe ·
 S-0 (bis) · Onda 28 · Onda 27 · Onda 26 · Onda 25.**_
 
+## 🚨 Leak retroattivo nel ledger — corretto in diretta (26 ago, modalità autonoma)
+
+- **Scoperto durante ADR-013 v3.1:** `migration_004_backfill_ledger.sql` (già applicata il 15/7)
+  scriveva `corpo`/`health_flag` nel payload di `activity_events` per gli eventi `readiness.pre`.
+  `activity_events` è a conservazione **ILLIMITATA** (`GLIDE_REGISTRO_TRATTAMENTI.md` §10) — dato
+  sanitario che non ci deve stare, a prescindere dalla colonna sorgente.
+- **Verificato dal vivo PRIMA di agire** (non dato per scontato dal prompt): 22 righe coinvolte,
+  dal 12/7 al **25/8 — un giorno prima di questa sessione**, quindi il leak era ancora attivo, non
+  solo storico. Utenti attivi coinvolti, non solo tester in cancellazione.
+- **`migration_042_ledger_strip_sensitive_payload.sql` — APPLICATA subito** (a differenza di
+  migration_041, sotto): `update activity_events set payload = payload - 'corpo' - 'health_flag'
+  where payload ? 'corpo' or payload ? 'health_flag'`. Nessun prerequisito la bloccava (a
+  differenza del DROP COLUMN di migration_041): tratta dati reali già impropriamente conservati,
+  nessun impatto funzionale. Verificato dopo l'apply: **0 righe rimaste**.
+- **`migration_004_backfill_ledger.sql` corretta per igiene** (già applicata, non rigira per il
+  guard idempotente — editarla non tocca il DB): rimossi `corpo`/`health_flag` dal blocco
+  `readiness.pre`, così uno stesso script non riprodurrebbe il leak su un DB vuoto.
+- **Path applicativo live:** verificato che `src/app/app/readiness-actions.ts` **non scrive più**
+  `corpo`/`health_flag` nel payload di `readiness.pre` — fix già presente nel lavoro ADR-013 di
+  questa stessa sessione (non serviva un secondo fix). **Ma non è ancora in produzione**: PR #45
+  non è mersata. Finché resta aperta, ogni nuovo check-in in produzione riapre il leak da capo —
+  mersare quella PR (la sola parte codice, indipendente dalla migration schema) è la priorità
+  reale qui, più della migration_041 stessa.
+- **Test — `test/db/ledger-no-sensitive-payload.test.ts`** (nuovo): (1) nessuna riga di
+  `activity_events` ha `corpo`/`health_flag` nel payload; (2) l'ultimo `readiness.pre` reale non
+  li contiene. Stesso pattern skip-senza-config di `readiness-schema.test.ts`.
+
 ## 🩺 ADR-013 — Rimozione blocco dolore strutturato dal readiness (26 ago, modalità autonoma)
 
+- **v3.1 (`PROMPT_CODE_READINESS_V3_1.md`):** aggiunge al drop di migration_041 anche `fatigue`/
+  `soreness` — colonne legacy pre-v2 (migration_002), stesso problema di `corpo` sotto altro nome,
+  verificato che nessun codice applicativo le legge (solo un commento). Vedi anche la sezione
+  sopra per il leak retroattivo scoperto nello stesso giro.
 - **Contesto:** seguito di `PROMPT_CODE_READINESS_V3.md` + `GLIDE_QUESTIONARIO.md` (v3) +
   `GLIDE_SECURITY_AUDIT_v2.md`/DPIA — `pain_sites`/`corpo`/`health_flag`/`red_flag` in `readiness`
   sono dato sanitario ai sensi del GDPR a prescindere dall'uso. Rimozione completa (nessuna
@@ -59,8 +93,9 @@ S-0 (bis) · Onda 28 · Onda 27 · Onda 26 · Onda 25.**_
   di collaudo B1/B2 nello stesso file.
 - **`docs/GLIDE_QUESTIONARIO.md`** sostituito con la v3 (fornita nel prompt sorgente): 4 domande
   invece di 5, formula `readiness_fisica` a 2 termini, nota su dove segnalare dolore/sintomi.
-- **Test — `test/db/readiness-schema.test.ts`** (nuovo): (1) insert con `corpo` deve fallire
-  colonna-inesistente, (2) select dalle 3 viste deve riuscire, (3) `readiness_fisica` letto da
+- **Test — `test/db/readiness-schema.test.ts`** (aggiornato in v3.1): (1) insert con ciascuna delle
+  6 colonne rimosse (`pain_sites`/`corpo`/`health_flag`/`red_flag`/`fatigue`/`soreness`) deve
+  fallire colonna-inesistente, (2) select dalle 3 viste deve riuscire, (3) `readiness_fisica` letto da
   `v_readiness` deve combaciare con `(sonno+energia)/2` su una riga reale. **Non importa**
   `@/lib/supabase/admin`/`@/lib/env` (quel modulo fa crash a import-time se le env pubbliche
   mancano): costruisce un client Supabase proprio, e salta con `test.skip` se
