@@ -1,6 +1,7 @@
 <!-- Destinazione nel repo: docs/legal/ · BOZZA. Specifica del blocco consensi (testo + regole + logging).
-     Da allineare a migration_004_consents. Validare i testi con legale/DPO. -->
-# GLIDE — Blocco consensi (art. 9 GDPR) · **BOZZA**
+     Da allineare a migration_004_consents. Validare i testi con legale/DPO.
+     v2 — aggiunta C4 (dipendenza da Termini §6) e §6 gate di re-consenso utenti esistenti. -->
+# GLIDE — Blocco consensi (art. 9 GDPR) · **BOZZA v2**
 
 > Specifica dei consensi da raccogliere: **testo esatto** delle caselle, **regole** legali/UX, **schema di registrazione**. Allineare alla `migration_004_consents`.
 
@@ -25,13 +26,20 @@ Un consenso valido è (art. 4.11 e 7 GDPR):
 ### App — in fase di registrazione/onboarding
 
 **☐ C1 — Trattamento dei dati relativi alla salute** *(necessario per il coaching)*
-> Acconsento al trattamento dei miei **dati relativi alla salute** (certificato medico, dati di readiness fisica e mentale, eventuali sintomi comunicati in chat) per permettere al coach di programmare e seguire il mio allenamento, come descritto nell'[Informativa]. So che senza questo consenso il servizio di coaching non può essere erogato e che posso revocarlo in ogni momento.
+> Acconsento al trattamento dei miei **dati relativi alla salute** (dati di readiness fisica e mentale, eventuali sintomi comunicati in chat) per permettere al coach di programmare e seguire il mio allenamento, come descritto nell'[Informativa]. So che senza questo consenso il servizio di coaching non può essere erogato e che posso revocarlo in ogni momento.
 
 **☐ C2 — Trattamento dei video delle sessioni** *(necessario se usi l'analisi video)*
 > Acconsento al caricamento e al trattamento dei **video** delle mie sessioni di nuoto ai fini dell'analisi tecnica da parte del coach.
 
 **☐ C3 — Comunicazioni informative e promozionali** *(facoltativo)*
 > Acconsento a ricevere via email comunicazioni su novità, contenuti e iniziative di GLIDE. Posso disiscrivermi in qualsiasi momento dal link presente in ogni email.
+
+### App — al momento della sottoscrizione di un abbonamento *(non onboarding: al checkout)*
+
+**☐ C4 — Attivazione immediata del servizio** *(necessario per attivare subito l'abbonamento)*
+> Chiedo espressamente che l'abbonamento venga attivato immediatamente, prima della scadenza del termine di recesso di 14 giorni previsto dalla legge. Prendo atto che questo limita il mio diritto di recesso: nei primi 14 giorni potrò comunque recedere, ma il rimborso sarà proporzionale ai giorni di servizio già goduti, non pieno. Trascorsi i 14 giorni e sui rinnovi successivi, potrò comunque disdire in ogni momento, senza ulteriori addebiti dal periodo successivo.
+
+Testo allineato a Termini §6. **C4 non passa dal log generico del §3** — si registra direttamente sulla riga dell'abbonamento: `subscriptions.withdrawal_waived_at` (timestamp) e `subscriptions.withdrawal_waiver_ip_hash` (prova), colonne già presenti a schema. Un consenso per ogni nuova sottoscrizione, non una tantum sull'account.
 
 ### Sito — nel Test del Nuotatore Master
 
@@ -43,7 +51,7 @@ Un consenso valido è (art. 4.11 e 7 GDPR):
 ---
 
 ## 3. Registrazione del consenso (consent log)
-Ogni spunta salva un record immutabile (coerente con `migration_004_consents`):
+Ogni spunta di **C1, C2, C3, S1** salva un record immutabile (coerente con `migration_004_consents`). **C4 è escluso da questo log**, vedi §2 — vive sulla riga `subscriptions`.
 
 | Campo | Esempio |
 |---|---|
@@ -52,7 +60,7 @@ Ogni spunta salva un record immutabile (coerente con `migration_004_consents`):
 | `granted` | true/false |
 | `text_version` | `v1` (versione del testo mostrato) |
 | `granted_at` | timestamp |
-| `source` | `app_onboarding` · `site_test` |
+| `source` | `app_onboarding` · `site_test` · `app_reconsent_existing_user` |
 | `ip` / `user_agent` | per prova del consenso |
 | `withdrawn_at` | timestamp revoca (null se attivo) |
 
@@ -65,6 +73,7 @@ Regole: **append-only** (una revoca è un nuovo record, non un UPDATE distruttiv
 - Marketing: revoca anche via **link di disiscrizione** in ogni email (one-click).
 - Effetti: la revoca di **C1 (salute)** sospende il coaching (avvisare l'utente prima di confermare); la revoca di **C3 (marketing)** ferma solo le email.
 - La revoca **non** cancella i dati già trattati lecitamente: per la cancellazione vale il diritto all'oblio (funzione dedicata).
+- **C4 non si revoca**: è la fotografia di una scelta fatta al momento del checkout su quello specifico abbonamento, non un consenso ricorrente. Non serve un meccanismo dedicato.
 
 ---
 
@@ -74,3 +83,19 @@ Regole: **append-only** (una revoca è un nuovo record, non un UPDATE distruttiv
 - Niente cookie wall né "prosegui = acconsenti".
 - Non condizionare il servizio al consenso **marketing**.
 - Non riusare un consenso vecchio se hai cambiato il testo: versiona e ri-raccogli.
+
+---
+
+## 6. Gate di re-consenso per utenti già iscritti
+
+I profili attivi ad oggi si sono registrati **prima** che Informativa e questo blocco consensi esistessero: nessun consenso valido risulta raccolto per i loro dati di categoria particolare (readiness, video, chat). Restano attivi — decisione presa — quindi serve un passaggio di re-consenso, non una nuova iscrizione.
+
+**Meccanismo:** al primo login utile dopo il deploy, prima di qualunque altra schermata, mostra Informativa + le caselle **C1/C2** (C3 resta facoltativo come sempre) in modalità bloccante — l'utente non accede all'app finché non accetta o rifiuta esplicitamente. Il rifiuto di C1 sospende il coaching, stessa conseguenza di un rifiuto in onboarding (§4): comunicalo **prima** della conferma, non dopo.
+
+**Riguarda solo account con ruolo swimmer.** Il coach non è un interessato per questi consensi — è il titolare, non li deve accettare per sé.
+
+**C4 non entra in questo gate**: riguarda solo i dati di categoria particolare già raccolti, non un nuovo acquisto. Si applica normalmente ai *futuri* rinnovi/nuove sottoscrizioni, non retroattivamente su abbonamenti già in corso.
+
+**Log:** stesso schema del §3, con `source: 'app_reconsent_existing_user'` — distinguibile in caso di verifica successiva da un onboarding normale.
+
+**Una tantum per utente:** chi ha già passato il gate non lo rivede, salvo cambio di `text_version` (stessa regola generale del §3).
