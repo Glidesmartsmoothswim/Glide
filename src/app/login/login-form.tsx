@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import { signIn, signUp } from "./actions";
+import { signIn, signUp, verifyLoginMfa, signOut } from "./actions";
 
 export function LoginForm({ justReset }: { justReset?: boolean }) {
   const router = useRouter();
@@ -11,6 +11,8 @@ export function LoginForm({ justReset }: { justReset?: boolean }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
   const busy = useRef(false);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -38,6 +40,10 @@ export function LoginForm({ justReset }: { justReset?: boolean }) {
         router.refresh();
         return;
       }
+      if ("needsMfa" in res) {
+        setMfaFactorId(res.factorId);
+        return;
+      }
       if ("email" in res) {
         setSentTo(res.email);
         return;
@@ -50,6 +56,69 @@ export function LoginForm({ justReset }: { justReset?: boolean }) {
       busy.current = false;
       setLoading(false);
     }
+  }
+
+  async function onSubmitMfa(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (busy.current || !mfaFactorId) return;
+    busy.current = true;
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await verifyLoginMfa(mfaFactorId, mfaCode);
+      if (res.ok) {
+        router.push(res.redirectTo);
+        router.refresh();
+        return;
+      }
+      if ("error" in res) setError(res.error);
+    } catch {
+      setError("Errore di rete. Riprova.");
+    } finally {
+      busy.current = false;
+      setLoading(false);
+    }
+  }
+
+  if (mfaFactorId) {
+    return (
+      <div className="w-full max-w-sm">
+        <h2 className="mb-2 text-center font-display text-lg text-white dark:text-foreground">
+          Codice di verifica
+        </h2>
+        <p className="mb-4 text-center text-sm text-[#c7d4ee] dark:text-muted">
+          Password corretta. Ora il codice dalla tua app authenticator.
+        </p>
+        <form onSubmit={onSubmitMfa} className="flex flex-col gap-3">
+          <input
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            autoFocus
+            placeholder="123456"
+            value={mfaCode}
+            onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ""))}
+            className="rounded-xl border border-white bg-white px-4 py-3 text-center text-lg tracking-[0.3em] text-navy outline-none placeholder:text-slate-500 focus:border-blu dark:border-border dark:bg-surface dark:text-foreground dark:placeholder:text-muted"
+          />
+          {error && <p className="text-sm text-[#ffd0d0]">{error}</p>}
+          <button
+            type="submit"
+            disabled={loading || mfaCode.length !== 6}
+            className="w-full rounded-xl bg-gradient-to-br from-blu to-navy px-4 py-3 font-sans font-semibold text-white shadow-lg shadow-black/20 transition-opacity disabled:opacity-60"
+          >
+            {loading ? "Verifico…" : "Verifica"}
+          </button>
+        </form>
+        <form action={signOut}>
+          <button
+            type="submit"
+            className="mt-4 w-full text-center text-sm text-[#aebbdd] underline dark:text-muted"
+          >
+            Non sei tu? Esci
+          </button>
+        </form>
+      </div>
+    );
   }
 
   if (sentTo) {

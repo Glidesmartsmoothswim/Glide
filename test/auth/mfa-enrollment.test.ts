@@ -6,6 +6,7 @@ import {
   verifyTotpCode,
   unenrollFactor,
   isAal2,
+  checkMfaChallengeNeeded,
   type MfaClient,
 } from "../../src/lib/mfa";
 
@@ -168,4 +169,27 @@ test("unenroll richiede sessione aal2", async () => {
   const done = await unenrollFactor(client, state.factor!.id);
   assert.deepEqual(done, { ok: true });
   assert.equal((await getMfaStatus(client)).active, false);
+});
+
+// Step di login mancante nel form originale (segnalato dall'utente): senza
+// questo, dopo l'enforcement `is_coach() -> aal2`, un login con la sola
+// password lascerebbe la sessione ad aal1 e nessuna schermata chiederebbe
+// mai il codice — il coach si troverebbe l'accesso "rotto" in silenzio.
+test("checkMfaChallengeNeeded: nessun fattore → nessuna challenge", async () => {
+  const { client } = makeFakeMfaClient();
+  assert.deepEqual(await checkMfaChallengeNeeded(client), { needed: false });
+});
+
+test("checkMfaChallengeNeeded: fattore verificato, sessione appena loggata (aal1) → serve la challenge", async () => {
+  const { client, state } = makeFakeMfaClient({ preVerified: true });
+  const result = await checkMfaChallengeNeeded(client);
+  assert.deepEqual(result, { needed: true, factorId: state.factor!.id });
+});
+
+test("checkMfaChallengeNeeded: sessione già aal2 (challenge appena superata) → non richiesta di nuovo", async () => {
+  const { client, state } = makeFakeMfaClient({ preVerified: true });
+  await client.auth.mfa.challenge({ factorId: state.factor!.id });
+  await verifyTotpCode(client, state.factor!.id, CORRECT_CODE);
+
+  assert.deepEqual(await checkMfaChallengeNeeded(client), { needed: false });
 });

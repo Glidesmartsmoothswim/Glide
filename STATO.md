@@ -4,8 +4,10 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-08-26 — **MFA (TOTP) sull'account, FASE 1: enrollment**
-(modalità autonoma; FASE 2 — enforcement su `is_coach()` — bloccata, attende conferma umana) ·
+_Ultimo aggiornamento: 2026-08-26 — **MFA: step di verifica mancante nel login, aggiunto**
+(modalità autonoma, scoperto durante la verifica pre-FASE 2; FASE 2 — enforcement su
+`is_coach()` — ancora bloccata, attende il collaudo di questo step) ·
+MFA (TOTP) sull'account, FASE 1: enrollment (modalità autonoma) ·
 S-5: revoke EXECUTE anon su RPC lesson token (C-6) +
 zone_rpe_bands ristretta a authenticated (C-7)** (modalità autonoma, migration_040) ·
 Sec fix C-6/C-7 (23 ago): ownership check RPC lesson token (IDOR) + grant_monthly_tokens non più
@@ -14,6 +16,41 @@ via l'etichetta "stile" dalle righe workout · via il +/- percentuale (sostituit
 modifica") · builder allenamento self-service Canale Open (ADR-012) (modalità autonoma) ·
 migration_035 (21 ago) · Ledger 025/026 tracciato + fix fallimento silenzioso webhook Stripe ·
 S-0 (bis) · Onda 28 · Onda 27 · Onda 26 · Onda 25.**_
+
+## 🔐 MFA — step di verifica mancante nel login (26 ago, modalità autonoma)
+
+- **Contesto:** dopo la FASE 1 (sotto), l'utente ha confermato l'enrollment — verificato in
+  diretta su `auth.mfa_factors` del progetto live: fattore `totp`, `status: verified`, creato e
+  con `last_challenged_at` di pochi minuti prima. Prima di procedere alla FASE 2 ho controllato
+  però cosa succede a un login *successivo* (checklist del prompt sorgente: "verifica che
+  funzioni anche al login successivo, chiede il codice") — e ho trovato un buco.
+- **Il problema:** `src/app/login/actions.ts`/`login-form.tsx` non avevano nessun passaggio MFA.
+  `signIn()` chiamava `signInWithPassword` e reindirizzava subito: nessun controllo su
+  `getAuthenticatorAssuranceLevel()`, nessuna schermata di challenge. Applicare la FASE 2 su
+  questo stato avrebbe significato che il **prossimo login normale** del coach sarebbe rimasto
+  `aal1` senza che nulla glielo chiedesse — `is_coach()` sarebbe risultato falso ovunque, con un
+  dashboard che sembra rotto invece di un blocco chiaro con spiegazione. Segnalato all'utente
+  con i dettagli, che ha confermato di costruire lo step ora, prima di toccare `is_coach()`.
+- **`src/lib/mfa.ts`**: nuova `checkMfaChallengeNeeded(client)` — riusa `getMfaStatus`/`isAal2`
+  già testate: se esiste un fattore verificato e la sessione non è già `aal2`, ritorna
+  `{needed:true, factorId}`, altrimenti `{needed:false}`.
+- **`src/app/login/actions.ts`**: `signIn()` ora chiama `checkMfaChallengeNeeded` subito dopo
+  `signInWithPassword` riuscito — se serve, ritorna `needsMfa` invece di reindirizzare. Nuova
+  `verifyLoginMfa(factorId, code)` — riusa `verifyTotpCode` (stessa funzione della FASE 1, non
+  duplicata) sulla sessione già autenticata via password ma ancora `aal1`.
+- **`src/app/login/login-form.tsx`**: se `signIn` risponde `needsMfa`, mostra una schermata con
+  campo codice a 6 cifre (niente di nuovo lato UX: stesso pattern del componente Sicurezza) +
+  link "Non sei tu? Esci" (chiama `signOut` esistente) per non lasciare l'utente bloccato in uno
+  stato intermedio se non è lui a star loggandosi.
+- **Test aggiunti a `test/auth/mfa-enrollment.test.ts`** (stesso fake, nessun Supabase live): 3
+  scenari per `checkMfaChallengeNeeded` — nessun fattore → non richiesta; fattore verificato +
+  sessione appena loggata (`aal1`) → richiesta con il `factorId` giusto; sessione già `aal2`
+  (challenge appena superata) → non richiesta di nuovo.
+- **Verificato:** `npx tsc --noEmit` pulito, `npx eslint` pulito sui file toccati, `npm test` →
+  35/35 (32 preesistenti + 3 nuovi).
+- **FASE 2 resta bloccata:** parte solo dopo che questo step di login è stato collaudato con un
+  vero logout/login del coach (deve chiedere il codice) — non è bastata la sola conferma
+  dell'enrollment, come questo giro ha mostrato.
 
 ## 🔐 MFA (TOTP) sull'account — FASE 1: enrollment (26 ago, modalità autonoma)
 
