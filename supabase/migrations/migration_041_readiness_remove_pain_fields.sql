@@ -7,6 +7,11 @@
 -- segnalare dolore/sintomi resta la chat o la nota libera: il matcher
 -- L1/L2 di ADR-004 (testo libero, invariato) continua a operare lì.
 --
+-- v3.1 (PROMPT_CODE_READINESS_V3_1.md): aggiunge il drop di `fatigue`/
+-- `soreness` — colonne legacy pre-v2 (migration_002), stesso problema di
+-- `corpo` sotto un altro nome, mai lette da alcun codice applicativo
+-- (verificato: solo un commento in src/lib/readiness.ts le menziona).
+--
 -- ⚠️ IRREVERSIBILE — droppa colonne con dati reali dentro. Prerequisito:
 -- la pulizia dei dati di test (profili/readiness/certificati/video dei
 -- tester) va fatta PRIMA o IN PARALLELO, non dopo.
@@ -31,7 +36,9 @@ alter table public.readiness
   drop column if exists pain_sites,
   drop column if exists corpo,
   drop column if exists health_flag,
-  drop column if exists red_flag;
+  drop column if exists red_flag,
+  drop column if exists fatigue,   -- legacy pre-v2 (migration_002): stesso
+  drop column if exists soreness;  -- problema di "corpo", scala dolore sotto altro nome
 
 -- v_readiness — readiness_fisica passa da 3 componenti (sonno+energia+corpo)/3
 -- a 2 (sonno+energia)/2 (ADR-013). Soglia 3.5 in v_efficiency_points INVARIATA

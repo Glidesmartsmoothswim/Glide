@@ -3,12 +3,13 @@ import assert from "node:assert/strict";
 import { createClient } from "@supabase/supabase-js";
 
 /**
- * ADR-013 / migration_041_readiness_remove_pain_fields.sql.
+ * ADR-013 / migration_041_readiness_remove_pain_fields.sql (v3.1: aggiunge
+ * `fatigue`/`soreness`, legacy pre-v2 con lo stesso problema di `corpo`).
  *
- * `pain_sites`, `corpo`, `health_flag`, `red_flag` non devono più esistere a
- * schema; `v_readiness`/`v_effetto_acqua`/`v_efficiency_points` devono
- * restare leggibili; `readiness_fisica` deve valere (sonno+energia)/2, non
- * più /3 con `corpo`.
+ * `pain_sites`, `corpo`, `health_flag`, `red_flag`, `fatigue`, `soreness` non
+ * devono più esistere a schema; `v_readiness`/`v_effetto_acqua`/
+ * `v_efficiency_points` devono restare leggibili; `readiness_fisica` deve
+ * valere (sonno+energia)/2, non più /3 con `corpo`.
  *
  * Richiede un progetto Supabase reale raggiungibile (NEXT_PUBLIC_SUPABASE_URL
  * + SUPABASE_SERVICE_ROLE_KEY) con la migration già applicata: se non
@@ -35,10 +36,18 @@ const supabase =
       });
 const maybeTest = supabase ? test : test.skip;
 
-maybeTest(
-  "ADR-013: pain_sites/corpo/health_flag/red_flag non esistono più a schema",
-  async () => {
-    // Le colonne rimosse fanno fallire l'insert PRIMA di qualunque check su
+const REMOVED_COLUMNS = [
+  "pain_sites",
+  "corpo",
+  "health_flag",
+  "red_flag",
+  "fatigue",
+  "soreness",
+] as const;
+
+for (const col of REMOVED_COLUMNS) {
+  maybeTest(`ADR-013: \`${col}\` non esiste più a schema`, async () => {
+    // La colonna rimossa fa fallire l'insert PRIMA di qualunque check su
     // swimmer_id (l'errore di colonna inesistente scatta in fase di parsing,
     // non serve un swimmer_id reale).
     const { error } = await supabase!.from("readiness").insert({
@@ -48,12 +57,12 @@ maybeTest(
       energia: 3,
       mood: 3,
       motivation: 3,
-      corpo: 3,
+      [col]: col === "pain_sites" ? ["Spalla dx"] : 3,
     });
-    assert.ok(error, "insert con `corpo` avrebbe dovuto fallire (colonna rimossa)");
-    assert.match(error!.message, /column .*corpo.* does not exist/i);
-  },
-);
+    assert.ok(error, `insert con \`${col}\` avrebbe dovuto fallire (colonna rimossa)`);
+    assert.match(error!.message, new RegExp(`column .*${col}.* does not exist`, "i"));
+  });
+}
 
 maybeTest(
   "ADR-013: v_readiness / v_effetto_acqua / v_efficiency_points restano leggibili",
