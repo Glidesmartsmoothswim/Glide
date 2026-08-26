@@ -100,6 +100,20 @@ export async function isAal2(client: MfaClient): Promise<boolean> {
   return data?.currentLevel === "aal2";
 }
 
+export type MfaChallengeNeeded = { needed: true; factorId: string } | { needed: false };
+
+/**
+ * Da chiamare subito dopo un `signInWithPassword` riuscito: dice se QUESTA
+ * sessione (appena creata, quindi aal1) deve passare da una challenge prima
+ * di proseguire, perché esiste un fattore verificato e non è ancora aal2.
+ */
+export async function checkMfaChallengeNeeded(client: MfaClient): Promise<MfaChallengeNeeded> {
+  const status = await getMfaStatus(client);
+  if (!status.active || !status.factor) return { needed: false };
+  if (await isAal2(client)) return { needed: false };
+  return { needed: true, factorId: status.factor.id };
+}
+
 export type UnenrollResult =
   | { ok: true }
   | { ok: false; error: string; needsStepUp?: boolean };
