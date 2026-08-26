@@ -4,14 +4,58 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-08-24 — **S-5: revoke EXECUTE anon su RPC lesson token (C-6) +
-zone_rpe_bands ristretta a authenticated (C-7)** (modalità autonoma, migration_040) ·
+_Ultimo aggiornamento: 2026-08-26 — **Fatturazione F-0: orientamento (sola lettura, nessun
+codice)** — fermo in attesa di decisioni tue prima di F-1 · S-5 (24 ago): revoke EXECUTE anon su
+RPC lesson token (C-6) + zone_rpe_bands ristretta a authenticated (C-7) (migration_040) ·
 Sec fix C-6/C-7 (23 ago): ownership check RPC lesson token (IDOR) + grant_monthly_tokens non più
 pubblica (migration_039) · ONDA 29: allineamento grafico vista nuotatore · rimozione badge (codice) ·
 via l'etichetta "stile" dalle righe workout · via il +/- percentuale (sostituito da "Chiedi una
 modifica") · builder allenamento self-service Canale Open (ADR-012) (modalità autonoma) ·
 migration_035 (21 ago) · Ledger 025/026 tracciato + fix fallimento silenzioso webhook Stripe ·
 S-0 (bis) · Onda 28 · Onda 27 · Onda 26 · Onda 25.**_
+
+## 🧾 Fatturazione — orientamento (F-0, 26 ago, PROMPT_CODE_FATTURAZIONE.md)
+
+> Solo lettura, come richiesto da F-0. Nessun codice scritto. Fermo prima di F-1: due punti
+> ambigui/mancanti (§2, §5 sotto) da decidere, come previsto dal runbook stesso.
+
+1. **`app/api/stripe/webhook/route.ts` oggi gestisce:** `checkout.session.completed` (rami
+   `birra`/`subscription`/`season` via `metadata.type`), `customer.subscription.deleted`,
+   `customer.subscription.updated`. **Nessun `invoice.payment_succeeded`** — di fatto oggi i
+   **rinnovi mensili** di un abbonamento Canale Open (charge ricorrenti dopo il primo) **non
+   generano nessuna riga in `transactions`**: solo il primo checkout viene loggato. Non toccato,
+   solo letto.
+2. **Dati cliente raccolti al checkout: nessuno oltre a quanto Stripe chiede di default.**
+   Verificato `lib/stripe-checkout.ts` (`checkout.sessions.create` per subscription/season/birra):
+   nessun `customer_email`, `collect_billing_address`, `tax_id_collection`, `custom_fields`. E lato
+   nostro, `public.profiles` **non ha nessun campo fiscale**: solo `first_name`, `last_name`,
+   `email`, `phone` (verificato schema live) — niente codice fiscale, P.IVA, indirizzo. **Punto 5
+   del runbook (sotto) dice che per una fattura a privato serve il codice fiscale: oggi non lo
+   raccogliamo da nessuna parte.**
+3. **Nessun modulo/wrapper Fatture in Cloud esistente** — grep su `src/`, `docs/`, `*.md` root:
+   zero risultati per `fatture-in-cloud`/`fattureincloud`/`FIC_API`/`FIC_COMPANY`. Si parte da zero.
+4. **Variabili d'ambiente `FIC_API_KEY`/`FIC_COMPANY_ID`: non esistono.** Grep sul repo (incl.
+   `.env.local.example`, non leggibile per permessi sandbox ma verificato non contenerle via grep)
+   e su Vercel non verificabile da qui — vanno aggiunte da te.
+5. **Campi obbligatori API FiC per un `issued_document` fattura a privato in regime
+   forfettario: AMBIGUO, non risolvibile solo da documentazione** — `developers.fattureincloud.it`
+   è bloccato dal proxy di rete di questo sandbox (egress negato), quindi non ho potuto leggere lo
+   schema OpenAPI direttamente. Da fonti indirette (ricerca web, discussione ufficiale
+   `fattureincloud/api#446`): il maintainer FiC stesso dichiara che **non esiste un elenco fisso di
+   campi obbligatori** — dipende dal tipo di documento — e consiglia di creare una fattura di prova
+   dalla dashboard FiC e leggerne la struttura via API per scoprire i campi reali. Indicazioni
+   generali trovate (**da verificare, non prese per buone**): per un privato italiano senza P.IVA
+   serve il **codice fiscale** e il **codice destinatario "0000000"** (7 zeri); il flusso è in
+   **due passi separati** (crea il documento, poi un secondo endpoint per l'invio a SDI); esiste un
+   flag **dry-run** per testare l'invio SDI senza trasmettere davvero. **Fermo qui come richiesto**:
+   serve la tua verifica con le credenziali reali (o un documento FiC esistente) prima di F-1.
+
+**Riassunto per la checklist tua:** manca il codice fiscale al checkout (§2) — decisione di
+prodotto tua, non tecnica, come da vincoli del runbook. `FIC_API_KEY`/`FIC_COMPANY_ID` da procurare
+e passare. La dicitura regime forfettario va presa da un documento FiC tuo esistente (§5), non
+inventata qui. Non risolvibile da qui: l'elenco esatto dei campi obbligatori FiC (§5) — o mi dai
+accesso/una fattura di esempio, o lo verifichi tu e me lo riporti.
+
 
 ## 🔒 S-5 — Revoke EXECUTE anon su RPC lesson token (C-6) + zone_rpe_bands → authenticated (C-7) (24 ago, modalità autonoma)
 
