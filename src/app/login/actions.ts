@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { publicEnv } from "@/lib/env";
 import { rateLimitOk } from "@/lib/ratelimit";
+import { checkMfaChallengeNeeded, verifyTotpCode } from "@/lib/mfa";
 
 /**
  * Esito delle azioni auth. Nessun redirect DENTRO l'azione: è il client a
@@ -14,9 +15,15 @@ import { rateLimitOk } from "@/lib/ratelimit";
 export type AuthResult =
   | { ok: true; redirectTo: string }
   | { ok: false; needsConfirmation: true; email: string }
+  | { ok: false; needsMfa: true; factorId: string }
   | { ok: false; error: string };
 
-/** Login con email + password. */
+/**
+ * Login con email + password. Se l'account ha un fattore MFA verificato e la
+ * sessione appena creata non è già aal2, NON si entra ancora: si chiede il
+ * codice (`needsMfa`) — altrimenti chi ha attivato la 2FA la aggirerebbe con
+ * la sola password a ogni login successivo.
+ */
 export async function signIn(formData: FormData): Promise<AuthResult> {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -29,6 +36,26 @@ export async function signIn(formData: FormData): Promise<AuthResult> {
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { ok: false, error: traduci(error.message) };
+
+  const challenge = await checkMfaChallengeNeeded(supabase);
+  if (challenge.needed) return { ok: false, needsMfa: true, factorId: challenge.factorId };
+
+  revalidatePath("/", "layout");
+  return { ok: true, redirectTo: "/" };
+}
+
+/**
+ * Secondo passo del login quando `signIn` ha risposto `needsMfa`: verifica il
+ * codice a 6 cifre sulla sessione già autenticata (password) ma ancora aal1.
+ * Se il codice è corretto la sessione sale ad aal2 e si può proseguire.
+ */
+export async function verifyLoginMfa(
+  factorId: string,
+  code: string,
+): Promise<AuthResult> {
+  const supabase = await createClient();
+  const result = await verifyTotpCode(supabase, factorId, code);
+  if (!result.ok) return { ok: false, error: result.error };
 
   revalidatePath("/", "layout");
   return { ok: true, redirectTo: "/" };
