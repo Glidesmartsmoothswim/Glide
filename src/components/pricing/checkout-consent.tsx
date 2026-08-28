@@ -10,10 +10,11 @@ const WAIVER_TEXT =
   "Richiedo l'esecuzione immediata del servizio e sono consapevole di perdere il diritto di recesso di 14 giorni una volta iniziato l'utilizzo (Art. 59, lett. a, Codice del Consumo).";
 
 /**
- * CTA di un checkout online (Stripe): la checkbox NON è pre-flaggata e il
- * pagamento resta disabilitato finché non viene spuntata (§2/§4). La prova
- * della rinuncia è comunque scritta e verificata lato server (vedi actions.ts)
- * — questo componente è solo il gate della UI, non l'unica difesa.
+ * CTA della richiesta di attivazione (ADR-014, incasso manuale): la
+ * checkbox NON è pre-flaggata e l'invio resta disabilitato finché non
+ * viene spuntata (§2/§4). La prova della rinuncia è comunque scritta e
+ * verificata lato server (vedi lib/payment/request.ts) — questo componente
+ * è solo il gate della UI, non l'unica difesa.
  */
 export function CheckoutConsent({
   label,

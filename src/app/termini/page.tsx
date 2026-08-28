@@ -80,8 +80,9 @@ export default function TerminiPage() {
       <LegalSection number="6" title="Pagamenti">
         <ul className="flex flex-col gap-2 list-disc pl-5">
           <li>
-            I pagamenti sono gestiti tramite <strong>Stripe</strong>; i dati
-            della carta non transitano mai sui sistemi di Glide.
+            I pagamenti sono gestiti <strong>manualmente dal coach</strong>
+            (bonifico o contanti): Glide non elabora né conserva alcun dato
+            di carta o conto corrente, nemmeno tramite un fornitore terzo.
           </li>
           <li>
             Le lezioni incluse nell&apos;abbonamento sono definite dal piano

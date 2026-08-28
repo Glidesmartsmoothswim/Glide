@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { librarySignedUrl } from "@/lib/storage";
-import { canOpenLibraryItem, type Visibility } from "@/lib/access";
+import { canOpenLibraryItem, accessTier, type Visibility } from "@/lib/access";
 import { logEvent } from "@/lib/ledger";
 
 export const runtime = "nodejs";
@@ -32,7 +32,7 @@ export async function GET(
   if (!item || !item.published) return NextResponse.redirect(back);
 
   // GATE server: il tier deve poter aprire questa visibilità.
-  if (!canOpenLibraryItem(profile.tier, item.visibility as Visibility)) {
+  if (!canOpenLibraryItem(accessTier(profile), item.visibility as Visibility)) {
     back.searchParams.set("locked", "1");
     return NextResponse.redirect(back);
   }

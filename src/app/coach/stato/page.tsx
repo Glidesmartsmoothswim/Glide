@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { serverFeatures } from "@/lib/flags";
 import { publicEnv } from "@/lib/env";
+import { bankTransferDetails } from "@/lib/payment/config";
 import { Card } from "@/components/ui/card";
 import { currentMonday } from "@/lib/week";
 
@@ -47,6 +48,7 @@ export default async function StatoSistema() {
   const appUrl = publicEnv.NEXT_PUBLIC_APP_URL;
   const appUrlOk = !/localhost|127\.0\.0\.1|placeholder/.test(appUrl);
   const cronSet = Boolean(process.env.CRON_SECRET);
+  const bank = bankTransferDetails();
 
   // Conteggi "campo pronto" (RLS: il coach legge).
   const monday = currentMonday();
@@ -97,14 +99,14 @@ export default async function StatoSistema() {
             detail={cronSet ? "impostata" : "manca → cron non protetti"}
           />
           <Row
-            label="Pagamenti (Stripe)"
-            tone={f.stripe ? "ok" : "off"}
-            detail={f.stripe ? "attivo" : "simulato"}
+            label="Pagamenti (manuale, ADR-014)"
+            tone="ok"
+            detail="attivo — incasso a bonifico/contanti"
           />
           <Row
-            label="Webhook Stripe"
-            tone={f.stripeWebhook ? "ok" : "off"}
-            detail={f.stripeWebhook ? "verificato" : "non configurato"}
+            label="Coordinate bonifico in email"
+            tone={bank ? "ok" : "off"}
+            detail={bank ? "impostate" : "manca IBAN/intestatario → il coach le comunica a mano"}
           />
           <Row
             label="Email (Resend)"

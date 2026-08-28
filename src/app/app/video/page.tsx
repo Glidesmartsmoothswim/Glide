@@ -1,7 +1,6 @@
 import { Beer, Lock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { clientFeatures } from "@/lib/flags";
 import { Card, Pill } from "@/components/ui/card";
 import { VideoUploader } from "@/components/video/uploader";
 import { unlockVideo } from "./actions";
@@ -127,14 +126,13 @@ export default async function SwimmerVideo() {
                       type="submit"
                       className="inline-flex items-center gap-2 rounded-xl bg-[#F59E0B] px-4 py-2.5 font-bold text-white"
                     >
-                      <Beer size={16} /> Paga €5 e sblocca
-                      {!clientFeatures.stripe && (
-                        <span className="ml-1 rounded bg-white/20 px-1.5 text-sm">
-                          simulato
-                        </span>
-                      )}
+                      <Beer size={16} /> Richiedi sblocco (€5)
                     </button>
                   </form>
+                  <p className="t-small text-muted">
+                    Il coach conferma dopo l&apos;incasso (in vasca o
+                    bonifico) — l&apos;analisi si sblocca appena confermato.
+                  </p>
                 </div>
               ) : url ? (
                 <video

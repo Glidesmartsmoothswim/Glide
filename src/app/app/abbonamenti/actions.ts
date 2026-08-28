@@ -2,36 +2,38 @@
 
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
-  createSubscriptionCheckout,
-  createSeasonCheckout,
   buildWithdrawalWaiver,
   withdrawalWaived,
-  type SubTier,
-} from "@/lib/stripe-checkout";
+} from "@/lib/legal/withdrawal";
+import { requestActivation } from "@/lib/payment/request";
+import type { SubTier } from "@/lib/payment/pricing";
 
-/** Avvia il checkout di un abbonamento (Open / Open+ / 1:1 mensile). */
-export async function startSubscription(fd: FormData) {
+/**
+ * ADR-014 — "Richiedi attivazione" sostituisce il checkout Stripe: crea
+ * l'entitlement pending_payment e avvisa via email. Passa dall'admin client
+ * (service_role): profiles.payment_status è protetto da trigger e non
+ * scrivibile dal client RLS-rispettoso del nuotatore (migration_043).
+ */
+export async function startActivation(fd: FormData) {
   const profile = await getCurrentProfile();
   if (!profile) return;
   if (!withdrawalWaived(fd)) redirect("/app/abbonamenti?consent=1");
+
   const tier = String(fd.get("tier") ?? "open") as SubTier;
-  const url = await createSubscriptionCheckout({
-    tier,
-    swimmerId: profile.id,
-    waiver: await buildWithdrawalWaiver(),
-  });
-  redirect(url ?? "/app/abbonamenti?sim=1");
-}
+  const admin = createAdminClient();
+  if (!admin) redirect("/app/abbonamenti?sim=1");
 
-/** Avvia il checkout del 1:1 stagionale (one-off). */
-export async function startSeason(fd: FormData) {
-  const profile = await getCurrentProfile();
-  if (!profile) return;
-  if (!withdrawalWaived(fd)) redirect("/app/abbonamenti?consent=1");
-  const url = await createSeasonCheckout({
-    swimmerId: profile.id,
-    waiver: await buildWithdrawalWaiver(),
-  });
-  redirect(url ?? "/app/abbonamenti?sim=1");
+  const result = await requestActivation(
+    admin,
+    { id: profile.id, email: profile.email, firstName: profile.first_name },
+    tier,
+    await buildWithdrawalWaiver(),
+  );
+  redirect(
+    result.error
+      ? "/app/abbonamenti?err=1"
+      : "/app/abbonamenti?requested=1",
+  );
 }

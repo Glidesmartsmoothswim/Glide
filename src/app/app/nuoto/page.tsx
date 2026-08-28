@@ -7,7 +7,7 @@ import { WorkoutCard } from "@/components/workout/workout-card";
 import { WorkoutHand } from "@/components/workout/workout-hand";
 import { UpgradeHint } from "@/components/access/upgrade-hint";
 import { Archive } from "lucide-react";
-import { canAccess } from "@/lib/access";
+import { canAccess, accessTier } from "@/lib/access";
 import { SelfWorkoutManager } from "@/components/workout/self-editor";
 import { mainZone } from "@/lib/workout";
 import { currentMonday, formatWeek } from "@/lib/week";
@@ -27,7 +27,7 @@ type CompletionRow = {
 
 export default async function SwimmerNuoto() {
   const profile = await getCurrentProfile();
-  const tier = profile?.tier ?? "free";
+  const tier = profile ? accessTier(profile) : "free";
   const supabase = await createClient();
 
   // Onda 14.2: le tre query sono indipendenti → in parallelo (Promise.all),

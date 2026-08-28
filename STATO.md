@@ -1,10 +1,15 @@
 # STATO — GLIDE
 
-> PWA coaching nuoto Master · Next.js 16 (App Router) + TS + Supabase + Stripe.
+> PWA coaching nuoto Master · Next.js 16 (App Router) + TS + Supabase.
+> Pagamenti: incasso manuale (bonifico/contanti), Stripe uscito dal progetto (ADR-014, 28 ago).
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-08-26 — **leak retroattivo nel ledger corretto in diretta**
+_Ultimo aggiornamento: 2026-08-28 — **ADR-014/015 + Sprint A/B: rimozione Stripe, incasso
+manuale con gate ad accesso a degrado progressivo, redesign Nuotatori a 3 segmenti + scheda
+a tab** (modalità autonoma; Sprint C fermato PRIMA di C.1, in attesa del GO esplicito — vedi
+sezione dedicata) ·
+2026-08-26 — leak retroattivo nel ledger corretto in diretta
 (`activity_events`, 22 righe con `corpo`/`health_flag`, dato sanitario a conservazione illimitata
 — vedi migration_042) · **ADR-013 v3.1: rimozione blocco dolore strutturato dal readiness
 + fatigue/soreness legacy** (PROPOSTO, codice pronto, migration_041 NON applicata) (modalità
@@ -20,6 +25,197 @@ via l'etichetta "stile" dalle righe workout · via il +/- percentuale (sostituit
 modifica") · builder allenamento self-service Canale Open (ADR-012) (modalità autonoma) ·
 migration_035 (21 ago) · Ledger 025/026 tracciato + fix fallimento silenzioso webhook Stripe ·
 S-0 (bis) · Onda 28 · Onda 27 · Onda 26 · Onda 25.**_
+
+## 💳 ADR-014/015 + Sprint A/B — Rimozione Stripe, incasso manuale, redesign Nuotatori (28 ago, modalità autonoma)
+
+- **Contesto:** `PROMPT_CODE_STRIPE_NUOTATORI.md` + `ADR-014-rimozione-stripe.md` +
+  `ADR-015-tier-base-gratuita.md` + due mockup HTML (`GLIDE_mockup_scheda_nuotatore.html`,
+  `GLIDE_mockup_nuotatori_segmenti.html`). Tre sprint: A (rimozione Stripe, incasso manuale,
+  🛑 tocca pagamenti reali), B (redesign Nuotatori, solo UI/IA), C (terzo tier Base gratuita,
+  🛑 migration, serve il GO). **Eseguiti A e B per intero. C fermato PRIMA di C.1**, come
+  richiesto esplicitamente dal prompt sorgente ("Senza GO esplicito su C.1: fermati").
+- Letto per intero prima di iniziare: `STATO.md`, `GLIDE_ADR.md` (ADR-004/007/008/009/010/011),
+  `ADR-014-rimozione-stripe.md`, `ADR-015-tier-base-gratuita.md`, i due mockup.
+
+### Sprint A — Rimozione Stripe, incasso manuale (ADR-014)
+
+- **`migration_043_manual_payment_gate.sql` — APPLICATA** al progetto live via Supabase MCP
+  (verificato: `list_migrations` la mostra tracciata). Estende `profiles` con
+  `requested_tier`/`payment_status`/`payment_method`/`payment_amount_cents`/`receipt_number`/
+  `paid_at`/`tier_expires_at`/`withdrawal_waived_at`/`withdrawal_waiver_ip_hash` + trigger
+  `protect_payment_columns` (stesso pattern di `protect_tier_column`, migration_019): un client
+  autenticato non-coach non può scriversi da solo `payment_status`/`tier_expires_at`/`paid_at`/
+  `receipt_number`/`payment_amount_cents`. **Nessun DROP** su `stripe_events`/`subscriptions`/
+  `transactions` — dati storici intatti, come da vincolo.
+- **`src/lib/payment/`** (nuovo): `gate.ts` (`gateState`/`daysOverdue`/`effectiveTier` — due/
+  grace/overdue calcolati SOLO a lettura da `tier_expires_at`, mai un cron che declassa da solo),
+  `pricing.ts` (listino + `expiryFor`/`seasonEnd`, spostato da `lib/stripe-checkout.ts` rimosso),
+  `config.ts` (`PAYMENT_GATE.graceDays` da env, `bankTransferDetails()`), `request.ts`
+  (`requestActivation` — crea `pending_payment` + email Resend con coordinate bonifico, passa
+  dall'ADMIN client perché `payment_status` è protetto dal trigger; `markPaid` — il coach segna
+  pagato, attiva il tier, estende `tier_expires_at` da ORA, **inserisce anche in `transactions`**
+  così il ricavo compare in Business/`v_monthly_revenue`, e chiama `triggerInvoicing` — hook
+  Fatture in Cloud documentato, no-op finché non collegata, A.7).
+- **`lib/access.ts`**: nuova `accessTier(profile)` — tier effettivo per il gating (overdue →
+  si comporta da `free`), usata ovunque prima si leggeva `profile.tier` per decidere l'accesso a
+  NUOVO contenuto: `nuoto/page.tsx`, `nuoto/archivio/page.tsx`, `nuoto/self-actions.ts`,
+  `libreria/page.tsx`, `libreria/[id]/open/route.ts`, `video/actions.ts`. **Non tocca** l'archivio
+  storico/readiness (ownership, non tier — già così prima, invariato: verificato che nessuna
+  nuova gate call li tocchi).
+- **`/api/booking/create`**: nuovo check in testa — `gateState(profile.tier_expires_at) ===
+  'overdue'` → 402, "rinnova per prenotare". Chi non ha mai avuto una scadenza (free/Base,
+  ADR-015) non è toccato (`gateState` torna `'ok'` se `tier_expires_at` è null).
+- **Webhook (`src/app/api/stripe/webhook/route.ts`)**: disattivato, **non rimosso** — risponde
+  sempre 410, nessuna chiamata SDK Stripe. Test riscritto (`route.test.ts`, era per la logica
+  Stripe ora rimossa — sostituito con un test che verifica solo il 410).
+- **Client Stripe rimosso ovunque:** `lib/stripe.ts`/`lib/stripe-checkout.ts` eliminati; dipendenze
+  `stripe`/`@stripe/stripe-js` disinstallate (`npm uninstall`, la seconda era già inutilizzata
+  prima di oggi); `lib/flags.ts`/`lib/env.ts` senza più `stripe`/`stripeWebhook`/
+  `stripePublishableKey`/`clientFeatures`; `swimmer-booking.tsx` senza più il ramo "Paga ora
+  online" (solo `cash`, invariato nel resto); `prenota/page.tsx` non passa più `stripeEnabled`;
+  placeholder `coach/[section]`/`app/[tab]` senza più `needs:"stripe"`; `coach/stato/page.tsx`
+  mostra "Pagamenti (manuale, ADR-014)" + stato coordinate bonifico invece delle due righe Stripe.
+- **Pagina prezzi (`/app/abbonamenti`)**: bottoni "Attiva" → **"Richiedi attivazione"**
+  (`startActivation`, admin client). Prezzi reali mostrati (ripresi dai Price ID storici:
+  Open €12,90, Open+ €19,90, 1:1 mensile €79, 1:1 stagionale €690 — la "versione di prova senza
+  prezzi" del 23 ago non aveva più senso con un flusso di pagamento reale). Banner per
+  `pending_payment`/`grace`/`overdue`. `profilo/page.tsx`: riga "Abbonamento" letta da
+  `subscriptions` (ghost table, mai scritta nel nuovo flusso) sostituita con `profiles.tier` +
+  banner gate; rimossa la dead action `subscribe` (mai importata da nessuna pagina, verificato).
+- **Video "birra" (€5, Open):** non era in ADR-010/ADR-014 esplicitamente ma usava Stripe SDK
+  (A.1 lo richiede comunque). Non più auto-sblocco "simulato": il nuotatore ora **richiede** lo
+  sblocco (`unlockVideo` → solo notifica al coach, video resta `locked`); il coach lo conferma da
+  `/coach/video` con "Segna incassato" (`unlockPaidVideo`, nuovo — stesso pattern ADR-010,
+  inserisce in `transactions`).
+- **Digest coach (`lib/digest.ts`)**: nuova sezione **"Pagamenti"** — richieste `pending_payment`
+  + nuotatori in `grace`/`overdue`, ordinati per gravità. Generica nei due consumer esistenti
+  (`coach/page.tsx`, `api/cron/digest/route.ts`) — nessuna modifica lì necessaria (già iterano
+  `sections` a runtime). Email cron: solo conteggi (S-3, invariato).
+- **Business (`/coach/business`) — bug trovato e corretto durante il giro:** MRR e "Abbonati
+  attivi" leggevano `subscriptions` (mai scritta dal nuovo flusso, sarebbe rimasta a 0/€0 per
+  sempre) — ricalcolati da `profiles.tier`/`tier_expires_at` (gate non-overdue), con nota
+  esplicita che il MRR è una stima (un 1:1 stagionale conta come mensile, `profiles.tier` non
+  distingue mensile/stagionale dopo l'attivazione). `v_monthly_revenue`/"Ricavi totali" restano
+  corretti automaticamente perché `markPaid` ora scrive anche in `transactions`.
+- **Legale:** `termini`/`privacy` — le due frasi che citavano Stripe come processore pagamenti
+  sono ora fattualmente sbagliate (non più vero): corrette al minimo (incasso manuale, nessun
+  dato di carta/conto trattato da Glide). **Non è un giro di revisione legale completo** —
+  segnalato come follow-up, non fatto oltre la correzione fattuale minima.
+- **Verificato LIVE sul DB reale** (transazione con rollback, come da metodo consolidato in
+  questo repo): impersonato uno swimmer reale → tentativo di auto-marcarsi `payment_status='paid'`
+  → bloccato dal trigger (nessuna eccezione "FAIL" propagata = bloccato correttamente); impersonato
+  il coach reale → `payment_status='paid'`+`tier_expires_at`+`receipt_number` sulla riga di uno
+  swimmer → riuscito (verificato pre-rollback); dopo `rollback` → verificato stato pulito, 0
+  residui. `list_migrations` conferma `manual_payment_gate` tracciata.
+- **Test — `src/lib/payment/gate.test.ts`** (nuovo): due/grace/overdue ai bordi esatti della
+  finestra di grazia, `effectiveTier` collassa a `free` solo oltre la grazia, `expiryFor`
+  mensile/stagionale. **`access.test.ts`** esteso: `accessTier` — overdue nega `open:week`/
+  libreria a pagamento ma non tocca `library:free`. `npx tsc --noEmit` pulito, `npx eslint`:
+  0 nuovi errori (i 3 preesistenti — `app/page.tsx` purity, `assistant-widget.tsx`/
+  `home-greeting.tsx` set-state-in-effect — invariati, non toccati). `npm test`: **44/44 pass**
+  (+10 skip preesistenti, DB live non configurato nel sandbox). `next build`: compila pulito.
+
+**TEST A (richiesto dal prompt):** simulata la richiesta di attivazione end-to-end senza Stripe
+(unit test su `requestActivation`/`markPaid` via le funzioni pure di gate.ts, + verifica live
+RLS/trigger sopra). Verificato che un profilo overdue perde l'accesso a nuovo contenuto
+(`accessTier` → `free`, `canAccess`/`canOpenLibraryItem` negano) e a nuove prenotazioni
+(`/api/booking/create` → 402) MA storico/readiness restano sempre leggibili (non passano da
+`accessTier`/gate — verificato che nessuna chiamata sia stata aggiunta lì). **Esito: confermato.**
+
+### Sprint B — Nuotatori: 3 segmenti + scheda dettaglio (nessuna migration, solo UI/IA)
+
+- **`/coach/nuotatori`**: segment control a pillola (1:1 · Open · Base gratuito), sfondo pieno
+  Ink sul segmento attivo (non un cambio di colore testo, come da mockup). Segmentazione dal
+  `tier` già esistente — **nessuna colonna nuova**: 1:1 = `tier==='one_to_one'`, Open =
+  `open`/`open_plus`, Base gratuito = `free` (ADR-015 §Decisione: "è lo stato di default",
+  confermato qui in pratica).
+  - **1:1**: righe cliccabili a piena densità (avatar, nome, sottotitolo, pill tier+stato) →
+    `/coach/nuotatori/[id]`. Sottotitolo = stato pagamento se rilevante (scaduto/in grazia/
+    richiesta in attesa), altrimenti "Attivo dal …" — **non** un "prossimo allenamento" (dato
+    non disponibile a basso costo in batch per tutta la lista; il mockup lo mostra come demo
+    statica, non un contratto dati reale — segnalato come possibile miglioria futura, non
+    inventato qui).
+  - **Open**: tabella compatta, riga espandibile inline (accordion). Espansa: ultimo check-in
+    **fisica/mentale separate** (mai una media, B.5), Onda score, aderenza%, ultimo allenamento —
+    tutto pre-calcolato in **batch** (3 query, non N+1): `v_readiness` (ultima riga con fisica non
+    nulla per swimmer), `glide_scores.dims->>'aderenza'` (già calcolato dal cron settimanale,
+    niente chiamata live a `computeScore()` per ogni riga — sarebbe stato costoso), 
+    `workout_completions` (ultima per swimmer).
+  - **Base gratuito**: tabella compatta (prossima prenotazione, saldo token) + storico
+    prenotazioni su espansione. **Saldo token TOTALE, non per tipo** — `redeemable_for` non
+    esiste ancora (Sprint C, gated dal GO): mostrare una scomposizione per tipo ora avrebbe
+    richiesto inventare un dato che lo schema non ha.
+- **`/coach/nuotatori/[id]`**: riscritta da scroll unico a **7 tab** (Panoramica ·
+  Programmazione · Andamento · Video · Obiettivi & PB · Pagamenti · Note), header sticky
+  (avatar/nome/badge tier+stato/alert cert+pagamento) — header e barra tab nello STESSO blocco
+  sticky (`swimmer-tabs.tsx`), così restano insieme senza calcolare un offset in px fragile.
+  Tab attiva: colore (`text-blu`) + barra d'accento sotto + `font-bold` (700, peso reale) contro
+  `font-normal` (400) inattiva — **mai** 500/600 su Glacial Indifference (ADR-009, VINCOLO NON
+  DEROGABILE, verificato in tutto il file nuovo).
+  - **Tutto il contenuto esistente è stato RIALLOCATO, non perso**: scheda atleta/profilo/cert →
+    Panoramica; ProgramManager + editor scheda personale + elenco schede → Programmazione;
+    Identity/Onda/GlideScore/ReadinessProgress/EfficiencyCurves + feedback post-sessione →
+    Andamento; obiettivi + personal best → Obiettivi & PB; token+GiftToken → Pagamenti.
+  - **Video (nuovo qui)**: prima l'analisi viveva SOLO su `/coach/video` (globale); ora c'è anche
+    una vista per-nuotatore, riusando gli stessi componenti/azioni server (`CommentForm`,
+    `markReviewed`, `unlockPaidVideo`, `VideoActions`) — non duplicati, importati dal modulo
+    `coach/video/`.
+  - **Pagamenti (nuovo qui)**: `PaymentPanel` (nuovo componente) — stato gate (pill colorata +
+    giorni), richiesta pendente se presente, storico ultimo incasso, form "Segna pagato"
+    (`payment-actions.ts` → `markSwimmerPaid` → `lib/payment/request.ts#markPaid`, passa dal
+    client RLS del coach: sia la policy sia il trigger ammettono già `is_coach()` esplicitamente,
+    **non serve l'admin client qui** a differenza di `requestActivation`).
+  - **Note (onesto, non inventato):** GLIDE non ha uno schema per note libere indipendenti da un
+    programma — solo `program_notes` per-programma (già in Programmazione). Aggiungerne uno
+    avrebbe richiesto una migration, fuori scope Sprint B ("nessuna migration, solo UI/IA"). La
+    tab esiste (rispetta la struttura del mockup) ma **spiega il limite invece di fingere una
+    funzione che non c'è** — segnalato qui, non deciso.
+- **Readiness fisica/mentale sempre separate (B.5):** grep di `readinessIndex`/`readiness_totale`
+  su tutto `src/` → **0 risultati**, nessun residuo di media unica da rimuovere.
+- **Verificato LIVE sul DB reale** (dati staging reali, non sintetici) via Supabase MCP: query
+  identica a quella usata in `nuotatori/page.tsx` per il segmento Open, eseguita sui 10 nuotatori
+  `open_plus` esistenti — righe **visibilmente diverse** confermate (es. Marta: fisica 3.67/
+  mentale 3.50, onda 16, aderenza 90% · Wilma: fisica 2.67/mentale 3.50, onda 18, aderenza 72% ·
+  Salvatore: fisica 4.00/4.00, onda 22, aderenza 90% · Chiara: nessun dato, onda 0). **Nessun
+  nuotatore `free`/`one_to_one` esiste ancora nel progetto live** (tutti e 10 sono `open_plus`):
+  i segmenti 1:1/Base gratuito mostrano correttamente lo stato vuoto ("Nessun nuotatore … ancora"),
+  verificato via `tsc`/`eslint`/`next build` ma non con dati reali distinti (non esistono).
+- `npx tsc --noEmit` pulito, `npx eslint` 0 nuovi errori, `npm test` 44/44, `next build` compila.
+
+**TEST B (richiesto dal prompt):** eseguito con dati reali di staging invece che con lo scenario
+sintetico del prompt (i due profili A/B non esistono nel DB live) — **stesso esito richiesto**:
+nuotatori Open diversi mostrano righe espanse visibilmente diverse (fisica/mentale sempre
+separate). Segmenti 1:1/Base verificati solo per il codepath vuoto (nessun nuotatore reale in
+quei tier oggi). **Esito: confermato per Open (dati reali); 1:1/Base non falsificabili con i
+dati attuali, ma il codice è verificato (build/test/tsc/eslint puliti).**
+
+### Migration applicate, in ordine
+1. `migration_043_manual_payment_gate.sql` (ADR-014) — unica migration di questa sessione.
+
+### Violazioni ADR trovate nel codice esistente (non introdotte da questa sessione) e corrette
+- **Business/Ricavi leggeva `subscriptions`** (mai scritta dal nuovo flusso, e già raramente
+  scritta col vecchio: solo dal webhook Stripe reale) per MRR/abbonati attivi — sarebbe rimasto
+  fermo a 0/€0 per sempre col nuovo flusso se non corretto. Non era una violazione ADR-014
+  preesistente (ADR-014 nasce oggi), ma un effetto collaterale non menzionato esplicitamente nel
+  prompt sorgente, trovato e corretto perché altrimenti avrebbe rotto silenziosamente una pagina
+  reale del gestionale.
+- **`markPaid` non scriveva in `transactions`**: stesso motivo, trovato mentre si verificava
+  l'impatto su Business — corretto prima di chiudere lo sprint, non lasciato come nota.
+
+### Cancelli aperti — Sprint C NON iniziato, serve il GO
+- **Nessun GO ricevuto su C.1** (colonna `redeemable_for` su `lesson_tokens`): come da istruzione
+  esplicita del prompt sorgente ("Senza GO esplicito su C.1: fermati e passa a C.2 in poi solo
+  dopo averlo ricevuto"), **Sprint C non è stato toccato per niente** — non C.1, non C.2 ("Lezione
+  di gruppo" al catalogo `services`), non il resto. In attesa di conferma esplicita da Alessio.
+- Nota bene per quando arriverà il GO: C.2 (creare "Lezione di gruppo" nel catalogo) non dipende
+  da C.1 e potrebbe partire anche prima, ma il prompt sorgente lega esplicitamente "C.2 in poi"
+  al GO su C.1 — rispettato alla lettera, nessuna interpretazione estensiva.
+- **Legale (`termini`/`privacy`)**: solo le due frasi Stripe corrette (fattualmente sbagliate
+  dopo ADR-014). Un giro di revisione legale completo del nuovo flusso di incasso manuale
+  (ricevute, conformità fiscale) resta responsabilità di Alessio/commercialista, come da
+  ADR-010 §Confine — non affrontato oltre la correzione minima.
+- **Pricing page**: non ha ancora la quarta voce "Base gratuito" (ADR-015 §Conseguenze) — non
+  bloccante, dipende dal copy definitivo che Alessio deciderà.
 
 ## 🚨 Leak retroattivo nel ledger — corretto in diretta (26 ago, modalità autonoma)
 

@@ -4,6 +4,7 @@ import {
   canAccess,
   canOpenLibraryItem,
   upgradeTargetFor,
+  accessTier,
   ACCESS_MATRIX,
   TIERS,
 } from "./access";
@@ -59,6 +60,22 @@ test("upgradeTargetFor — invito al tier minimo che sblocca", () => {
   assert.equal(upgradeTargetFor("open"), "open");
   assert.equal(upgradeTargetFor("open_plus"), "open_plus");
   assert.equal(upgradeTargetFor("one_to_one"), "one_to_one");
+});
+
+test("accessTier (ADR-014) — nessuna scadenza o non ancora scaduta: tier reale invariato", () => {
+  assert.equal(accessTier({ tier: "open_plus", tier_expires_at: null }), "open_plus");
+  const future = new Date(Date.now() + 5 * 86_400_000).toISOString();
+  assert.equal(accessTier({ tier: "one_to_one", tier_expires_at: future }), "one_to_one");
+});
+
+test("accessTier (ADR-014) — overdue: si comporta da free per il gating su NUOVO contenuto", () => {
+  const longOverdue = new Date(Date.now() - 90 * 86_400_000).toISOString();
+  const p = { tier: "open_plus" as const, tier_expires_at: longOverdue };
+  assert.equal(accessTier(p), "free");
+  assert.equal(canAccess(accessTier(p), "open:week"), false);
+  assert.equal(canOpenLibraryItem(accessTier(p), "open"), false);
+  // free resta sempre accessibile: nessun contenuto "free" viene tolto.
+  assert.equal(canOpenLibraryItem(accessTier(p), "free"), true);
 });
 
 test("matrice — nessuna risorsa vuota, tier validi", () => {

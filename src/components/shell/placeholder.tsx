@@ -3,7 +3,7 @@ import { Construction } from "lucide-react";
 /**
  * Segnaposto Sprint 0: la sezione esiste (impalcatura) ma la funzione
  * arriverà negli sprint successivi. `simulated` mostra il badge quando
- * l'integrazione (Stripe/Resend) non è configurata.
+ * l'integrazione (Resend) non è configurata.
  */
 export function Placeholder({
   title,

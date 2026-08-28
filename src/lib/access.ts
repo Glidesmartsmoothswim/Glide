@@ -12,6 +12,8 @@
  * anche se il tier scende: non passa da qui.
  */
 
+import { effectiveTier } from "./payment/gate";
+
 export const TIERS = ["free", "open", "open_plus", "one_to_one"] as const;
 export type Tier = (typeof TIERS)[number];
 
@@ -57,6 +59,20 @@ export const ACCESS_MATRIX: Record<Resource, readonly Tier[]> = {
 /** Vero se il tier può accedere alla risorsa. */
 export function canAccess(tier: Tier, resource: Resource): boolean {
   return ACCESS_MATRIX[resource].includes(tier);
+}
+
+/**
+ * ADR-014 — tier "effettivo" per il gating: se il periodo pagato è
+ * `overdue` (lib/payment/gate.ts), si comporta come `free` per ogni
+ * risorsa che passa da qui. Da usare ovunque `canAccess`/`canOpenLibraryItem`
+ * decidono l'accesso a NUOVO contenuto. Non copre l'archivio storico/
+ * readiness, che non passano da qui per costruzione (ownership, non tier).
+ */
+export function accessTier(profile: {
+  tier: Tier;
+  tier_expires_at?: string | null;
+}): Tier {
+  return effectiveTier(profile.tier, profile.tier_expires_at ?? null, "free");
 }
 
 /** Risorsa libreria corrispondente a una visibilità. */

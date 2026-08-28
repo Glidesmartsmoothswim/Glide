@@ -57,12 +57,10 @@ function next14(): string[] {
 export function SwimmerBooking({
   services,
   credit,
-  stripeEnabled = false,
   tokensAvailable = 0,
 }: {
   services: Svc[];
   credit: Credit;
-  stripeEnabled?: boolean;
   tokensAvailable?: number;
 }) {
   const router = useRouter();
@@ -73,7 +71,9 @@ export function SwimmerBooking({
   );
   const [day, setDay] = useState<string | null>(null);
   const [slot, setSlot] = useState<string | null>(null);
-  const [method, setMethod] = useState<"cash" | "stripe">("cash");
+  // ADR-014: Stripe rimosso — 'cash' resta l'unico metodo (bonifico/contanti,
+  // saldato col coach fuori piattaforma).
+  const method = "cash" as const;
   const [useToken, setUseToken] = useState(tokensAvailable > 0);
   const [msg, setMsg] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
@@ -272,32 +272,13 @@ export function SwimmerBooking({
           {!willUseCredit && !willUseToken && (
             <div className="mt-3 flex flex-col gap-2">
               <p className="t-label text-muted">Come paghi</p>
-              {stripeEnabled && (
-                <button
-                  onClick={() => setMethod("stripe")}
-                  className={`rounded-lg border px-3 py-2 text-left text-sm font-bold ${
-                    method === "stripe"
-                      ? "border-blu bg-blu/10"
-                      : "border-border bg-surface"
-                  }`}
-                >
-                  Paga ora online
-                </button>
-              )}
-              <button
-                onClick={() => setMethod("cash")}
-                className={`rounded-lg border px-3 py-2 text-left text-sm font-bold ${
-                  method === "cash"
-                    ? "border-navy bg-navy/10"
-                    : "border-border bg-surface"
-                }`}
-              >
+              <div className="rounded-lg border border-navy bg-navy/10 px-3 py-2 text-left text-sm font-bold">
                 Paga in vasca col coach
                 <span className="block t-small font-normal text-muted">
                   Il pagamento (€{Math.round(svc.price_cents / 100)}) lo sistemi
                   direttamente con Alessio.
                 </span>
-              </button>
+              </div>
             </div>
           )}
           {msg && !ok && <p className="t-small mt-2 text-[#DC2626]">{msg}</p>}

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/lib/auth";
-import { canAccess } from "@/lib/access";
+import { canAccess, accessTier } from "@/lib/access";
 import { woMeters, parseLine, type Block, type ZoneId } from "@/lib/workout";
 
 export type SelfWorkoutState = { error?: string; info?: string; id?: string };
@@ -70,7 +70,7 @@ export async function createSelfWorkout(
 ): Promise<SelfWorkoutState> {
   const profile = await getCurrentProfile();
   if (!profile) return { error: "Sessione scaduta, rientra." };
-  if (!canAccess(profile.tier, "open:self"))
+  if (!canAccess(accessTier(profile), "open:self"))
     return { error: "Il builder è incluso nei piani Open e Open+." };
 
   const title = String(fd.get("title") ?? "").trim();

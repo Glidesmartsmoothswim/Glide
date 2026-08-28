@@ -89,11 +89,13 @@ export default function PrivacyPage() {
               "Durata del rapporto",
             ],
             [
-              "Dati di pagamento",
-              "Fatturazione",
+              "Dati di pagamento (importo, metodo, data, n. ricevuta)",
+              "Registro di cassa e fatturazione",
               "Contratto + obbligo fiscale",
               <>
-                Gestiti da Stripe — <strong>non conservati da Glide</strong>
+                Incasso <strong>manuale</strong> (bonifico/contanti),
+                registrato dal coach — nessun dato di carta/conto corrente
+                trattato o conservato da Glide
               </>,
             ],
             [
@@ -142,11 +144,6 @@ export default function PrivacyPage() {
               "Vercel",
               "Hosting applicativo",
               "Funzioni configurate su regione UE",
-            ],
-            [
-              "Stripe",
-              "Pagamenti",
-              "I dati della carta non transitano mai su Glide (Stripe Checkout ospitato)",
             ],
             [
               "Resend",

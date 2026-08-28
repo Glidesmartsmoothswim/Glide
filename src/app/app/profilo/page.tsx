@@ -2,9 +2,11 @@ import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { clientFeatures } from "@/lib/flags";
 import { signOut } from "@/app/login/actions";
-import { Card, Pill } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { TIER_LABEL as ACCESS_TIER_LABEL } from "@/lib/access";
+import { gateState, daysOverdue } from "@/lib/payment/gate";
+import { TIER_LABEL as SUB_TIER_LABEL, type SubTier } from "@/lib/payment/pricing";
 import { ObjectivesManager } from "./objectives-manager";
 import { CertificateDeclaration } from "./certificate-declaration";
 import { MfaSettings } from "@/components/account/mfa-settings";
@@ -33,33 +35,21 @@ import {
 
 export const metadata = { title: "Profilo" };
 
-export default async function SwimmerProfilo({
-  searchParams,
-}: {
-  searchParams: Promise<{ sim?: string; ok?: string }>;
-}) {
-  const sp = await searchParams;
+export default async function SwimmerProfilo() {
   const profile = await getCurrentProfile();
   const supabase = await createClient();
 
   // Onda 14.2: un solo read profili (full+ath erano la stessa riga) e tutte le
   // query indipendenti in parallelo (Promise.all), non a cascata.
   const sid = profile?.id ?? "";
-  const [profRes, subRes, objRes, certRes, tokRes, pbRes] = await Promise.all([
+  const [profRes, objRes, certRes, tokRes, pbRes] = await Promise.all([
     supabase
       .from("profiles")
       .select(
-        "id, role, first_name, last_name, email, phone, service_type, level, package, status, cert_status, cert_expiry, member_since, anno_nascita, categoria, stili_abituali, distanze_abituali",
+        "id, role, first_name, last_name, email, phone, service_type, tier, tier_expires_at, requested_tier, payment_status, payment_amount_cents, level, package, status, cert_status, cert_expiry, member_since, anno_nascita, categoria, stili_abituali, distanze_abituali",
       )
       .eq("id", sid)
       .single(),
-    supabase
-      .from("subscriptions")
-      .select("tier, status, current_period_end")
-      .eq("swimmer_id", sid)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
     supabase
       .from("objectives")
       .select("*")
@@ -94,7 +84,13 @@ export default async function SwimmerProfilo({
     stili_abituali: string[];
     distanze_abituali: string[];
   } | null;
-  const sub = subRes.data;
+  const pay = profRes.data as {
+    tier_expires_at: string | null;
+    requested_tier: SubTier | null;
+    payment_status: "pending_payment" | "paid" | null;
+    payment_amount_cents: number | null;
+  } | null;
+  const gate = gateState(pay?.tier_expires_at ?? null);
   const objectives = (objRes.data ?? []) as ObjectiveRow[];
   const cert = certRes.data as MedicalCertRow | null;
   const light = certLight(cert?.data_scadenza ?? null);
@@ -124,11 +120,29 @@ export default async function SwimmerProfilo({
           {me.level && <Row label="Livello" value={me.level} />}
           {me.package && <Row label="Pacchetto" value={me.package} />}
           <Row label="Certificato" value={CERT_LABEL[me.cert_status]} />
-          <Row
-            label="Abbonamento"
-            value={sub ? `${sub.tier} · ${sub.status}` : "nessuno"}
-          />
+          <Row label="Piano" value={ACCESS_TIER_LABEL[me.tier]} />
         </Card>
+      )}
+
+      {gate === "grace" && (
+        <p className="rounded-xl bg-amber-500/5 p-3 text-sm text-muted">
+          Il tuo piano è scaduto da {daysOverdue(pay?.tier_expires_at)}{" "}
+          {daysOverdue(pay?.tier_expires_at) === 1 ? "giorno" : "giorni"}:
+          l&apos;accesso resta invariato, ma rinnova a breve.
+        </p>
+      )}
+      {gate === "overdue" && (
+        <p className="rounded-xl bg-red-500/5 p-3 text-sm text-[#DC2626]">
+          Il tuo piano è scaduto da {daysOverdue(pay?.tier_expires_at)} giorni:
+          niente nuovo programma finché non rinnovi. Storico e readiness
+          restano visibili.
+        </p>
+      )}
+      {pay?.payment_status === "pending_payment" && (
+        <p className="rounded-xl bg-blu/5 p-3 text-sm text-blu">
+          Richiesta di attivazione {SUB_TIER_LABEL[pay.requested_tier!]} in
+          attesa di conferma — il coach la registra dopo l&apos;incasso.
+        </p>
       )}
 
       <section className="flex flex-col gap-3">
@@ -188,16 +202,6 @@ export default async function SwimmerProfilo({
           </Card>
         )}
       </section>
-
-      {sp.ok && (
-        <Card className="text-teal">Pagamento completato. Grazie!</Card>
-      )}
-      {sp.sim && (
-        <Card className="text-muted">
-          Checkout in modalità simulata: per attivare i pagamenti reali servono
-          le chiavi Stripe (Price ID) in <code>.env.local</code>.
-        </Card>
-      )}
 
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-lg text-foreground">Sicurezza</h2>
@@ -292,7 +296,6 @@ export default async function SwimmerProfilo({
       <section className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <h2 className="font-display text-lg text-foreground">Abbonamenti</h2>
-          {!clientFeatures.stripe && <Pill tone="warn">simulato</Pill>}
         </div>
         <Link
           href="/app/abbonamenti"

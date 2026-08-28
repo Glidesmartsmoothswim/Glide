@@ -5,7 +5,7 @@ import { serverFeatures } from "@/lib/flags";
 // Sezioni coach (rispecchiano la sidebar del prototipo).
 const SECTIONS: Record<
   string,
-  { title: string; subtitle: string; needs?: "stripe" | "resend" }
+  { title: string; subtitle: string; needs?: "resend" }
 > = {
   nuotatori: {
     title: "Nuotatori",
@@ -31,7 +31,6 @@ const SECTIONS: Record<
   business: {
     title: "Business",
     subtitle: "Ricavi, abbonamenti e transazioni.",
-    needs: "stripe",
   },
   notifiche: {
     title: "Notifiche",
@@ -54,9 +53,7 @@ export default async function CoachSection({
   if (!meta) notFound();
 
   const flags = serverFeatures();
-  const simulated =
-    (meta.needs === "stripe" && !flags.stripe) ||
-    (meta.needs === "resend" && !flags.resend);
+  const simulated = meta.needs === "resend" && !flags.resend;
 
   return (
     <Placeholder
