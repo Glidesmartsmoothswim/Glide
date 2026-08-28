@@ -155,10 +155,13 @@ export default async function Abbonamenti({
         </Card>
       )}
 
-      {/* FREE — fascia semplice, non una carta di vendita */}
+      {/* Base gratuito (ADR-015) — fascia semplice, non una carta di vendita.
+          Prenota senza abbonarti: nessun pacchetto token in vendita qui. */}
       <div className="rounded-xl border border-border bg-background p-3 text-sm text-muted">
-        <span className="font-bold text-foreground">Free</span> — Registrati
-        gratis: Libreria e prenotazione eventi singoli.
+        <span className="font-bold text-foreground">Base — € 0</span> —
+        Registrati gratis: prenota lezioni 1:1 ed eventi dall&apos;Agenda,
+        pagamento diretto col coach per ogni prenotazione. Nessuna
+        programmazione né Canale Open inclusi.
       </div>
 
       {/* Canale Open */}
