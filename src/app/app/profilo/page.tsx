@@ -8,7 +8,6 @@ import { TIER_LABEL as ACCESS_TIER_LABEL } from "@/lib/access";
 import { gateState, daysOverdue } from "@/lib/payment/gate";
 import { TIER_LABEL as SUB_TIER_LABEL, type SubTier } from "@/lib/payment/pricing";
 import { ObjectivesManager } from "./objectives-manager";
-import { CertificateDeclaration } from "./certificate-declaration";
 import { MfaSettings } from "@/components/account/mfa-settings";
 import { PbManager, type Pb } from "./pb-manager";
 import type { ObjectiveRow } from "@/lib/objectives";
@@ -17,18 +16,10 @@ import {
   isTokenAvailable,
   type LessonTokenRow,
 } from "@/lib/tokens";
-import {
-  certLight,
-  daysToExpiry,
-  CERT_LIGHT_LABEL,
-  CERT_LIGHT_DOT,
-  type MedicalCertRow,
-} from "@/lib/certificates";
 import { formatTempo } from "@/lib/profile/tempo";
 import { STILE_LABEL, type Stile } from "@/lib/profile/costanti";
 import {
   SERVICE_LABEL,
-  CERT_LABEL,
   fullName,
   type SwimmerRow,
 } from "@/lib/types";
@@ -42,11 +33,11 @@ export default async function SwimmerProfilo() {
   // Onda 14.2: un solo read profili (full+ath erano la stessa riga) e tutte le
   // query indipendenti in parallelo (Promise.all), non a cascata.
   const sid = profile?.id ?? "";
-  const [profRes, objRes, certRes, tokRes, pbRes] = await Promise.all([
+  const [profRes, objRes, tokRes, pbRes] = await Promise.all([
     supabase
       .from("profiles")
       .select(
-        "id, role, first_name, last_name, email, phone, service_type, tier, tier_expires_at, requested_tier, payment_status, payment_amount_cents, level, package, status, cert_status, cert_expiry, member_since, anno_nascita, categoria, stili_abituali, distanze_abituali",
+        "id, role, first_name, last_name, email, phone, service_type, tier, tier_expires_at, requested_tier, payment_status, payment_amount_cents, level, package, status, member_since, anno_nascita, categoria, stili_abituali, distanze_abituali",
       )
       .eq("id", sid)
       .single(),
@@ -56,13 +47,6 @@ export default async function SwimmerProfilo() {
       .eq("swimmer_id", sid)
       .order("status", { ascending: true })
       .order("created_at", { ascending: false }),
-    supabase
-      .from("medical_certificates")
-      .select("*")
-      .eq("swimmer_id", sid)
-      .order("data_scadenza", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
     supabase
       .from("lesson_tokens")
       .select("*")
@@ -92,9 +76,6 @@ export default async function SwimmerProfilo() {
   } | null;
   const gate = gateState(pay?.tier_expires_at ?? null);
   const objectives = (objRes.data ?? []) as ObjectiveRow[];
-  const cert = certRes.data as MedicalCertRow | null;
-  const light = certLight(cert?.data_scadenza ?? null);
-  const certDays = daysToExpiry(cert?.data_scadenza ?? null);
   const tokens = (tokRes.data ?? []) as LessonTokenRow[];
   const tokenAvail = availableCount(tokens);
   const pbs = pbRes.data;
@@ -119,7 +100,6 @@ export default async function SwimmerProfilo() {
           <Row label="Servizio" value={SERVICE_LABEL[me.service_type]} />
           {me.level && <Row label="Livello" value={me.level} />}
           {me.package && <Row label="Pacchetto" value={me.package} />}
-          <Row label="Certificato" value={CERT_LABEL[me.cert_status]} />
           <Row label="Piano" value={ACCESS_TIER_LABEL[me.tier]} />
         </Card>
       )}
@@ -207,36 +187,6 @@ export default async function SwimmerProfilo() {
         <h2 className="font-display text-lg text-foreground">Sicurezza</h2>
         <Card>
           <MfaSettings />
-        </Card>
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h2 className="font-display text-lg text-foreground">Certificato medico</h2>
-        {cert && (
-          <Card className="flex items-center gap-3">
-            <span
-              className="h-3 w-3 shrink-0 rounded-full"
-              style={{ background: CERT_LIGHT_DOT[light] }}
-            />
-            <div className="flex-1">
-              <p className="text-sm font-bold text-foreground">
-                {CERT_LIGHT_LABEL[light]}
-              </p>
-              <p className="text-sm text-muted">
-                Scadenza {cert.data_scadenza}
-              </p>
-            </div>
-          </Card>
-        )}
-        {certDays != null && certDays >= 0 && certDays <= 30 && (
-          <p className="rounded-xl bg-amber-500/5 p-3 text-sm text-muted">
-            Il tuo certificato scade tra {certDays}{" "}
-            {certDays === 1 ? "giorno" : "giorni"}: aggiorna la scadenza quando lo
-            rinnovi.
-          </p>
-        )}
-        <Card>
-          <CertificateDeclaration />
         </Card>
       </section>
 

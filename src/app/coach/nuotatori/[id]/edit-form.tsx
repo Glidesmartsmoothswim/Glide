@@ -52,15 +52,6 @@ export function EditSwimmerForm({ s }: { s: SwimmerRow }) {
           <option value="in_pausa">In pausa</option>
           <option value="scaduto">Scaduto</option>
         </select>
-        <select name="cert_status" defaultValue={s.cert_status} className={field}>
-          <option value="valido">Certificato valido</option>
-          <option value="in_scadenza">Certificato in scadenza</option>
-          <option value="assente">Certificato assente</option>
-        </select>
-        <label className="flex flex-col gap-1 text-xs text-muted">
-          Scadenza certificato
-          <input type="date" name="cert_expiry" defaultValue={s.cert_expiry ?? ""} className={field} />
-        </label>
       </div>
 
       {state.error && <p className="text-sm text-[#DC2626]">{state.error}</p>}

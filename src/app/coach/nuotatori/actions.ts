@@ -8,7 +8,7 @@ import { createSwimmerAccount } from "@/lib/coach/create-swimmer";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasOneToOne, grantMonthlyTokenIfMissing } from "@/lib/entitlements";
 import { TIERS, type Tier } from "@/lib/access";
-import type { ServiceType, SwimmerStatus, CertStatus } from "@/lib/types";
+import type { ServiceType, SwimmerStatus } from "@/lib/types";
 
 export type SwimmerActionState = {
   error?: string;
@@ -41,8 +41,8 @@ export async function updateSwimmer(
     level: String(formData.get("level") ?? "").trim() || null,
     package: String(formData.get("package") ?? "").trim() || null,
     status: String(formData.get("status") ?? "attivo") as SwimmerStatus,
-    cert_status: String(formData.get("cert_status") ?? "assente") as CertStatus,
-    cert_expiry: String(formData.get("cert_expiry") ?? "").trim() || null,
+    // Certificato medico rimosso dal prodotto (feedback 29/08): il form non
+    // manda più questi campi, il coach non li tocca da qui.
   };
 
   const supabase = await createClient();
