@@ -10,12 +10,13 @@ import {
   CHECKIN_CHANNEL_LABEL,
   eliteMonthlyPriceCents,
   eliteTotalPriceCents,
+  eliteSeasonQuote,
   type WorkoutFrequency,
   type CheckinCadence,
   type CheckinChannel,
   type BillingPeriod,
 } from "@/lib/payment/elite-pricing";
-import { startEliteActivation } from "./actions";
+import { startEliteActivation, startEliteSeasonActivation } from "./actions";
 
 const euro = (cents: number) => `€ ${(cents / 100).toFixed(2).replace(".00", "")}`;
 
@@ -51,6 +52,7 @@ export function EliteQuestionnaire({ color }: { color: string }) {
   const sel = { allenamenti, cadenza, canale };
   const monthly = eliteMonthlyPriceCents(sel);
   const total = eliteTotalPriceCents(sel, periodo);
+  const season = eliteSeasonQuote(sel);
 
   return (
     <form action={startEliteActivation} className="flex flex-col gap-3 text-left">
@@ -124,7 +126,27 @@ export function EliteQuestionnaire({ color }: { color: string }) {
         </p>
       </div>
 
-      <CheckoutConsent label="Richiedi attivazione" color={color} />
+      {/* TASK 7 (feedback 29/08): subito dopo il prezzo mensile, l'opzione
+          di prepagare l'intera stagione con sconto — nello stesso flusso,
+          non una pagina a parte. */}
+      <div className="rounded-lg border border-dashed border-teal/40 bg-teal/5 p-3 text-center">
+        <p className="text-sm text-muted">
+          Oppure paga tutta la stagione ora — fino a fine giugno, {season.months} mesi
+        </p>
+        <p className="font-display text-lg text-foreground">
+          {euro(season.discountedCents)}{" "}
+          <span className="text-sm font-normal text-muted line-through">
+            {euro(season.fullCents)}
+          </span>
+        </p>
+        <p className="text-xs font-bold text-teal">Sconto 10% per pagamento anticipato</p>
+      </div>
+
+      <CheckoutConsent
+        label="Richiedi attivazione"
+        color={color}
+        secondary={{ label: "Paga la stagione ora (-10%)", formAction: startEliteSeasonActivation }}
+      />
     </form>
   );
 }
