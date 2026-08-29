@@ -2,7 +2,7 @@ import { Video as VideoIcon, Archive as ArchiveIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Avatar, Pill } from "@/components/ui/card";
 import { CommentForm } from "./comment-form";
-import { markReviewed } from "./actions";
+import { markReviewed, unlockPaidVideo } from "./actions";
 import { VideoActions } from "@/app/app/video/video-actions";
 import { STATUS_LABEL, type VideoRow, type VideoCommentRow } from "@/lib/video";
 import { daysToPurge } from "@/lib/retention";
@@ -106,9 +106,20 @@ export default async function CoachVideo() {
         )}
 
         {v.status === "locked" ? (
-          <p className="rounded-xl bg-amber-500/5 p-3 text-sm text-muted">
-            In attesa che l&apos;atleta sblocchi l&apos;analisi (Open · €5).
-          </p>
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-amber-500/5 p-3">
+            <p className="text-sm text-muted">
+              Analisi bloccata (Open · €5) — sblocca dopo aver incassato.
+            </p>
+            <form action={unlockPaidVideo}>
+              <input type="hidden" name="video_id" value={v.id} />
+              <button
+                type="submit"
+                className="whitespace-nowrap rounded-lg bg-blu px-3 py-1.5 text-sm font-bold text-white"
+              >
+                Segna incassato
+              </button>
+            </form>
+          </div>
         ) : url ? (
           <video controls src={url} className="w-full rounded-xl bg-black" />
         ) : (

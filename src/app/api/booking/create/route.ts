@@ -3,6 +3,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { fullName } from "@/lib/types";
 import { notifyCoaches } from "@/lib/notify";
 import { logEvent } from "@/lib/ledger";
+import { gateState } from "@/lib/payment/gate";
 import {
   getCoachId,
   getServiceByCode,
@@ -30,6 +31,18 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request) {
   const profile = await getCurrentProfile();
   if (!profile) return new Response("unauthorized", { status: 401 });
+
+  // ADR-014 — gate ad accesso: overdue blocca SOLO le nuove prenotazioni,
+  // mai lo storico/readiness (che non passano da qui). Chi non ha mai avuto
+  // una scadenza (free/Base, ADR-015) non è toccato: gateState torna 'ok'.
+  if (gateState(profile.tier_expires_at) === "overdue")
+    return Response.json(
+      {
+        error:
+          "Il tuo piano è scaduto da troppi giorni: rinnova per prenotare una nuova lezione.",
+      },
+      { status: 402 },
+    );
 
   const body = await req.json().catch(() => ({}));
   const code = String(body.service ?? "");

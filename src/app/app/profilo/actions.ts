@@ -1,36 +1,10 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { categoriaMaster } from "@/lib/profile/categoria";
 import { isStile, isVasca, isEventoIndividuale } from "@/lib/profile/costanti";
-import {
-  createSubscriptionCheckout,
-  buildWithdrawalWaiver,
-  withdrawalWaived,
-  type SubTier,
-} from "@/lib/stripe-checkout";
-
-/**
- * Avvia il checkout abbonamento; se Stripe non è configurato → nota simulata.
- * glide-ext-recesso.md: senza la rinuncia al recesso spuntata, niente
- * checkout (il chiamante deve includere la checkbox, vedi CheckoutConsent).
- */
-export async function subscribe(formData: FormData) {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
-  if (!withdrawalWaived(formData)) redirect("/app/profilo?consent=1");
-
-  const tier = String(formData.get("tier") ?? "open") as SubTier;
-  const url = await createSubscriptionCheckout({
-    tier,
-    swimmerId: profile.id,
-    waiver: await buildWithdrawalWaiver(),
-  });
-  redirect(url ?? "/app/profilo?sim=1");
-}
 
 export type ProfileState = { error?: string; info?: string };
 

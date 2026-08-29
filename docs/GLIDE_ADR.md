@@ -420,3 +420,114 @@ Opzione 2. Rimozione completa del blocco dolore dal questionario readiness, incl
 ## Link
 
 `GLIDE_QUESTIONARIO.md` (v3) · `migration_041_readiness_remove_pain_fields.sql` · `PROMPT_CODE_READINESS_V3.md` · `GLIDE_SECURITY_AUDIT_v2.md` §4
+
+---
+
+## ADR-014 — Rimozione Stripe, incasso manuale, gate ad accesso su `payment_status`
+
+**Stato:** PROPOSTO — 28/08/2026 (passa a DECISO solo con conferma esplicita di Alessio, come da protocollo)
+
+**Contesto**
+Riunione col commercialista, 28/08/2026: al volume di clienti attuale la gestione Stripe (webhook, conciliazione, quietanze automatiche) aggiunge complessità burocratica senza beneficio proporzionato. Decisione: Stripe esce dal progetto, account in chiusura diretta. In parallelo, `migration_023_pricing_cron` (attivazione tier via cron su evento Stripe) non è mai stata applicata al DB live — il fix previsto per il lancio del 31/08 diventa superfluo: si rimuove il problema invece di risolverlo.
+
+**Alternative considerate**
+
+1. **Fixare il flusso Stripe esistente** (`tier_expires_at`, scadenza calcolata a runtime, niente `pg_cron`).
+   Pro: automazione end-to-end, zero lavoro manuale per il coach.
+   Contro: commissioni ricorrenti, superficie webhook/conciliazione in più da mantenere, sviluppo aggiuntivo a ridosso del lancio.
+2. **Stripe con SEPA Direct Debit** invece di carta (già esplorato in `GLIDE_HANDOFF_PREZZI_FATTURAZIONE`).
+   Pro: commissioni dimezzate, incasso resta automatico.
+   Contro: mandato da far firmare, incasso in ~5 gg lavorativi, finestra di rimborso "senza motivo" fino a 8 settimane, resta comunque un fornitore terzo con webhook.
+3. **Incasso manuale + gate ad accesso su `payment_status`** — scelta.
+   Pro: zero commissioni, zero webhook da mantenere, riusa uno schema già esistente e collaudato (ADR-010, modalità `cash`), coerente col volume attuale.
+   Contro: lavoro amministrativo ricorrente per il coach, non scala oltre una certa soglia (mitigato sotto, in Conseguenze).
+
+**Decisione**
+
+Stripe esce dal progetto. Nella tabella dei metodi di pagamento di ADR-010, la riga `stripe` viene rimossa; `credit` e `cash` restano, e **`cash` diventa il pattern generico per ogni incasso fuori piattaforma** (bonifico in primis, non solo contanti fisici).
+
+Flusso:
+1. Prezzo calcolato (Canale Open flat, 1:1 Elite da questionario) → entitlement in stato `pending_payment`, nessun accesso attivo.
+2. Email automatica (Resend): importo, coordinate, causale precompilata.
+3. Il coach segna "pagato" nel gestionale → `payment_status = paid` → tier attivo, periodo esteso, trigger opzionale verso Fatture in Cloud.
+4. Nessun addebito ricorrente: reminder via email, mai un cron che stacca l'accesso da solo.
+
+Gate ad accesso — degrado progressivo, non switch secco:
+
+| stato | quando | effetto |
+|---|---|---|
+| `due` | giorno di scadenza | reminder email al nuotatore |
+| `grace` | 1–5 gg dopo (`PAYMENT_GRACE_DAYS`) | accesso invariato, banner in-app, coach avvisato nel digest |
+| `overdue` | oltre 5 gg | niente nuovo programma/prenotazioni; storico e readiness restano visibili |
+| `paid` | coach segna pagato, in ogni momento | accesso ripristinato subito — override sempre disponibile |
+
+**Conseguenze**
+
+- `payment_status`/`da_incassare` (ADR-010) si estende da caso `cash` a flusso universale (`profiles.payment_status`/`tier_expires_at`, `migration_043_manual_payment_gate.sql`) — nuova migration tracciata, non hardcode.
+- Digest coach (ADR-011) guadagna una sezione "Pagamenti": nuotatori in `grace`/`overdue` o con richiesta `pending_payment`, azione a un tap.
+- `/api/stripe/webhook` **disattivato, non rimosso a DB**: risponde 410, nessuna chiamata SDK Stripe. Nessun `DROP` su `stripe_events`/`subscriptions`/`transactions` — irreversibile e non necessario per il lancio.
+- Fatturazione verso Fatture in Cloud (roadmap invariata) cambia trigger: da evento Stripe ad azione "segna pagato" del coach (`triggerInvoicing`, hook documentato, no-op finché non collegata).
+- Business/Ricavi (`/coach/business`): MRR e "abbonati attivi" leggevano `subscriptions` (mai più scritta) — ora leggono `profiles.tier`/`tier_expires_at`; il MRR è una stima (un 1:1 stagionale conta come mensile).
+- **Soglia di rivalutazione**: quando il carico di solleciti manuali supera una soglia (proposta iniziale, da tarare sui primi mesi: >N solleciti/mese o >X ore/settimana), riaprire questo ADR. SEPA DD resta l'opzione preferita rispetto alla carta se/quando si torna sull'automazione.
+- Nessun impatto su ADR-001 (confine AI), ADR-002 (single-coach), ADR-004 (confine sanitario): il gate legge solo `payment_status`/`tier_expires_at`, non tocca dati sanitari né decisioni di carico.
+
+**Link**
+Estende ADR-010 (sostituisce la riga `stripe`), ADR-011 (digest). Dettaglio operativo in `GLIDE_HANDOFF_PREZZI_FATTURAZIONE_v2.md`. Sostituisce la "Decisione critica" precedente in `GLIDE_LANCIO_READINESS_31AGO.md`. Implementato in `src/lib/payment/*`, `migration_043_manual_payment_gate.sql`.
+
+---
+
+## ADR-015 — Terzo tier: Base gratuita (prenotazione singola, nessun abbonamento)
+
+**Stato:** ACCETTATO — 28/08/2026 (confermato da Alessio: nessuna scadenza sui token regalati, "lezione di gruppo" va aggiunta al catalogo servizi)
+
+**Contesto**
+Emerso durante il redesign della sezione Nuotatori (`GLIDE_mockup_nuotatori_segmenti.html`): esiste una categoria di utenti non coperta dai tier attuali (1:1, Open/Open+) — chi si registra gratuitamente solo per prenotare singole lezioni 1:1 o videoanalisi, senza sottoscrivere programmazione o contenuti.
+
+**Alternative considerate**
+
+1. **Open a €0** — un record `subscriptions` con tier `open`, prezzo zero.
+   Pro: riusa esattamente il modello dati Open.
+   Contro: semanticamente sbagliato — Open dà accesso a contenuti/canale che questi utenti non devono vedere. Rischio di leak se il gate si basa solo su "esiste una subscription".
+2. **Nuova tabella dedicata** (es. `free_accounts`).
+   Pro: massima separazione.
+   Contro: duplica ownership/RLS già esistenti su `profiles`, aggiunge superficie senza un bisogno reale.
+3. **Nessun nuovo record — è lo stato di default** di un `profiles` senza riga attiva in `subscriptions`/`plan_entitlements` — scelta.
+   Pro: zero schema nuovo, riusa il flusso pagamento singolo (`cash`/bonifico, ADR-010 esteso da ADR-014) per ogni prenotazione.
+   Contro: nessuno — è la lettura più economica dei dati che già esistono.
+
+**Decisione**
+
+Opzione 3, formalizzata: "Base" non è un tier con riga propria: è **l'assenza di un tier attivo** — `profiles.tier = 'free'`, già il default esistente (nessuna migration nuova per questa parte, confermato in Sprint B). Un profilo `swimmer` con tier `free` ha esattamente tre capacità, tutte già coperte da meccanismi esistenti:
+
+1. **Accesso app** — registrazione libera e gratuita, profilo `swimmer` senza subscription attiva. Nessun costo, nessuna carta richiesta all'iscrizione.
+2. **Eventi** — iscrizione a `events`/`event_signups` (clinic, gara, trasferta, videoanalisi come tipo evento — ADR-007). Già indipendente da un tier oggi.
+3. **Lezioni private** — prenotazione via `bookings`. **Nessun acquisto self-service di token.** Si prenotano e basta: il pagamento di ogni prenotazione è gestito dal coach fuori piattaforma (`cash`/bonifico, flusso manuale ADR-014). Tariffa piena: 35€ lezione singola, 100€ videoanalisi (prezzi "extra fuori piano", `GLIDE_HANDOFF_PREZZI_FATTURAZIONE`).
+
+**Regalo token a discrezione del coach**
+I token non si comprano da soli (né per Base né altrove). Il coach può **regalare** token in qualsiasi momento, a qualsiasi nuotatore (Base incluso), spendibili su tre categorie: lezione privata, lezione di gruppo, evento di videoanalisi.
+
+**Implicazione di schema — richiede il GO esplicito di Alessio prima che Claude Code la tocchi.** `lesson_tokens` oggi è scoped a lezioni private (redeem via `migration_024_token_redeem_fns`, RPC `reserve_lesson_token`/`release_lesson_token`). Non copre lezioni di gruppo né eventi videoanalisi. Opzione scelta (coerente con ADR-007): campo `redeemable_for` su `lesson_tokens` (`private_lesson` | `group_lesson` | `videoanalisi_event`), redeem esistente esteso a controllare il match tipo-token/tipo-prenotazione.
+
+**Flusso del regalo** (nessun pagamento coinvolto)
+1. Il coach, dalla scheda nuotatore, sceglie "Regala token" → tipo (privata/gruppo/videoanalisi) → quantità.
+2. Accredito immediato in `lesson_tokens`, nessuna email di pagamento, nessuna fattura, **nessuna scadenza** (deciso 28/08).
+3. Il nuotatore vede il saldo token nella propria app, redimibile sulla prenotazione corrispondente al tipo.
+
+Il confine sanitario (ADR-004, router L1/L2) resta attivo indipendentemente dal tier. Programmazione, Canale Open, readiness/check-in strutturato e Onda/Glide Score restano fuori: presuppongono continuità che un Base, per definizione, non ha.
+
+**Conseguenze**
+- L'entitlement check (`my_tier()`/`accessTier`, ADR-014) già restituisce `free` per questi profili — gestionale (segmento "Base gratuito", Sprint B) e swimmer app trattano esplicitamente questo stato come terzo ramo, non come eccezione/errore.
+- Gestionale coach: sezione Nuotatori → segmento "Base gratuito" mostra prenotazioni e saldo token (Sprint B, implementato: saldo totale, non ancora per tipo — in attesa di `redeemable_for`).
+- Pricing page: quarta voce oltre a 1:1 / Open / Open+ — non è "a partire da X", è "prenota senza abbonarti" (non ancora aggiunta: dipende dal copy definitivo, non bloccante).
+- Migration di schema per estendere `lesson_tokens` a gruppo/videoanalisi — **serve il GO esplicito di Alessio**, non coperta dal via libera già dato su ADR-014. Non applicata in questa sessione (Sprint C fermato in attesa del GO).
+- "Lezione di gruppo" **non esiste ancora** nel catalogo `services` — va creata come parte dello sprint C.2, prima di poter regalare token di quel tipo.
+- Nessun impatto sulle RLS di booking/eventi esistenti: il profilo esiste già, prenotazioni e redeem passano già dall'API server-side (ADR-008).
+
+**Decisioni aperte** (non bloccanti)
+- Nome pubblico del tier ("Base gratuito" nel mockup — può cambiare).
+- Motivazione obbligatoria sul regalo, visibile al nuotatore.
+- Flusso di registrazione: scelta esplicita "solo prenotazioni" o default per chi non seleziona un piano.
+- Se anche questi utenti devono vedere l'informativa/patto (schermata 2 onboarding) prima di prenotare.
+
+**Link**
+Estende ADR-010/ADR-014 (pagamento singolo), ADR-007 (eventi), ADR-008 (booking solo via API server-side). Schema riusato: `lesson_tokens`, `migration_024_token_redeem_fns`, `bookings`, `events`/`event_signups`. Schema da estendere (in attesa di GO): `redeemable_for` su `lesson_tokens`. Riferimento UI: `GLIDE_mockup_nuotatori_segmenti.html`, implementato in `src/app/coach/nuotatori/nuotatori-segments.tsx`.

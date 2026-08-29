@@ -1,13 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/lib/auth";
-import { canAccess } from "@/lib/access";
-import { serverFeatures } from "@/lib/flags";
-import { createBirraCheckout } from "@/lib/stripe-checkout";
+import { canAccess, accessTier } from "@/lib/access";
 import { BIRRA_CENTS } from "@/lib/video";
 import { notifyCoaches } from "@/lib/notify";
 import { logEvent } from "@/lib/ledger";
@@ -149,7 +146,7 @@ export async function registerVideo(
     .eq("id", profile.id)
     .single();
   const is11 =
-    canAccess(profile.tier, "video:review") ||
+    canAccess(accessTier(profile), "video:review") ||
     full?.service_type === "coaching_1_1" ||
     full?.service_type === "both";
   const tier = is11 ? "coaching_1_1" : "open";
@@ -199,10 +196,11 @@ export async function registerVideo(
 }
 
 /**
- * Sblocca un video Open.
- * - Stripe attivo → redirect al checkout €5 (il webhook sbloccherà).
- * - Stripe assente → sblocco SIMULATO via service_role (bypassa la RLS,
- *   come farebbe il webhook) + transazione fittizia. Nessun crash.
+ * ADR-014 — Stripe rimosso: niente più checkout/sblocco automatico. Il
+ * nuotatore RICHIEDE lo sblocco (€5), il coach lo incassa fuori piattaforma
+ * e lo conferma da /coach/video (stesso pattern "segna pagato" di ADR-010,
+ * vedi coach/video/actions.ts → unlockPaidVideo). Il video resta `locked`
+ * finché il coach non conferma.
  */
 export async function unlockVideo(formData: FormData) {
   const profile = await getCurrentProfile();
@@ -210,36 +208,10 @@ export async function unlockVideo(formData: FormData) {
   const videoId = String(formData.get("video_id") ?? "");
   if (!videoId) return;
 
-  if (serverFeatures().stripe) {
-    const url = await createBirraCheckout({
-      videoId,
-      swimmerId: profile.id,
-    });
-    if (url) redirect(url);
-  }
-
-  // Modalità simulata
-  const admin = createAdminClient();
-  if (!admin) return;
-  await admin
-    .from("race_videos")
-    .update({ paid: true, status: "pending" })
-    .eq("id", videoId)
-    .eq("swimmer_id", profile.id);
-  await admin.from("transactions").insert({
-    swimmer_id: profile.id,
-    type: "birra",
-    video_id: videoId,
-    amount_cents: BIRRA_CENTS,
-    currency: "eur",
-    status: "succeeded",
-    description: "Sblocco analisi video (simulato)",
-  });
   await notifyCoaches(
     "birra",
-    "🍺 Video sbloccato",
-    `${fullName(profile)} ha sbloccato l'analisi (€5)`,
+    "🍺 Sblocco analisi richiesto",
+    `${fullName(profile)} chiede lo sblocco dell'analisi video (€${Math.round(BIRRA_CENTS / 100)}) — da confermare in Video gare dopo l'incasso.`,
   );
   revalidatePath("/app/video");
-  revalidatePath("/coach/video");
 }

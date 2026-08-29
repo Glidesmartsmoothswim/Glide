@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/card";
 import { RevenueChart, type RevPoint } from "@/components/business/revenue-chart";
 import { euro } from "@/lib/workout";
+import { gateState } from "@/lib/payment/gate";
 
 export const metadata = { title: "Business" };
 
@@ -28,11 +29,26 @@ export default async function BusinessPage() {
   const tx = (txData ?? []) as Tx[];
   const ok = tx.filter((t) => t.status === "succeeded");
 
-  const { data: subs } = await supabase
-    .from("subscriptions")
-    .select("price_cents, status")
-    .eq("status", "active");
-  const mrr = (subs ?? []).reduce((s, r) => s + (r.price_cents ?? 0), 0);
+  // ADR-014: Stripe rimosso, `subscriptions` non è più scritta da nulla —
+  // "abbonati attivi"/MRR si leggono da profiles.tier (gate ad accesso), non
+  // più da lì. MRR è una STIMA: profiles.tier non distingue mensile/
+  // stagionale dopo l'attivazione, quindi un 1:1 stagionale conta come
+  // mensile (sovrastima quel caso, unico compromesso onesto senza schema
+  // aggiuntivo).
+  const { data: activeProfiles } = await supabase
+    .from("profiles")
+    .select("tier, tier_expires_at")
+    .eq("role", "swimmer")
+    .neq("tier", "free");
+  const MONTHLY_EQUIV: Record<string, number> = {
+    open: 1290,
+    open_plus: 1990,
+    one_to_one: 7900,
+  };
+  const active = (activeProfiles ?? []).filter(
+    (p) => gateState(p.tier_expires_at) !== "overdue",
+  );
+  const mrr = active.reduce((s, p) => s + (MONTHLY_EQUIV[p.tier] ?? 0), 0);
 
   const { data: rev } = await supabase
     .from("v_monthly_revenue")
@@ -68,8 +84,12 @@ export default async function BusinessPage() {
         <Kpi label="Ricavi totali" value={euro(totalAll / 100)} />
         <Kpi label="MRR" value={euro(mrr / 100)} />
         <Kpi label="Birre 🍺" value={`${birre.length}`} />
-        <Kpi label="Abbonati attivi" value={`${subs?.length ?? 0}`} />
+        <Kpi label="Abbonati attivi" value={`${active.length}`} />
       </div>
+      <p className="-mt-2 text-sm text-muted">
+        MRR stimato dal piano attivo (ADR-014, incasso manuale): un 1:1
+        stagionale conta come mensile, per approssimazione onesta.
+      </p>
 
       <Card>
         <h2 className="mb-2 font-display text-lg text-foreground">

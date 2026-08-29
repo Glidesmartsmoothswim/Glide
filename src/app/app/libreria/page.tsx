@@ -8,6 +8,7 @@ import { KIND_LABEL, type LibraryItem, type LibraryKind } from "@/lib/library";
 import {
   canOpenLibraryItem,
   upgradeTargetFor,
+  accessTier,
   TIER_LABEL,
   type Visibility,
 } from "@/lib/access";
@@ -22,7 +23,7 @@ const KIND_ICON: Record<LibraryKind, typeof FileText> = {
 
 export default async function SwimmerLibreria() {
   const profile = await getCurrentProfile();
-  const tier = profile?.tier ?? "free";
+  const tier = profile ? accessTier(profile) : "free";
   const supabase = await createClient();
 
   const { data } = await supabase

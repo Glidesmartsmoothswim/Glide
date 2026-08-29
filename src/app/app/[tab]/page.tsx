@@ -5,7 +5,7 @@ import { serverFeatures } from "@/lib/flags";
 // Tab del nuotatore (rispecchiano la bottom-tab del prototipo).
 const TABS: Record<
   string,
-  { title: string; subtitle: string; needs?: "stripe" | "resend" }
+  { title: string; subtitle: string; needs?: "resend" }
 > = {
   nuoto: {
     title: "Nuoto",
@@ -15,7 +15,6 @@ const TABS: Record<
     title: "Video",
     subtitle:
       "Carica i tuoi video gara e ricevi l'analisi tecnica del coach.",
-    needs: "stripe",
   },
   progressi: {
     title: "Progressi",
@@ -37,7 +36,7 @@ export default async function SwimmerTab({
   if (!meta) notFound();
 
   const flags = serverFeatures();
-  const simulated = meta.needs === "stripe" && !flags.stripe;
+  const simulated = meta.needs === "resend" && !flags.resend;
 
   return (
     <Placeholder

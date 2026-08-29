@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/auth";
 import { notifyUser } from "@/lib/notify";
+import { BIRRA_CENTS } from "@/lib/video";
 
 export type CommentState = { error?: string; info?: string };
 
@@ -45,6 +46,45 @@ export async function addComment(
   revalidatePath("/coach/video");
   revalidatePath("/app/video");
   return { info: "Analisi inviata." };
+}
+
+/**
+ * ADR-014 — sblocco analisi Open dopo incasso manuale dei €5 (stesso spirito
+ * di "segna pagato" ADR-010: il coach conferma DOPO aver incassato fuori
+ * piattaforma, mai un incasso simulato/automatico).
+ */
+export async function unlockPaidVideo(formData: FormData) {
+  await requireRole("coach");
+  const videoId = String(formData.get("video_id") ?? "");
+  if (!videoId) return;
+
+  const supabase = await createClient();
+  const { data: video } = await supabase
+    .from("race_videos")
+    .update({ paid: true, status: "pending" })
+    .eq("id", videoId)
+    .eq("status", "locked")
+    .select("swimmer_id")
+    .maybeSingle();
+  if (!video) return;
+
+  await supabase.from("transactions").insert({
+    swimmer_id: video.swimmer_id,
+    type: "birra",
+    video_id: videoId,
+    amount_cents: BIRRA_CENTS,
+    currency: "eur",
+    status: "succeeded",
+    description: "Sblocco analisi video — incassato dal coach",
+  });
+  await notifyUser(
+    video.swimmer_id as string,
+    "birra",
+    "Analisi sbloccata 🍺",
+    "Il coach ha confermato l'incasso: puoi vedere l'analisi appena pronta.",
+  );
+  revalidatePath("/coach/video");
+  revalidatePath("/app/video");
 }
 
 /** Segna un video come analizzato senza commento testuale. */

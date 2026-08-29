@@ -2,7 +2,6 @@ import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCreditStatus, ensureCreditPeriod } from "@/lib/booking/credits";
-import { serverFeatures } from "@/lib/flags";
 import { SwimmerBooking } from "@/components/booking/swimmer-booking";
 import { UpcomingLessons } from "@/components/booking/upcoming-lessons";
 import { SwimmerEvents } from "@/components/booking/swimmer-events";
@@ -200,7 +199,6 @@ export default async function PrenotaPage() {
       <SwimmerBooking
         services={services}
         credit={credit}
-        stripeEnabled={serverFeatures().stripe}
         tokensAvailable={tokensAvailable}
       />
 

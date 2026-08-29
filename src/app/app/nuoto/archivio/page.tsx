@@ -5,7 +5,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { Card } from "@/components/ui/card";
 import { WorkoutCard } from "@/components/workout/workout-card";
 import { UpgradeHint } from "@/components/access/upgrade-hint";
-import { canAccess } from "@/lib/access";
+import { canAccess, accessTier } from "@/lib/access";
 import { formatWeek, currentMonday } from "@/lib/week";
 import type { WorkoutRow } from "@/lib/types";
 
@@ -22,7 +22,7 @@ export default async function OpenArchive({
   searchParams: Promise<{ focus?: string; q?: string }>;
 }) {
   const profile = await getCurrentProfile();
-  const tier = profile?.tier ?? "free";
+  const tier = profile ? accessTier(profile) : "free";
   const { focus = "", q = "" } = await searchParams;
 
   if (!canAccess(tier, "open:archive")) {

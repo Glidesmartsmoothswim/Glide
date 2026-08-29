@@ -4,8 +4,9 @@ import { z } from "zod";
  * Variabili d'ambiente.
  *
  * - Supabase + app  → RICHIESTE (senza, non c'è auth/gating).
- * - Stripe, Resend  → OPZIONALI. Se mancano o sono placeholder, la
+ * - Resend          → OPZIONALE. Se manca o è placeholder, la
  *   relativa funzione resta "simulata" (vedi lib/flags.ts). Nessun crash.
+ *   (ADR-014: Stripe è uscito dal progetto — incasso manuale, lib/payment/*.)
  */
 
 /** true se il valore esiste e non è un placeholder del template .env. */
@@ -57,10 +58,3 @@ export const publicEnv = publicSchema.parse({
   ),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
 });
-
-/** Chiave pubblicabile Stripe (client). Undefined se non configurata. */
-export const stripePublishableKey = configured(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
-)
-  ? process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
-  : undefined;

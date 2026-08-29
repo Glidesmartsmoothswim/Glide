@@ -12,6 +12,8 @@ export type Profile = {
   last_name: string | null;
   email: string | null;
   tier: Tier;
+  /** ADR-014: scadenza del periodo pagato corrente. Null = nessun gate. */
+  tier_expires_at: string | null;
 };
 
 /**
@@ -30,7 +32,7 @@ export async function getCurrentProfile(): Promise<Profile | null> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, role, first_name, last_name, email, tier")
+    .select("id, role, first_name, last_name, email, tier, tier_expires_at")
     .eq("id", userId)
     .single();
 
@@ -44,9 +46,14 @@ export async function getCurrentProfile(): Promise<Profile | null> {
       last_name: null,
       email,
       tier: "free",
+      tier_expires_at: null,
     };
   }
-  return { ...profile, tier: (profile.tier ?? "free") as Tier } as Profile;
+  return {
+    ...profile,
+    tier: (profile.tier ?? "free") as Tier,
+    tier_expires_at: (profile.tier_expires_at as string | null) ?? null,
+  } as Profile;
 }
 
 /** Home corretta per ruolo. */

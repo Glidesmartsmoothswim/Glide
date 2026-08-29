@@ -1,10 +1,18 @@
 import { getCurrentProfile } from "@/lib/auth";
-import { clientFeatures } from "@/lib/flags";
-import { Card, Pill } from "@/components/ui/card";
+import { createClient } from "@/lib/supabase/server";
+import { Card } from "@/components/ui/card";
 import { PricingCard, type Feature } from "@/components/pricing/pricing-card";
 import { CheckoutConsent } from "@/components/pricing/checkout-consent";
 import { TIER_LABEL } from "@/lib/access";
-import { startSubscription, startSeason } from "./actions";
+import { gateState, daysOverdue } from "@/lib/payment/gate";
+import {
+  TIER_PRICE_CENTS,
+  TIER_LABEL as SUB_TIER_LABEL,
+  type SubTier,
+} from "@/lib/payment/pricing";
+import { startActivation } from "./actions";
+import { EliteQuestionnaire } from "./elite-questionnaire";
+import { ELITE_ENTRY_PRICE_CENTS } from "@/lib/payment/elite-pricing";
 
 export const metadata = { title: "Abbonamenti" };
 
@@ -15,6 +23,8 @@ const C = {
   monthly: "var(--navy)",
   season: "var(--ink)",
 };
+
+const euro = (cents: number) => `€ ${(cents / 100).toFixed(2).replace(".00", "")}`;
 
 // Righe feature ALLINEATE per far saltare all'occhio le differenze (13.5).
 const OPEN: Feature[] = [
@@ -58,9 +68,8 @@ export default async function Abbonamenti({
   searchParams,
 }: {
   searchParams: Promise<{
-    ok?: string;
-    canceled?: string;
-    sim?: string;
+    requested?: string;
+    err?: string;
     consent?: string;
   }>;
 }) {
@@ -69,38 +78,94 @@ export default async function Abbonamenti({
   const tier = profile?.tier ?? "free";
   const cur = (t: string) => tier === t;
 
+  const supabase = await createClient();
+  const { data: pay } = profile
+    ? await supabase
+        .from("profiles")
+        .select("payment_status, requested_tier, requested_tier_detail, payment_amount_cents")
+        .eq("id", profile.id)
+        .maybeSingle()
+    : { data: null };
+  const pending = pay?.payment_status === "pending_payment";
+  const gate = gateState(profile?.tier_expires_at ?? null);
+
+  const colorFor = (t: SubTier) =>
+    t === "open"
+      ? C.open
+      : t === "open_plus"
+        ? C.openPlus
+        : t === "one_to_one_monthly"
+          ? C.monthly
+          : C.season;
+
+  const activate = (t: SubTier) => (
+    <form action={startActivation}>
+      <input type="hidden" name="tier" value={t} />
+      {pending ? (
+        <CtaButton label="Richiesta inviata" color={colorFor(t)} disabled />
+      ) : (
+        <CheckoutConsent label="Richiedi attivazione" color={colorFor(t)} />
+      )}
+    </form>
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <header>
         <h1 className="font-display text-2xl text-foreground">Scegli il tuo piano</h1>
         <p className="flex items-center gap-2 text-sm text-muted">
           Piano attuale: <span className="font-bold">{TIER_LABEL[tier]}</span>
-          {!clientFeatures.stripe && <Pill tone="warn">simulato</Pill>}
         </p>
       </header>
 
-      {sp.ok && <Card className="text-teal">Pagamento completato. Grazie!</Card>}
+      {sp.requested && (
+        <Card className="text-blu">
+          Richiesta inviata: controlla la mail per i dettagli del bonifico. Il
+          piano si attiva appena il coach registra l&apos;incasso.
+        </Card>
+      )}
+      {sp.err && (
+        <Card className="text-[#DC2626]">
+          Non è stato possibile inviare la richiesta. Riprova o scrivi al coach.
+        </Card>
+      )}
       {sp.consent && (
         <Card className="text-muted">
           Per procedere devi prima spuntare la casella sulla rinuncia al
-          recesso: il servizio parte subito, quindi la legge chiede il tuo
-          consenso esplicito prima del pagamento.
+          recesso: il servizio parte subito quando il coach conferma
+          l&apos;incasso, quindi la legge chiede il tuo consenso esplicito ora.
         </Card>
       )}
-      {sp.sim && (
+      {pending && !sp.requested && (
+        <Card className="text-blu">
+          Richiesta di attivazione{" "}
+          {pay!.requested_tier_detail || SUB_TIER_LABEL[pay!.requested_tier as SubTier]}{" "}
+          in attesa di conferma — il coach la registra dopo l&apos;incasso.
+        </Card>
+      )}
+      {gate === "grace" && (
         <Card className="text-muted">
-          Checkout in modalità simulata: per attivare i pagamenti reali servono i
-          Price ID Stripe in <code>.env.local</code>.
+          Il tuo piano è scaduto da {daysOverdue(profile?.tier_expires_at)}{" "}
+          {daysOverdue(profile?.tier_expires_at) === 1 ? "giorno" : "giorni"}:
+          l&apos;accesso resta invariato, ma rinnova a breve.
         </Card>
       )}
-      <Card className="text-muted">
-        Versione di prova: i prezzi non sono ancora attivi.
-      </Card>
+      {gate === "overdue" && (
+        <Card className="text-[#DC2626]">
+          Il tuo piano è scaduto da {daysOverdue(profile?.tier_expires_at)}{" "}
+          giorni: niente nuovo programma finché non rinnovi. Storico e
+          readiness restano visibili.
+        </Card>
+      )}
 
-      {/* FREE — fascia semplice, non una carta di vendita */}
+      {/* Base gratuito (ADR-015) — fascia semplice, non una carta di vendita.
+          Prenota senza abbonarti: nessun pacchetto token in vendita qui. */}
       <div className="rounded-xl border border-border bg-background p-3 text-sm text-muted">
-        <span className="font-bold text-foreground">Free</span> — Registrati
-        gratis: Libreria e prenotazione eventi singoli.
+        <span className="font-bold text-foreground">Base — € 0</span> —
+        Registrati gratis: prenota lezioni 1:1 ed eventi dall&apos;Agenda,
+        pagamento diretto col coach per ogni prenotazione (€35 lezione
+        singola, €100 videoanalisi). Nessuna programmazione né Canale Open
+        inclusi.
       </div>
 
       {/* Canale Open */}
@@ -111,30 +176,28 @@ export default async function Abbonamenti({
             name="Open"
             color={C.open}
             badge="Consigliato"
+            price={euro(TIER_PRICE_CENTS.open)}
+            period="al mese"
             features={OPEN}
             cta={
               cur("open") ? (
                 <CtaButton label="Piano attuale" color={C.open} disabled />
               ) : (
-                <form action={startSubscription}>
-                  <input type="hidden" name="tier" value="open" />
-                  <CheckoutConsent label="Attiva Open" color={C.open} />
-                </form>
+                activate("open")
               )
             }
           />
           <PricingCard
             name="Open+"
             color={C.openPlus}
+            price={euro(TIER_PRICE_CENTS.open_plus)}
+            period="al mese"
             features={OPEN_PLUS}
             cta={
               cur("open_plus") ? (
                 <CtaButton label="Piano attuale" color={C.openPlus} disabled />
               ) : (
-                <form action={startSubscription}>
-                  <input type="hidden" name="tier" value="open_plus" />
-                  <CheckoutConsent label="Attiva Open+" color={C.openPlus} />
-                </form>
+                activate("open_plus")
               )
             }
           />
@@ -146,32 +209,34 @@ export default async function Abbonamenti({
         <h2 className="font-display text-lg text-foreground">Percorso 1:1</h2>
         <div className="grid grid-cols-2 gap-3">
           <PricingCard
-            name="Mensile"
+            name="Elite"
             color={C.monthly}
+            price={`a partire da ${euro(ELITE_ENTRY_PRICE_CENTS)}`}
+            period="al mese"
+            tagline="Canone allenamenti + check-in col coach, calcolato su misura"
             features={ONE_TO_ONE}
-            cta={
-              <form action={startSubscription}>
-                <input type="hidden" name="tier" value="one_to_one_monthly" />
-                <CheckoutConsent label="Attiva mensile" color={C.monthly} />
-              </form>
-            }
+            cta={pending ? <CtaButton label="Richiesta inviata" color={C.monthly} disabled /> : <EliteQuestionnaire color={C.monthly} />}
           />
           <PricingCard
             name="Stagionale"
             color={C.season}
-            tagline="settembre – giugno"
+            price={euro(TIER_PRICE_CENTS.one_to_one_season)}
+            tagline="settembre – giugno, prezzo fisso"
             features={ONE_TO_ONE}
-            cta={
-              <form action={startSeason}>
-                <CheckoutConsent label="Attiva stagionale" color={C.season} />
-              </form>
-            }
+            cta={activate("one_to_one_season")}
           />
         </div>
+        <p className="text-sm text-muted">
+          1:1 Elite: il prezzo dipende da quanti allenamenti scritti a
+          settimana e quanto spesso vuoi un check-in col coach (in vasca o in
+          call) — lo calcoli tu prima di richiedere l&apos;attivazione.
+          Videoanalisi resta un prodotto a parte (€100).
+        </p>
       </section>
 
       <p className="text-sm text-muted">
-        Puoi usare un codice promozionale al momento del pagamento.
+        Attivazione manuale (ADR-014): niente carta, il coach conferma
+        l&apos;incasso a bonifico e il piano parte subito dopo.
       </p>
     </div>
   );

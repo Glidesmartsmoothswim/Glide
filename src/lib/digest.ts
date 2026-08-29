@@ -2,6 +2,8 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fullName } from "@/lib/types";
 import { PHASE_LABEL, type PhaseType } from "@/lib/programs";
+import { gateState, daysOverdue } from "@/lib/payment/gate";
+import { TIER_LABEL as SUB_TIER_LABEL, type SubTier } from "@/lib/payment/pricing";
 
 /**
  * Digest coach (GLIDE FASE 1.5). Max 3 righe per sezione, ogni riga un'azione.
@@ -36,7 +38,9 @@ export async function computeDigest(
 
   const { data: sw } = await supabase
     .from("profiles")
-    .select("id, first_name, last_name, email, cert_status")
+    .select(
+      "id, first_name, last_name, email, cert_status, tier_expires_at, payment_status, requested_tier, requested_tier_detail, payment_amount_cents",
+    )
     .eq("role", "swimmer");
   const swimmers = sw ?? [];
   const nameById = new Map(
@@ -144,10 +148,47 @@ export async function computeDigest(
     });
   }
 
+  // 4) Pagamenti (ADR-014/A.6): richieste in attesa + abbonamenti in grazia/
+  // scaduti. Ordinati per gravità (overdue prima, poi giorni di ritardo).
+  const pagamenti: (DigestRow & { rank: number })[] = [];
+  for (const s of swimmers) {
+    const name = nameById.get(s.id) ?? "Atleta";
+    const p = s as unknown as {
+      tier_expires_at: string | null;
+      payment_status: "pending_payment" | "paid" | null;
+      requested_tier: SubTier | null;
+      requested_tier_detail: string | null;
+      payment_amount_cents: number | null;
+    };
+    if (p.payment_status === "pending_payment" && p.requested_tier) {
+      pagamenti.push({
+        swimmerId: s.id,
+        href: `/coach/nuotatori/${s.id}`,
+        text: `${name} — richiesta ${p.requested_tier_detail || SUB_TIER_LABEL[p.requested_tier]} in attesa di incasso${
+          p.payment_amount_cents ? ` (€${Math.round(p.payment_amount_cents / 100)})` : ""
+        }.`,
+        rank: 3,
+      });
+      continue;
+    }
+    const state = gateState(p.tier_expires_at);
+    if (state === "grace" || state === "overdue") {
+      const days = daysOverdue(p.tier_expires_at);
+      pagamenti.push({
+        swimmerId: s.id,
+        href: `/coach/nuotatori/${s.id}`,
+        text: `${name} — ${state === "overdue" ? "scaduto" : "in grazia"} da ${days} ${days === 1 ? "giorno" : "giorni"}.`,
+        rank: state === "overdue" ? 1 : 2,
+      });
+    }
+  }
+  pagamenti.sort((a, b) => a.rank - b.rank);
+
   const cut = (rows: DigestRow[]) => rows.slice(0, 3);
   return [
     { title: "Sta scivolando", rows: cut(scivola) },
     { title: "Certificati", rows: cut(certificati) },
+    { title: "Pagamenti", rows: cut(pagamenti) },
     { title: "I numeri", rows: cut(numeri) },
   ];
 }
