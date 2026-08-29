@@ -251,6 +251,11 @@ export function SwimmerBooking({
             {svc.name} ·{" "}
             {svc.mode === "remote" ? "Video call" : "Piscina di Livorno"}
           </p>
+          {svc.mode !== "remote" && (
+            <p className="t-small text-muted">
+              Via Salvatore Allende n.7 - Piscina comunale Camalich
+            </p>
+          )}
           <p className="t-small mt-1 text-muted">{priceLabel}</p>
           {tokensAvailable > 0 && (
             <button
