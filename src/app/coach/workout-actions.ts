@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/auth";
 import { woMeters, type Block } from "@/lib/workout";
 import { canEditWorkout } from "@/lib/config";
-import { normalizeToMonday, currentMonday } from "@/lib/week";
+import { normalizeToMonday, currentMonday, weekDayOf } from "@/lib/week";
 import type { WorkoutFormState } from "@/components/workout/editor";
 
 function parseBlocks(raw: string): Block[] {
@@ -39,6 +39,13 @@ export async function savePersonalWorkout(
       title,
       focus: String(formData.get("focus") ?? "").trim() || null,
       pool: Number(formData.get("pool") ?? 25),
+      // Bugfix (feedback 29/08): l'editor "personal" non ha un selettore
+      // giorno/settimana (è per un singolo nuotatore, non per il Canale
+      // Open) — senza questi due campi "La tua Settimana" lato nuotatore
+      // non trova mai la scheda. Popolati alla pubblicazione, come
+      // open_channel fa col suo default quando il form non li manda.
+      week_start: currentMonday(),
+      week_day: weekDayOf(),
       blocks,
       total_meters: woMeters(blocks),
       published_at: new Date().toISOString(),
