@@ -12,6 +12,8 @@ import type { SubTier } from "@/lib/payment/pricing";
 import {
   eliteTotalPriceCents,
   eliteSelectionLabel,
+  eliteSeasonQuote,
+  eliteSeasonLabel,
   WORKOUT_FREQUENCIES,
   CHECKIN_CADENCES,
   CHECKIN_CHANNELS,
@@ -87,6 +89,53 @@ export async function startEliteActivation(fd: FormData) {
     "one_to_one_monthly",
     await buildWithdrawalWaiver(),
     { amountCentsOverride: amountCents, detail },
+  );
+  redirect(
+    result.error
+      ? "/app/abbonamenti?err=1"
+      : "/app/abbonamenti?requested=1",
+  );
+}
+
+/**
+ * TASK 7 (feedback 29/08) — stessa selezione del questionario Elite, ma
+ * prepagamento dell'intera stagione con sconto 10% invece che mese per
+ * mese. Stesso principio ADR-002 regola 1: il prezzo scontato è
+ * ricalcolato qui da `eliteSeasonQuote`, mai da un importo del client.
+ * `requested_tier` resta "one_to_one_monthly" (non esiste un tier a sé per
+ * l'Elite stagionale) — il coach vede in `requested_tier_detail` che si
+ * tratta di un prepagamento stagione e per quanti mesi, e sceglie di
+ * conseguenza in "Segna pagato" (payment-panel.tsx, periodMonths).
+ */
+export async function startEliteSeasonActivation(fd: FormData) {
+  const profile = await getCurrentProfile();
+  if (!profile) return;
+  if (!withdrawalWaived(fd)) redirect("/app/abbonamenti?consent=1");
+
+  const allenamenti = Number(fd.get("allenamenti")) as WorkoutFrequency;
+  const cadenza = String(fd.get("cadenza") ?? "") as CheckinCadence;
+  const canale = String(fd.get("canale") ?? "") as CheckinChannel;
+
+  if (
+    !WORKOUT_FREQUENCIES.includes(allenamenti) ||
+    !CHECKIN_CADENCES.includes(cadenza) ||
+    !CHECKIN_CHANNELS.includes(canale)
+  )
+    redirect("/app/abbonamenti?err=1");
+
+  const sel = { allenamenti, cadenza, canale };
+  const quote = eliteSeasonQuote(sel);
+  const detail = eliteSeasonLabel(sel, quote.months);
+
+  const admin = createAdminClient();
+  if (!admin) redirect("/app/abbonamenti?sim=1");
+
+  const result = await requestActivation(
+    admin,
+    { id: profile.id, email: profile.email, firstName: profile.first_name },
+    "one_to_one_monthly",
+    await buildWithdrawalWaiver(),
+    { amountCentsOverride: quote.discountedCents, detail },
   );
   redirect(
     result.error

@@ -74,6 +74,39 @@ export default async function SwimmerNuoto() {
   const selfWorkouts = (selfRes.data ?? []) as WorkoutRow[];
   const doneIds = new Set(done.map((d) => d.workout_id).filter(Boolean));
 
+  // TASK 8 (feedback 29/08): "le tue schede" e "i miei allenamenti"
+  // mostravano la stessa cosa in due punti diversi, senza uno scopo
+  // distinto. Ora: "le tue schede" = solo da svolgere (programma attivo),
+  // "i miei allenamenti" = indice completo, fatti + da fare, ogni riga
+  // apribile sul dettaglio (/app/nuoto/[id], che ora mostra note/RPE/
+  // readiness per le sedute già completate).
+  const toRow = (w: WorkoutRow) => ({
+    id: w.id,
+    title: w.title,
+    focus: w.focus,
+    totalMeters: w.total_meters,
+    done: false as const,
+    dateLabel: "Da fare",
+    href: `/app/nuoto/${w.id}`,
+  });
+  const allAllenamenti = [
+    ...personal.filter((w) => !doneIds.has(w.id)).map(toRow),
+    ...selfWorkouts.filter((w) => !doneIds.has(w.id)).map(toRow),
+    ...done.map((d) => ({
+      id: d.id,
+      title: d.title,
+      focus: d.focus,
+      totalMeters: d.total_meters,
+      done: true as const,
+      dateLabel: new Date(d.completed_at).toLocaleDateString("it-IT", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }),
+      href: d.workout_id ? `/app/nuoto/${d.workout_id}` : null,
+    })),
+  ];
+
   return (
     <div className="flex flex-col gap-6">
       <header>
@@ -81,12 +114,14 @@ export default async function SwimmerNuoto() {
         <p className="text-sm text-muted">Le tue schede e il Canale Open.</p>
       </header>
 
-      {personal.length > 0 && (
+      {personal.filter((w) => !doneIds.has(w.id)).length > 0 && (
         <section className="flex flex-col gap-3">
           <h2 className="font-display text-lg text-foreground">Le tue schede</h2>
-          {personal.map((w) => (
-            <WorkoutCard key={w.id} w={w} />
-          ))}
+          {personal
+            .filter((w) => !doneIds.has(w.id))
+            .map((w) => (
+              <WorkoutCard key={w.id} w={w} />
+            ))}
         </section>
       )}
 
@@ -164,36 +199,36 @@ export default async function SwimmerNuoto() {
       )}
 
       <section className="flex flex-col gap-3">
-        <h2 className="font-display text-lg text-foreground">I miei allenamenti</h2>
-        {done.length === 0 ? (
+        <div>
+          <h2 className="font-display text-lg text-foreground">I miei allenamenti</h2>
+          <p className="text-sm text-muted">Tutto: fatti e da fare, in un unico elenco.</p>
+        </div>
+        {allAllenamenti.length === 0 ? (
           <Card className="text-muted">
-            Qui restano gli allenamenti che hai svolto — anche a settimana finita.
+            Qui trovi tutti i tuoi allenamenti — fatti e da fare.
           </Card>
         ) : (
-          done.map((d) => (
-            <Card key={d.id} className="flex items-center gap-3">
+          allAllenamenti.map((a) => (
+            <Card key={a.id} className="flex items-center gap-3">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-background text-muted">
                 <CalendarRange size={17} />
               </span>
               <div className="flex-1">
-                <p className="font-bold text-foreground">{d.title}</p>
+                <p className="font-bold text-foreground">{a.title}</p>
                 <p className="text-sm text-muted">
-                  {new Date(d.completed_at).toLocaleDateString("it-IT", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  })}
-                  {d.focus ? ` · ${d.focus}` : ""}
-                  {d.total_meters
-                    ? ` · ${d.total_meters.toLocaleString("it-IT")} m`
+                  {a.done ? (
+                    a.dateLabel
+                  ) : (
+                    <span className="font-bold text-blu">Da fare</span>
+                  )}
+                  {a.focus ? ` · ${a.focus}` : ""}
+                  {a.totalMeters
+                    ? ` · ${a.totalMeters.toLocaleString("it-IT")} m`
                     : ""}
                 </p>
               </div>
-              {d.workout_id && (
-                <Link
-                  href={`/app/nuoto/${d.workout_id}`}
-                  className="text-sm font-bold text-blu"
-                >
+              {a.href && (
+                <Link href={a.href} className="text-sm font-bold text-blu">
                   Apri
                 </Link>
               )}

@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/lib/auth";
 import { canAccess, accessTier } from "@/lib/access";
 import { woMeters, parseLine, type Block, type ZoneId } from "@/lib/workout";
+import { currentMonday, weekDayOf } from "@/lib/week";
 
 export type SelfWorkoutState = { error?: string; info?: string; id?: string };
 
@@ -92,6 +93,10 @@ export async function createSelfWorkout(
       kind: "self",
       title,
       pool,
+      // Stesso bugfix di kind='personal' (feedback 29/08): il builder
+      // self-service non ha selettore giorno/settimana, va popolato qui.
+      week_start: currentMonday(),
+      week_day: weekDayOf(),
       blocks: [block],
       total_meters: woMeters([block]),
       published_at: new Date().toISOString(),

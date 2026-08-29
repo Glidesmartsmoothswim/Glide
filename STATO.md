@@ -5,6 +5,78 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
+## 🛠️ Bugfix e feedback (29 ago, PROMPT_CODE_BUGFIX_FEEDBACK.md, modalità semi-autonoma)
+
+8 task, tutti chiusi tranne due gate 🛑 espliciti che restano in attesa di GO di Alessio
+(dato sanitario/backfill, mai eseguiti in autonomia):
+
+1. **week_start/week_day NULL su kind='personal'/'self'** — l'editor di questi due kind non
+   ha mai avuto un selettore giorno/settimana (Onda 12.3 lo introduce solo per open_channel):
+   il campo restava NULL, invisibile a qualunque vista filtrata per settimana. Fix in
+   `savePersonalWorkout`/`createSelfWorkout` (workout-actions.ts, self-actions.ts):
+   popolati alla pubblicazione con `currentMonday()` + nuova `weekDayOf()` (lib/week.ts,
+   stessa convenzione lun=0 di `mondayOf`). Verificato live via insert+rollback.
+   🛑 **Backfill delle 3 righe storiche (workouts + workout_completions collegate) — NON
+   eseguito, in attesa di GO.** Query esatta (week_day derivato dal giorno reale di
+   `completed_at`, verificato contro `date -d`):
+   ```sql
+   UPDATE public.workouts SET week_start='2026-07-27', week_day='Gio' WHERE id='eb18657f-4a8a-4192-be84-eaf2a4b00c51';
+   UPDATE public.workouts SET week_start='2026-08-24', week_day='Lun' WHERE id='7af5a65b-94de-4c97-93e4-39443938bd2a';
+   UPDATE public.workouts SET week_start='2026-08-24', week_day='Ven' WHERE id='65e526b7-7abd-4c3c-833d-2ff0d502b381';
+   UPDATE public.workout_completions SET week_start='2026-07-27' WHERE id='9891543e-584f-40cd-bbbb-d3c823f19d4e';
+   UPDATE public.workout_completions SET week_start='2026-08-24' WHERE id='4393e52b-fd86-439a-b565-75cfd9060bf1';
+   UPDATE public.workout_completions SET week_start='2026-08-24' WHERE id='725a3457-d89d-465e-aea6-975427c9b8be';
+   ```
+2. **Certificato medico — rimozione mai completata** — tolta la UI (banner scadenza,
+   autodichiarazione nuotatore, campi coach in edit-form, sezione "Certificato medico" su
+   entrambe le schede, digest "Certificati"); eliminati `certificate-declaration.tsx`,
+   `certificate-actions.ts`, `lib/certificates.ts` (nessun altro consumer). **NON toccata**
+   la notifica `type='cert'` di `lib/assistant/router.ts`: verificato contro il DB live,
+   l'unica riga `type='cert'` esistente è il matcher di sicurezza ADR-004 (segnale dolore/red
+   flag in chat), non un reminder di certificato — stesso enum riusato per due funzioni
+   diverse, nessun trigger/cron di reminder certificato esiste in questo repo. Canale di
+   allerta sanitaria attivo, esplicitamente preservato da ADR-013 — da NON toccare.
+   🛑 **Svuotamento dati — NON eseguito, in attesa di GO esplicito (dato sanitario):**
+   ```sql
+   UPDATE public.profiles SET cert_status = NULL, cert_expiry = NULL
+     WHERE cert_status IS NOT NULL OR cert_expiry IS NOT NULL;  -- 11 righe
+   ```
+   `medical_certificates` (3 righe): la nota sorgente non ha risposto alla domanda
+   "svuoto insieme ai profili o la lascio come storico?" — lasciata intatta, segnalato qui.
+3. **Notifiche lette non sparivano** — il campo `read` c'era già, mancava il filtro nel
+   componente. `NotifList` ora mostra le non lette in primo piano, collassa le lette sotto
+   un `<details>` (mai perse, solo fuori dai piedi) — stesso componente condiviso da
+   `/coach/notifiche` e dal widget home nuotatore.
+4. **Notifiche prenotazioni** — l'evidenza di Alessio ("mai generata") è confermata sul DB
+   live (0 righe `type='booking'`), ma il codice la generava già lato in-app
+   (`notifyCoaches('booking', ...)` in `api/booking/create/route.ts`, da Onda 24/luglio — le 4
+   bookings esistenti sono precedenti/esterne a quel flusso). Il vero gap era solo l'email:
+   nuova `notifyCoachesEmail()` in `lib/notify.ts` (stesso pattern lazy di
+   `requestActivation`), chiamata sullo stesso evento. Aggiunta anche la conferma in-app al
+   nuotatore.
+5. **Indirizzo piscina Livorno** — "Via Salvatore Allende n.7 - Piscina comunale Camalich"
+   nel riepilogo di conferma prenotazione quando il servizio è `mode='pool'`
+   (`swimmer-booking.tsx`).
+6. **Copy card 1:1 Elite** — "Allenamento personalizzato sulle tue esigenze ed obiettivi"
+   accanto a "Programmazione dedicata" (`ONE_TO_ONE` features, condivisa da Elite e Stagionale).
+7. **Prepagamento stagione intera Elite, sconto 10%** — subito dopo che il questionario
+   calcola la cifra mensile, seconda opzione nello stesso flusso ("Paga la stagione ora
+   -10%"). `monthsToSeasonEnd()` nuova in `elite-pricing.ts` (stessa convenzione `seasonEnd`
+   di `one_to_one_season`, importata da `pricing.ts` — non una regola parallela; oggi 29 ago
+   → 11 mesi, ago…giu). Prezzo scontato sempre ricalcolato server-side dalla selezione grezza
+   (mai da un importo client). `CheckoutConsent` ha ora un prop opzionale `secondary` (due
+   submit nello stesso form, stessa checkbox di rinuncia). Il coach può confermare un incasso
+   stagionale: select "quanti mesi copre l'incasso" esteso da 1-2 a 1-12.
+8. **"Le tue schede" vs "I miei allenamenti"** — le due sezioni mostravano la stessa cosa
+   senza uno scopo distinto. Ora "Le tue schede" = solo `personal` NON ancora completati;
+   "I miei allenamenti" = indice unico (personal/self da fare + tutte le completions), ogni
+   riga apribile. Il dettaglio (`/app/nuoto/[id]`) mostra ora, per le sedute completate: RPE,
+   umore post-sessione, nota libera (da `v_readiness`, riga 'post' per quel `workout_id`) e —
+   quando esiste — il check-in 'pre' dello stesso giorno (sonno/energia). Verificato contro
+   le 3 schede reali della TASK 1.
+
+**Fuori scope, rispettato:** Progressi / Glide Score non toccati.
+
 _Ultimo aggiornamento: 2026-08-28 — **Prezzario 1:1 Elite da questionario**
 (GLIDE_HANDOFF_PREZZI_FATTURAZIONE.md, canone allenamenti/sett + credito check-in per
 canale/cadenza) su `/app/abbonamenti` (modalità guidata da Alessio, tabella prezzi fornita

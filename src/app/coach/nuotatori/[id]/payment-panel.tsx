@@ -132,11 +132,14 @@ export function PaymentPanel({
             <select
               value={periodMonths}
               onChange={(e) => setPeriodMonths(Number(e.target.value))}
-              title="Quanti mesi copre l'incasso (1:1 Elite)"
+              title="Quanti mesi copre l'incasso (1:1 Elite) — fino a 12 per un prepagamento stagione (TASK 7)"
               className="rounded-lg border border-border bg-background px-2 py-2 text-sm"
             >
-              <option value={1}>1 mese</option>
-              <option value={2}>2 mesi</option>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>
+                  {n} {n === 1 ? "mese" : "mesi"}
+                </option>
+              ))}
             </select>
           )}
           <input

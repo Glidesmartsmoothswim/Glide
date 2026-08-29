@@ -19,9 +19,17 @@ const WAIVER_TEXT =
 export function CheckoutConsent({
   label,
   color,
+  secondary,
 }: {
   label: string;
   color: string;
+  /**
+   * CTA secondaria opzionale nello stesso form (es. TASK 7 — "paga la
+   * stagione ora"): stessa checkbox di rinuncia, `formAction` diversa —
+   * l'HTML nativo supporta più submit per form, ognuno con la propria
+   * action.
+   */
+  secondary?: { label: string; formAction: (fd: FormData) => void };
 }) {
   const [waived, setWaived] = useState(false);
 
@@ -45,6 +53,16 @@ export function CheckoutConsent({
       >
         {label}
       </button>
+      {secondary && (
+        <button
+          type="submit"
+          formAction={secondary.formAction}
+          disabled={!waived}
+          className="w-full rounded-lg border border-border py-2.5 text-sm font-bold text-foreground disabled:text-muted"
+        >
+          {secondary.label}
+        </button>
+      )}
     </div>
   );
 }

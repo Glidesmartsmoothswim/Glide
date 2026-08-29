@@ -39,7 +39,7 @@ export async function computeDigest(
   const { data: sw } = await supabase
     .from("profiles")
     .select(
-      "id, first_name, last_name, email, cert_status, tier_expires_at, payment_status, requested_tier, requested_tier_detail, payment_amount_cents",
+      "id, first_name, last_name, email, tier_expires_at, payment_status, requested_tier, requested_tier_detail, payment_amount_cents",
     )
     .eq("role", "swimmer");
   const swimmers = sw ?? [];
@@ -96,7 +96,6 @@ export async function computeDigest(
   };
 
   const scivola: DigestRow[] = [];
-  const certificati: DigestRow[] = [];
 
   for (const s of swimmers) {
     const name = nameById.get(s.id) ?? "Atleta";
@@ -116,16 +115,9 @@ export async function computeDigest(
           ),
         });
     }
-
-    // 2) Certificati — in scadenza o assente
-    if (s.cert_status === "in_scadenza" || s.cert_status === "assente")
-      certificati.push({
-        swimmerId: s.id,
-        text: `${name} — certificato ${s.cert_status === "assente" ? "assente" : "in scadenza"}.`,
-      });
   }
 
-  // 3) I numeri — incassi in sospeso (ADR-011): il contante si dimentica.
+  // I numeri — incassi in sospeso (ADR-011): il contante si dimentica.
   const numeri: DigestRow[] = [];
   const { data: pend } = await supabase
     .from("bookings")
@@ -148,7 +140,7 @@ export async function computeDigest(
     });
   }
 
-  // 4) Pagamenti (ADR-014/A.6): richieste in attesa + abbonamenti in grazia/
+  // Pagamenti (ADR-014/A.6): richieste in attesa + abbonamenti in grazia/
   // scaduti. Ordinati per gravità (overdue prima, poi giorni di ritardo).
   const pagamenti: (DigestRow & { rank: number })[] = [];
   for (const s of swimmers) {
@@ -187,7 +179,6 @@ export async function computeDigest(
   const cut = (rows: DigestRow[]) => rows.slice(0, 3);
   return [
     { title: "Sta scivolando", rows: cut(scivola) },
-    { title: "Certificati", rows: cut(certificati) },
     { title: "Pagamenti", rows: cut(pagamenti) },
     { title: "I numeri", rows: cut(numeri) },
   ];

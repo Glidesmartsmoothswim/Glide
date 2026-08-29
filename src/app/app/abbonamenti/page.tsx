@@ -38,6 +38,7 @@ const OPEN: Feature[] = [
 const OPEN_PLUS: Feature[] = OPEN.map((f) => ({ ...f, included: true }));
 const ONE_TO_ONE: Feature[] = [
   { label: "Programmazione dedicata", included: true },
+  { label: "Allenamento personalizzato sulle tue esigenze ed obiettivi", included: true },
   { label: "1 lezione/mese inclusa (vasca o remoto)", included: true },
   { label: "Video gara: caricamento e analisi del coach inclusi", included: true },
   { label: "Contatto diretto col coach", included: true },

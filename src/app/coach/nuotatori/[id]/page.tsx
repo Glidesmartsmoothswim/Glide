@@ -27,7 +27,6 @@ import {
   OBJECTIVE_STATUS_LABEL,
   type ObjectiveRow,
 } from "@/lib/objectives";
-import { certLight, CERT_LIGHT_LABEL, CERT_LIGHT_DOT } from "@/lib/certificates";
 import { availableCount, type LessonTokenRow } from "@/lib/tokens";
 import { GiftToken } from "./gift-token";
 import { savePersonalWorkout } from "../../workout-actions";
@@ -96,7 +95,6 @@ export default async function SwimmerDetail({
     intakeRes,
     progRes,
     objRes,
-    certRes,
     tokRes,
     doneRes,
     rRes,
@@ -128,13 +126,6 @@ export default async function SwimmerDetail({
       .eq("swimmer_id", id)
       .order("status", { ascending: true })
       .order("created_at", { ascending: false }),
-    supabase
-      .from("medical_certificates")
-      .select("data_scadenza")
-      .eq("swimmer_id", id)
-      .order("data_scadenza", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
     supabase
       .from("lesson_tokens")
       .select("*")
@@ -213,11 +204,9 @@ export default async function SwimmerDetail({
     notes: notesByProg.get(p.id) ?? null,
   }));
 
-  // Obiettivi / certificato / token / svolti / readiness / efficienza / score:
+  // Obiettivi / token / svolti / readiness / efficienza / score:
   // tutti già letti in parallelo sopra (Onda 14.2).
   const objectives = (objRes.data ?? []) as ObjectiveRow[];
-  const certExpiry = (certRes.data?.data_scadenza as string | null) ?? null;
-  const certL = certLight(certExpiry);
   const tokens = (tokRes.data ?? []) as LessonTokenRow[];
   const tokenBalance = availableCount(tokens);
 
@@ -390,9 +379,6 @@ export default async function SwimmerDetail({
   };
 
   const headerAlerts: { text: string; tone: "warn" | "bad" | "brand" }[] = [];
-  if (certL === "in_scadenza") headerAlerts.push({ text: "Certificato in scadenza", tone: "warn" });
-  if (certL === "scaduto") headerAlerts.push({ text: "Certificato scaduto", tone: "bad" });
-  if (certL === "assente") headerAlerts.push({ text: "Certificato assente", tone: "warn" });
   if (pay.payment_status === "pending_payment")
     headerAlerts.push({ text: "Richiesta di attivazione in attesa", tone: "brand" });
   else if (gate === "overdue")
@@ -496,20 +482,6 @@ export default async function SwimmerDetail({
             </Card>
           </section>
         )}
-
-        <section className="flex flex-col gap-3">
-          <h2 className="font-display text-lg text-foreground">Certificato medico</h2>
-          <Card className="flex items-center gap-3">
-            <span
-              className="h-3 w-3 shrink-0 rounded-full"
-              style={{ background: CERT_LIGHT_DOT[certL] }}
-            />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-foreground">{CERT_LIGHT_LABEL[certL]}</p>
-              {certExpiry && <p className="text-sm text-muted">Scadenza {certExpiry}</p>}
-            </div>
-          </Card>
-        </section>
 
         <Card>
           <h2 className="mb-4 font-display text-lg text-foreground">Scheda atleta</h2>
