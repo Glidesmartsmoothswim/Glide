@@ -65,7 +65,7 @@ export default async function SwimmerDetail({
   const { data: s } = await supabase
     .from("profiles")
     .select(
-      "id, role, first_name, last_name, email, phone, service_type, tier, level, package, status, cert_status, cert_expiry, member_since, athlete_type, anno_nascita, categoria, stili_abituali, distanze_abituali, tier_expires_at, requested_tier, payment_status, payment_amount_cents, receipt_number, paid_at",
+      "id, role, first_name, last_name, email, phone, service_type, tier, level, package, status, cert_status, cert_expiry, member_since, athlete_type, anno_nascita, categoria, stili_abituali, distanze_abituali, tier_expires_at, requested_tier, requested_tier_detail, payment_status, payment_amount_cents, receipt_number, paid_at",
     )
     .eq("id", id)
     .single();
@@ -82,6 +82,7 @@ export default async function SwimmerDetail({
   const pay = s as {
     tier_expires_at: string | null;
     requested_tier: SubTier | null;
+    requested_tier_detail: string | null;
     payment_status: "pending_payment" | "paid" | null;
     payment_amount_cents: number | null;
     receipt_number: string | null;
@@ -725,6 +726,7 @@ export default async function SwimmerDetail({
             daysOverdue={daysOverdue(pay.tier_expires_at)}
             tierExpiresAt={pay.tier_expires_at}
             requestedTier={pay.requested_tier}
+            requestedTierDetail={pay.requested_tier_detail}
             paymentStatus={pay.payment_status}
             paymentAmountCents={pay.payment_amount_cents}
             receiptNumber={pay.receipt_number}

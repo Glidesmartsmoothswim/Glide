@@ -48,7 +48,7 @@ export default async function NuotatoriPage() {
   const { data } = await supabase
     .from("profiles")
     .select(
-      "id, role, first_name, last_name, email, phone, service_type, level, package, status, cert_status, cert_expiry, member_since, tier, tier_expires_at, payment_status, requested_tier, payment_amount_cents",
+      "id, role, first_name, last_name, email, phone, service_type, level, package, status, cert_status, cert_expiry, member_since, tier, tier_expires_at, payment_status, requested_tier, requested_tier_detail, payment_amount_cents",
     )
     .eq("role", "swimmer")
     .order("first_name", { ascending: true });
@@ -57,6 +57,7 @@ export default async function NuotatoriPage() {
     tier_expires_at: string | null;
     payment_status: "pending_payment" | "paid" | null;
     requested_tier: SubTier | null;
+    requested_tier_detail: string | null;
     payment_amount_cents: number | null;
   };
   const swimmers = (data ?? []) as FullRow[];
@@ -70,7 +71,7 @@ export default async function NuotatoriPage() {
 
   const paymentSubtitle = (s: FullRow): string | null => {
     if (s.payment_status === "pending_payment" && s.requested_tier)
-      return `Richiesta ${SUB_TIER_LABEL[s.requested_tier]} in attesa`;
+      return `Richiesta ${s.requested_tier_detail || SUB_TIER_LABEL[s.requested_tier]} in attesa`;
     const g = gateState(s.tier_expires_at);
     if (g === "overdue") return `Rinnovo scaduto — ${daysOverdue(s.tier_expires_at)} giorni`;
     if (g === "grace") return `In grazia — ${daysOverdue(s.tier_expires_at)} giorni`;

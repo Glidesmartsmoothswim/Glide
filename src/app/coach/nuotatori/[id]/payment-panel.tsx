@@ -40,6 +40,7 @@ export function PaymentPanel({
   daysOverdue,
   tierExpiresAt,
   requestedTier,
+  requestedTierDetail,
   paymentStatus,
   paymentAmountCents,
   receiptNumber,
@@ -50,6 +51,7 @@ export function PaymentPanel({
   daysOverdue: number;
   tierExpiresAt: string | null;
   requestedTier: SubTier | null;
+  requestedTierDetail: string | null;
   paymentStatus: "pending_payment" | "paid" | null;
   paymentAmountCents: number | null;
   receiptNumber: string | null;
@@ -62,6 +64,8 @@ export function PaymentPanel({
       : "",
   );
   const [receipt, setReceipt] = useState("");
+  // 1:1 Elite: quanti mesi copre l'incasso (default 1 = mensile).
+  const [periodMonths, setPeriodMonths] = useState(1);
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -84,7 +88,7 @@ export function PaymentPanel({
 
       {paymentStatus === "pending_payment" && requestedTier && (
         <p className="rounded-lg bg-blu/10 px-3 py-2 text-sm text-blu">
-          Richiesta di attivazione {TIER_LABEL[requestedTier]} ·{" "}
+          Richiesta di attivazione {requestedTierDetail || TIER_LABEL[requestedTier]} ·{" "}
           {euro(paymentAmountCents ?? TIER_PRICE_CENTS[requestedTier])} — in
           attesa dell&apos;incasso.
         </p>
@@ -124,6 +128,17 @@ export function PaymentPanel({
             inputMode="decimal"
             className="w-24 rounded-lg border border-border bg-background px-2 py-2 text-sm"
           />
+          {tier === "one_to_one_monthly" && (
+            <select
+              value={periodMonths}
+              onChange={(e) => setPeriodMonths(Number(e.target.value))}
+              title="Quanti mesi copre l'incasso (1:1 Elite)"
+              className="rounded-lg border border-border bg-background px-2 py-2 text-sm"
+            >
+              <option value={1}>1 mese</option>
+              <option value={2}>2 mesi</option>
+            </select>
+          )}
           <input
             value={receipt}
             onChange={(e) => setReceipt(e.target.value)}
@@ -139,6 +154,7 @@ export function PaymentPanel({
                   tier,
                   amountEuro: amount,
                   receiptNumber: receipt,
+                  periodMonths: tier === "one_to_one_monthly" ? periodMonths : undefined,
                 });
                 setMsg(res.info ?? res.error ?? null);
                 if (res.info) setReceipt("");

@@ -28,13 +28,22 @@ export async function requestActivation(
   swimmer: { id: string; email: string | null; firstName: string | null },
   tier: SubTier,
   waiver: WithdrawalWaiver,
+  opts?: {
+    // 1:1 Elite (GLIDE_HANDOFF_PREZZI_FATTURAZIONE.md): prezzo calcolato da
+    // questionario, non il fisso di TIER_PRICE_CENTS. `detail` è SOLO
+    // display (coach/email) — il prezzo è quello ricalcolato server-side
+    // dal chiamante, mai fidandosi di un valore mandato dal client.
+    amountCentsOverride?: number;
+    detail?: string;
+  },
 ): Promise<RequestResult> {
-  const amountCents = TIER_PRICE_CENTS[tier];
+  const amountCents = opts?.amountCentsOverride ?? TIER_PRICE_CENTS[tier];
 
   const { error } = await admin
     .from("profiles")
     .update({
       requested_tier: tier,
+      requested_tier_detail: opts?.detail ?? null,
       payment_status: "pending_payment",
       payment_amount_cents: amountCents,
       payment_method: "cash",
@@ -47,7 +56,7 @@ export async function requestActivation(
   await notifyCoaches(
     "pay",
     "Richiesta attivazione piano",
-    `${fullName({ first_name: swimmer.firstName, last_name: null, email: swimmer.email })} — ${TIER_LABEL[tier]} · €${(amountCents / 100).toFixed(2)}`,
+    `${fullName({ first_name: swimmer.firstName, last_name: null, email: swimmer.email })} — ${opts?.detail ?? TIER_LABEL[tier]} · €${(amountCents / 100).toFixed(2)}`,
   );
 
   if (!serverFeatures().resend || !swimmer.email) {
@@ -71,6 +80,7 @@ export async function requestActivation(
       <div style="font-family:Arial,sans-serif;color:#0B1220;line-height:1.5">
         <h2 style="color:#0E5EAB">Ciao ${swimmer.firstName || "nuotatore"},</h2>
         <p>Abbiamo ricevuto la tua richiesta di attivazione per <b>${TIER_LABEL[tier]}</b>.</p>
+        ${opts?.detail ? `<p>${opts.detail}</p>` : ""}
         <p><b>Importo:</b> €${(amountCents / 100).toFixed(2)}</p>
         ${
           bank
@@ -120,11 +130,16 @@ export async function markPaid(
     tier?: SubTier; // se assente, usa profiles.requested_tier
     amountCents?: number; // se assente, usa profiles.payment_amount_cents
     receiptNumber?: string | null;
+    // 1:1 Elite (fatturazione mensile/bimestrale): sostituisce l'estensione
+    // di 1 mese di default con N mesi. Assente per gli altri piani.
+    periodMonths?: number;
   },
 ): Promise<RequestResult> {
   const { data: p } = await admin
     .from("profiles")
-    .select("requested_tier, payment_amount_cents, first_name, last_name, email")
+    .select(
+      "requested_tier, requested_tier_detail, payment_amount_cents, first_name, last_name, email",
+    )
     .eq("id", swimmerId)
     .maybeSingle();
   const tier = (input.tier ?? p?.requested_tier) as SubTier | null;
@@ -132,13 +147,17 @@ export async function markPaid(
 
   const amountCents = input.amountCents ?? p?.payment_amount_cents ?? TIER_PRICE_CENTS[tier];
   const now = new Date();
+  const expiresAt = input.periodMonths
+    ? new Date(now.getFullYear(), now.getMonth() + input.periodMonths, now.getDate())
+    : expiryFor(tier, now);
 
   const { error } = await admin
     .from("profiles")
     .update({
       tier: subTierToAccessTier(tier),
-      tier_expires_at: expiryFor(tier, now).toISOString(),
+      tier_expires_at: expiresAt.toISOString(),
       requested_tier: null,
+      requested_tier_detail: null,
       payment_status: "paid",
       payment_amount_cents: amountCents,
       payment_method: "cash",
@@ -158,7 +177,7 @@ export async function markPaid(
     amount_cents: amountCents,
     currency: "eur",
     status: "succeeded",
-    description: `${TIER_LABEL[tier]} — incasso manuale`,
+    description: p?.requested_tier_detail || `${TIER_LABEL[tier]} — incasso manuale`,
   });
 
   triggerInvoicing({

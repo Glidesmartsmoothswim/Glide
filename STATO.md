@@ -5,7 +5,11 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
-_Ultimo aggiornamento: 2026-08-28 — **ADR-014/015 + Sprint A/B: rimozione Stripe, incasso
+_Ultimo aggiornamento: 2026-08-28 — **Prezzario 1:1 Elite da questionario**
+(GLIDE_HANDOFF_PREZZI_FATTURAZIONE.md, canone allenamenti/sett + credito check-in per
+canale/cadenza) su `/app/abbonamenti` (modalità guidata da Alessio, tabella prezzi fornita
+esplicitamente) ·
+**ADR-014/015 + Sprint A/B: rimozione Stripe, incasso
 manuale con gate ad accesso a degrado progressivo, redesign Nuotatori a 3 segmenti + scheda
 a tab** (modalità autonoma; Sprint C fermato PRIMA di C.1, in attesa del GO esplicito — vedi
 sezione dedicata) ·
@@ -25,6 +29,56 @@ via l'etichetta "stile" dalle righe workout · via il +/- percentuale (sostituit
 modifica") · builder allenamento self-service Canale Open (ADR-012) (modalità autonoma) ·
 migration_035 (21 ago) · Ledger 025/026 tracciato + fix fallimento silenzioso webhook Stripe ·
 S-0 (bis) · Onda 28 · Onda 27 · Onda 26 · Onda 25.**_
+
+## 💶 Prezzario 1:1 Elite da questionario (28 ago, guidata da Alessio)
+
+- **Contesto:** `GLIDE_HANDOFF_PREZZI_FATTURAZIONE.md` (28/08) — il vecchio 1:1 a due card fisse
+  (Mensile €79 / Stagionale €690) non riflette più il modello reale: canone allenamenti/settimana
+  + credito check-in (in presenza o remoto), calibrato sullo storico reale. Alessio ha fornito la
+  tabella numerica per intero (non indovinata): valori "reali" dove disponibili (canone(4)=54€,
+  credito call/bimestre=22€), "stima" per il resto (dichiarate tali nella nota sorgente).
+- **`src/lib/payment/elite-pricing.ts`** (nuovo): `WORKOUT_FREQUENCY_PRICE_CENTS` (3→42€, 4→54€,
+  5→64€, 6→73€/mese, floor 3), `CHECKIN_CREDIT_PRICE_CENTS` (cadenza × canale: bimestrale/mensile/
+  2 al mese/settimanale × presenza/remoto), `eliteMonthlyPriceCents`/`eliteTotalPriceCents`
+  (mensile-equivalente vs importo per il periodo di fatturazione scelto, mensile o bimestrale —
+  stesso mensile-equivalente, importo raddoppiato se bimestrale) — **niente tabella DB
+  configurabile dal gestionale**: i valori sono ancora in discussione (decisione aperta #1 della
+  nota, l'ancora 32€/lezione-bimestre), costanti TS in un solo file sono la scelta più onesta
+  finché non si stabilizzano; l'architettura "due tabelle configurabili" resta un'evoluzione
+  futura, non fatta ora.
+- **Verificato contro lo storico reale della nota** (`elite-pricing.test.ts`, 5/5 pass): 4 all. +
+  lezione/bimestre = 70€/mese (= 140€/bim storico) ✓; 4 all. + call/bimestre = 65€/mese (= 130€/bim
+  storico) ✓; entry price (3 all. + call/bimestre) = 53€/mese ✓; 3 all. + lezione/bimestre = 58€/mese ✓.
+- **`migration_044_elite_pricing_detail.sql` — APPLICATA** al progetto live: `profiles.
+  requested_tier_detail text` (nullable, solo display — mai usata per calcoli, il prezzo è sempre
+  ricalcolato server-side dalla selezione grezza in `startEliteActivation`, mai da un importo
+  mandato dal client). Mostrata al posto del generico "1:1 mensile" in: banner richiesta pendente
+  (`/app/abbonamenti`), pannello Pagamenti scheda nuotatore, sottotitolo riga 1:1 in `/coach/
+  nuotatori`, digest coach.
+- **`src/app/app/abbonamenti/elite-questionnaire.tsx`** (nuovo, client): 4 selettori (allenamenti/
+  sett, cadenza check-in, canale, fatturazione mensile/bimestrale) con prezzo live in anteprima →
+  `startEliteActivation` (nuova server action) ricalcola tutto server-side e passa da
+  `requestActivation` con `amountCentsOverride`/`detail`, stesso trigger `protect_payment_columns`
+  di ADR-014 (admin client, non l'RLS del nuotatore).
+- **Card "1:1 Elite"** su `/app/abbonamenti` sostituisce la vecchia "Mensile" fissa: mostra "a
+  partire da €53/mese" (`ELITE_ENTRY_PRICE_CENTS`), CTA "Calcola il tuo prezzo" apre il
+  questionario. **"Stagionale" (€690 fisso, set–giu) lasciata INVARIATA**: la nota sorgente non la
+  menziona affatto (parla solo del modello canone+credito) — rimuoverla o fonderla nel nuovo
+  sistema sarebbe stata una decisione di prodotto più ampia, non chiesta esplicitamente; segnalato,
+  non deciso qui.
+- **Coach — "Segna pagato" (`payment-panel.tsx`)**: nuovo selettore "quanti mesi copre l'incasso"
+  (1 o 2), visibile solo per 1:1 — il coach conferma quanti mesi ha davvero ricevuto (fonte di
+  verità sull'incasso reale, non un valore ricordato dalla richiesta originale), `markPaid` estende
+  `tier_expires_at` di conseguenza (`periodMonths`, nuovo parametro).
+- **Base — aggiornati i prezzi extra-piano** in vista (€35 lezione singola, €100 videoanalisi,
+  dalla stessa nota) sulla card "Base — €0" di `/app/abbonamenti`.
+- **Non implementato, per esplicita indicazione della nota (decisioni ancora aperte, non chieste
+  qui):** tag sconto "coach-assegnata" per clienti storici (25-30€ extra-sessione, "da formalizzare,
+  non automatico"); regola "una lezione sostituisce un allenamento scritto" (proposta, sì/no non
+  deciso); definizione di "Open Plus" (non coperta da questa nota, tier Open+ lasciato invariato).
+- `npx tsc --noEmit` pulito, `npx eslint src` 0 nuovi errori (i 3 preesistenti invariati), `npm
+  test` 49/49 pass (+10 skip preesistenti), `next build` compila pulito. Verificato live che
+  `requested_tier_detail` esiste sul progetto Supabase reale.
 
 ## 💳 ADR-014/015 + Sprint A/B — Rimozione Stripe, incasso manuale, redesign Nuotatori (28 ago, modalità autonoma)
 

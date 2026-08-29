@@ -11,6 +11,8 @@ import {
   type SubTier,
 } from "@/lib/payment/pricing";
 import { startActivation } from "./actions";
+import { EliteQuestionnaire } from "./elite-questionnaire";
+import { ELITE_ENTRY_PRICE_CENTS } from "@/lib/payment/elite-pricing";
 
 export const metadata = { title: "Abbonamenti" };
 
@@ -80,7 +82,7 @@ export default async function Abbonamenti({
   const { data: pay } = profile
     ? await supabase
         .from("profiles")
-        .select("payment_status, requested_tier, payment_amount_cents")
+        .select("payment_status, requested_tier, requested_tier_detail, payment_amount_cents")
         .eq("id", profile.id)
         .maybeSingle()
     : { data: null };
@@ -136,7 +138,8 @@ export default async function Abbonamenti({
       )}
       {pending && !sp.requested && (
         <Card className="text-blu">
-          Richiesta di attivazione {SUB_TIER_LABEL[pay!.requested_tier as SubTier]}{" "}
+          Richiesta di attivazione{" "}
+          {pay!.requested_tier_detail || SUB_TIER_LABEL[pay!.requested_tier as SubTier]}{" "}
           in attesa di conferma — il coach la registra dopo l&apos;incasso.
         </Card>
       )}
@@ -160,8 +163,9 @@ export default async function Abbonamenti({
       <div className="rounded-xl border border-border bg-background p-3 text-sm text-muted">
         <span className="font-bold text-foreground">Base — € 0</span> —
         Registrati gratis: prenota lezioni 1:1 ed eventi dall&apos;Agenda,
-        pagamento diretto col coach per ogni prenotazione. Nessuna
-        programmazione né Canale Open inclusi.
+        pagamento diretto col coach per ogni prenotazione (€35 lezione
+        singola, €100 videoanalisi). Nessuna programmazione né Canale Open
+        inclusi.
       </div>
 
       {/* Canale Open */}
@@ -205,22 +209,29 @@ export default async function Abbonamenti({
         <h2 className="font-display text-lg text-foreground">Percorso 1:1</h2>
         <div className="grid grid-cols-2 gap-3">
           <PricingCard
-            name="Mensile"
+            name="Elite"
             color={C.monthly}
-            price={euro(TIER_PRICE_CENTS.one_to_one_monthly)}
+            price={`a partire da ${euro(ELITE_ENTRY_PRICE_CENTS)}`}
             period="al mese"
+            tagline="Canone allenamenti + check-in col coach, calcolato su misura"
             features={ONE_TO_ONE}
-            cta={activate("one_to_one_monthly")}
+            cta={pending ? <CtaButton label="Richiesta inviata" color={C.monthly} disabled /> : <EliteQuestionnaire color={C.monthly} />}
           />
           <PricingCard
             name="Stagionale"
             color={C.season}
             price={euro(TIER_PRICE_CENTS.one_to_one_season)}
-            tagline="settembre – giugno"
+            tagline="settembre – giugno, prezzo fisso"
             features={ONE_TO_ONE}
             cta={activate("one_to_one_season")}
           />
         </div>
+        <p className="text-sm text-muted">
+          1:1 Elite: il prezzo dipende da quanti allenamenti scritti a
+          settimana e quanto spesso vuoi un check-in col coach (in vasca o in
+          call) — lo calcoli tu prima di richiedere l&apos;attivazione.
+          Videoanalisi resta un prodotto a parte (€100).
+        </p>
       </section>
 
       <p className="text-sm text-muted">

@@ -15,7 +15,15 @@ import type { SubTier } from "@/lib/payment/pricing";
  */
 export async function markSwimmerPaid(
   swimmerId: string,
-  input: { tier?: SubTier | ""; amountEuro?: string; receiptNumber?: string },
+  input: {
+    tier?: SubTier | "";
+    amountEuro?: string;
+    receiptNumber?: string;
+    // 1:1 Elite fatturato ogni 2 mesi (GLIDE_HANDOFF_PREZZI_FATTURAZIONE.md):
+    // il coach conferma quanti mesi copre l'incasso ricevuto — è la fonte di
+    // verità, non un valore ricordato dalla richiesta originale.
+    periodMonths?: number;
+  },
 ) {
   await requireRole("coach");
   const supabase = await createClient();
@@ -29,6 +37,7 @@ export async function markSwimmerPaid(
     tier: input.tier || undefined,
     amountCents,
     receiptNumber: input.receiptNumber,
+    periodMonths: input.periodMonths,
   });
   if (result.error) return { error: result.error };
   revalidatePath(`/coach/nuotatori/${swimmerId}`);

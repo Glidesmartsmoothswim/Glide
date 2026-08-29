@@ -39,7 +39,7 @@ export async function computeDigest(
   const { data: sw } = await supabase
     .from("profiles")
     .select(
-      "id, first_name, last_name, email, cert_status, tier_expires_at, payment_status, requested_tier, payment_amount_cents",
+      "id, first_name, last_name, email, cert_status, tier_expires_at, payment_status, requested_tier, requested_tier_detail, payment_amount_cents",
     )
     .eq("role", "swimmer");
   const swimmers = sw ?? [];
@@ -157,13 +157,14 @@ export async function computeDigest(
       tier_expires_at: string | null;
       payment_status: "pending_payment" | "paid" | null;
       requested_tier: SubTier | null;
+      requested_tier_detail: string | null;
       payment_amount_cents: number | null;
     };
     if (p.payment_status === "pending_payment" && p.requested_tier) {
       pagamenti.push({
         swimmerId: s.id,
         href: `/coach/nuotatori/${s.id}`,
-        text: `${name} — richiesta ${SUB_TIER_LABEL[p.requested_tier]} in attesa di incasso${
+        text: `${name} — richiesta ${p.requested_tier_detail || SUB_TIER_LABEL[p.requested_tier]} in attesa di incasso${
           p.payment_amount_cents ? ` (€${Math.round(p.payment_amount_cents / 100)})` : ""
         }.`,
         rank: 3,
