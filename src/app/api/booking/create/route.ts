@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/lib/auth";
 import { fullName } from "@/lib/types";
-import { notifyCoaches } from "@/lib/notify";
+import { notifyCoaches, notifyCoachesEmail, notifyUser } from "@/lib/notify";
 import { logEvent } from "@/lib/ledger";
 import { gateState } from "@/lib/payment/gate";
 import {
@@ -176,12 +176,46 @@ export async function POST(req: Request) {
     mode: service.mode,
     payment_method: paymentMethod,
   });
+
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const swimmerName = fullName(profile);
+  const whenLabel = new Intl.DateTimeFormat("it-IT", {
+    timeZone: "Europe/Rome",
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(startsAt);
+  const cashNote = isCash
+    ? ` · da incassare €${(service.price_cents / 100).toFixed(0)}`
+    : "";
+
+  // TASK 4 (feedback 29/08): il coach oggi deve controllare a mano in
+  // agenda — in-app (già esisteva) + email, stesso evento.
   await notifyCoaches(
     "booking",
     "Nuova richiesta di prenotazione",
-    `${fullName(profile)} — ${service.name} · da confermare${
-      isCash ? ` · da incassare €${(service.price_cents / 100).toFixed(0)}` : ""
-    }`,
+    `${swimmerName} — ${service.name} · ${whenLabel}${cashNote}`,
+  );
+  await notifyCoachesEmail(
+    `Nuova prenotazione — ${swimmerName}`,
+    `<div style="font-family:Arial,sans-serif;color:#0B1220;line-height:1.5">
+      <h2 style="color:#0E5EAB">Nuova richiesta di prenotazione</h2>
+      <p><b>${esc(swimmerName)}</b> ha prenotato <b>${esc(service.name)}</b>.</p>
+      <p><b>Quando:</b> ${whenLabel}</p>
+      ${cashNote ? `<p><b>Da incassare:</b> €${(service.price_cents / 100).toFixed(0)}</p>` : ""}
+      ${note ? `<p><b>Nota del nuotatore:</b> ${esc(note)}</p>` : ""}
+      <p style="color:#5b6b7b;font-size:13px">Conferma dall'agenda quando puoi.</p>
+    </div>`,
+  );
+  // Conferma lato nuotatore (basso costo marginale, non il requisito core).
+  await notifyUser(
+    profile.id,
+    "booking",
+    "Prenotazione ricevuta",
+    `${service.name} · ${whenLabel} — in attesa di conferma dal coach.`,
   );
 
   return Response.json({
