@@ -9,6 +9,15 @@ import { ReadinessProgress } from "@/components/readiness/progress";
 import { EfficiencyCurves, type EffPoint } from "@/components/readiness/efficiency";
 import { OndaCard, GlideScoreCard } from "@/components/score/score-cards";
 import { OpenRecapPie, type PieSlice } from "@/components/coach/open-recap-pie";
+import { Torta } from "@/components/charts/Torta";
+import { CurvaCarico } from "@/components/charts/CurvaCarico";
+import {
+  distribuzioneWorkout,
+  buildSettimane,
+  toFette,
+  type WorkoutForStats,
+} from "@/lib/workout-stats";
+import type { ZonaBucket } from "@/lib/chart-tokens";
 import { computeScore } from "@/lib/score/compute";
 import { IdentityCard } from "@/components/identity/identity-card";
 import { computeIdentity } from "@/lib/identity/compute";
@@ -106,6 +115,7 @@ export default async function SwimmerDetail({
     effRes,
     scoreRowRes,
     videoRes,
+    completionsRes,
   ] = await Promise.all([
     supabase
       .from("workouts")
@@ -168,6 +178,13 @@ export default async function SwimmerDetail({
       .eq("swimmer_id", id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),
+    // Sprint C.5 (TASK 5) — "Distribuzione carico": lo Svolto reale
+    // (workout_completions.blocks, TASK 4), non l'Assegnato.
+    supabase
+      .from("workout_completions")
+      .select("id, week_start, blocks")
+      .eq("swimmer_id", id)
+      .order("week_start", { ascending: true }),
   ]);
 
   const workouts = (wRes.data ?? []) as WorkoutRow[];
@@ -214,6 +231,20 @@ export default async function SwimmerDetail({
   const objectives = (objRes.data ?? []) as ObjectiveRow[];
   const tokens = (tokRes.data ?? []) as LessonTokenRow[];
   const tokenBalance = availableCount(tokens);
+
+  // Sprint C.5 (TASK 5) — "Distribuzione carico": vista per QUESTO nuotatore
+  // (non un aggregato cross-nuotatore), dallo Svolto (workout_completions.blocks).
+  const completions = (completionsRes.data ?? []) as WorkoutForStats[];
+  const distribuzioneTotale = completions.reduce<Partial<Record<ZonaBucket, number>>>(
+    (acc, c) => {
+      for (const [z, v] of Object.entries(distribuzioneWorkout(c.blocks ?? [])))
+        acc[z as ZonaBucket] = (acc[z as ZonaBucket] ?? 0) + (v ?? 0);
+      return acc;
+    },
+    {},
+  );
+  const fetteCarico = toFette(distribuzioneTotale);
+  const settimaneCarico = buildSettimane(completions);
 
   const doneCount: Record<string, number> = {};
   (doneRes.data ?? []).forEach((e) => {
@@ -593,6 +624,20 @@ export default async function SwimmerDetail({
           <GlideScoreCard result={score} showBreakdown />
           <ReadinessProgress rows={readiness} />
           <EfficiencyCurves points={effPoints} />
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <h2 className="font-display text-lg text-foreground">Distribuzione carico</h2>
+          {completions.length === 0 ? (
+            <Card className="text-muted">Nessun allenamento svolto ancora.</Card>
+          ) : (
+            <Card className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <Torta fette={fetteCarico} />
+              <div className="w-full sm:flex-1">
+                <CurvaCarico settimane={settimaneCarico} />
+              </div>
+            </Card>
+          )}
         </section>
 
         <section className="flex flex-col gap-3">
