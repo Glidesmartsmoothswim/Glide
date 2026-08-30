@@ -85,6 +85,8 @@ esplicitamente) ·
 manuale con gate ad accesso a degrado progressivo, redesign Nuotatori a 3 segmenti + scheda
 a tab** (modalità autonoma; Sprint C fermato PRIMA di C.1, in attesa del GO esplicito — vedi
 sezione dedicata) ·
+**Grafici zona/carico (Torta + CurvaCarico), TASK 1-4 completati** (modalità autonoma;
+TASK 5/6 fermati, serve conferma sul punto d'innesto — vedi sezione dedicata) ·
 2026-08-26 — leak retroattivo nel ledger corretto in diretta
 (`activity_events`, 22 righe con `corpo`/`health_flag`, dato sanitario a conservazione illimitata
 — vedi migration_042) · **ADR-013 v3.1: rimozione blocco dolore strutturato dal readiness
@@ -342,6 +344,68 @@ dati attuali, ma il codice è verificato (build/test/tsc/eslint puliti).**
   ADR-010 §Confine — non affrontato oltre la correzione minima.
 - **Pricing page**: non ha ancora la quarta voce "Base gratuito" (ADR-015 §Conseguenze) — non
   bloccante, dipende dal copy definitivo che Alessio deciderà.
+
+## 📊 Grafici zona/carico — Torta + CurvaCarico, porting (28 ago, modalità autonoma)
+
+- **Contesto:** `PROMPT_CODE_GRAFICI_ZONE.md` — porta Torta (distribuzione metri per zona) e
+  CurvaCarico (barre impilate settimanali) da un riferimento esterno (`glide-suite.jsx`), SVG
+  scritto a mano (niente Recharts per questi due componenti, VINCOLO §3).
+- **TASK 1 — `lib/chart-tokens.ts` (nuovo), DEVIAZIONE dal prompt sorgente:** `glide-suite.jsx`
+  non esiste in questo repo (solo citato come prototipo storico nel README, `reference/` è
+  vuota/assente). La palette zona REALE è già in `lib/workout.ts` (`ZONES`/`ZoneId`, usata dai
+  chip zona dell'editor/workout-hand, Onda 29.1) — Z1-Z5 coincidono esattamente col prompt, ma
+  **NM diverge**: prompt = `#94A3B8` (slate), produzione reale = `#7C3AED` (viola). Applicato il
+  VINCOLO §2 stesso ("nessun colore nuovo, riusala") sopra il valore letterale del prompt:
+  `chart-tokens.ts` ora **deriva** `ZONE_COLOR` da `ZONES` invece di ridichiararlo — niente
+  secondo NM diverso nella stessa app, impossibile che diverga in futuro.
+- **TASK 2 — `lib/workout-stats.ts` (nuovo), DEVIAZIONE dal prompt sorgente:** invece di
+  reimplementare un parser riga locale (`parseLine`/`lineMeters`, come scritto nel prompt), **importa
+  ed usa `blockMeters`/`parseLine` reali da `lib/workout.ts`** — lo stesso già usato da
+  editor.tsx/workout-actions.ts/self-actions.ts/readiness-actions.ts. Il prompt stesso motivava il
+  parser locale con "deve restare identica: se diverge, editor e grafici raccontano metri diversi"
+  — l'unico modo che lo garantisce per sempre (non solo al momento della copia) è non duplicarlo.
+- **Confermato (richiesto esplicitamente, non deciso da questa sessione): `block.z` è il nome
+  REALE salvato in produzione** — verificato su 3 righe `workouts.blocks` reali via query diretta
+  (non stato in-memory dell'editor): tutte e 3 usano `z`, mai `zone`.
+- **VERIFICA OBBLIGATORIA TASK 2 — eseguita su 3 workout reali** (non mock), `distribuzioneWorkout()`
+  vs `total_meters` già salvato: **3/3 combaciano esattamente** (3000=3000, 2000=2000, 3000=3000,
+  incluso un caso con testo libero "Fatti 2000 tranquilla" — il parser lo legge correttamente).
+  Nessuna discrepanza: non è stato necessario fermarsi.
+- **TASK 3 — `components/charts/Torta.tsx`, TASK 4 — `components/charts/CurvaCarico.tsx`**:
+  contenuto del prompt, con un solo adattamento — i colori struttura (`var(--c-ink, …)` ecc., non
+  zona) sostituiti con i token GLIDE reali (`var(--ink)`, `var(--muted)`, `var(--border)`,
+  `var(--blu)` da `globals.css`, ADR-009) invece dei placeholder `--c-*` inesistenti in questo
+  progetto. **Deviazione aggiuntiva in Torta.tsx (non richiesta dal prompt, trovata durante la
+  verifica):** l'accumulo angolare cumulativo usava un `let angolo` mutato dentro `.map()` —
+  flagged da `react-hooks/immutability` (nuova regola del linter React Compiler). Riscritto con
+  `reduce` puro, stesso identico output.
+- `npx tsc --noEmit` pulito. `npx eslint src`: 0 nuovi errori (i 3 preesistenti — `app/page.tsx`,
+  `assistant-widget.tsx`, `home-greeting.tsx` — invariati). `npm test`: 35/35 pass (+10 skip
+  preesistenti, DB live non configurato nel sandbox).
+
+### Segnalati esplicitamente (non risolti da questa sessione, come richiesto)
+1. **`zone_rpe_bands` non ha una riga NM** (verificato: solo Z1-Z5, RPE 1-3/3-5/6-7/8-9/9-10) — se/
+   quando NM compare nei workout reali, il digest coach (RPE fuori banda) non la controllerà. Valori
+   RPE min/max per NM non decisi qui: contenuto tecnico, spetta ad Alessio.
+2. **`block.z` confermato** come nome reale (vedi sopra).
+3. **Verifica TASK 2 confermata** (vedi sopra): 3/3 combaciano.
+
+### TASK 5/6 — FERMATI, serve conferma (non uno dei 3 stop espliciti del prompt, ma la stessa logica)
+- **TASK 5 (`glide-calendario-riepilogo.jsx`, lato coach):** il file **non esiste in questo repo**
+  — non c'è nulla da "sostituire" alla lettera. Il candidato più vicino come vista aggregata di
+  gruppo è `/coach/open` (Canale Open — oggi mostra il catalogo settimanale + "Preferenze"
+  aggregate, Onda 27.2), ma non ha oggi nessuna vista "distribuzione carico". Non inventata una
+  nuova sezione senza conferma.
+- **TASK 6 (vista nuotatore), come da stop esplicito del prompt stesso** se non ovvio: `/app/progressi`
+  esiste davvero ed è il posto suggerito dal prompt ("accanto a Effetto Acqua") — ma la fonte dati
+  non è ovvia: i "programmi" (`workouts.blocks`, con zona) esistono solo per `kind='personal'`/`'self'`
+  (assegnato/scritto, non necessariamente svolto); i "davvero svolti" (`workout_completions`) **non
+  salvano `blocks`** (solo `total_meters` snapshottato) — non è possibile calcolare la distribuzione
+  zone da lì. Serve una decisione su quale delle due fonti (assegnato vs svolto) mostrare.
+- **Nessun file creato per TASK 5/6** — in attesa di conferma da Alessio.
+- **Aggiornamento (Sprint C, questa sessione):** TASK 5/6 di allora sono TASK 5 nel nuovo sprint
+  (`PROMPT_CODE_TOKEN_GRAFICI_PREZZI.md`), che risolve esplicitamente il punto d'innesto — vedi
+  sezione "Sprint C.1-C.10" più in alto.
 
 ## 🚨 Leak retroattivo nel ledger — corretto in diretta (26 ago, modalità autonoma)
 
