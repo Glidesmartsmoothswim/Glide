@@ -5,6 +5,7 @@ import { hasOneToOne, grantMonthlyTokenIfMissing } from "@/lib/entitlements";
 import { serverFeatures } from "@/lib/flags";
 import { getResend, emailFrom } from "@/lib/resend";
 import { publicEnv } from "@/lib/env";
+import { titleCaseName } from "@/lib/profile/name";
 import type { ServiceType } from "@/lib/types";
 
 export type CreateSwimmerResult = {
@@ -28,6 +29,10 @@ export async function createSwimmerAccount(input: {
 }): Promise<CreateSwimmerResult> {
   const email = input.email.trim().toLowerCase();
   if (!email) return { error: "Serve almeno l'email." };
+  // Normalizzato una volta sola qui, alla fonte: "Nuovo nuotatore" e
+  // "Converti lead" (unici due chiamanti) ereditano lo stesso Nome Cognome.
+  const firstName = titleCaseName(input.firstName);
+  const lastName = titleCaseName(input.lastName);
 
   const admin = createAdminClient();
   if (!admin) {
@@ -42,7 +47,7 @@ export async function createSwimmerAccount(input: {
     email,
     password: tempPassword,
     email_confirm: true,
-    user_metadata: { first_name: input.firstName, last_name: input.lastName },
+    user_metadata: { first_name: firstName, last_name: lastName },
   });
   if (error) return { error: error.message };
 
@@ -50,8 +55,8 @@ export async function createSwimmerAccount(input: {
   await admin
     .from("profiles")
     .update({
-      first_name: input.firstName,
-      last_name: input.lastName,
+      first_name: firstName,
+      last_name: lastName,
       service_type: input.serviceType,
       role: "swimmer",
     })
@@ -79,7 +84,7 @@ export async function createSwimmerAccount(input: {
     subject: "Benvenuto in GLIDE — onda dopo onda",
     html: `
       <div style="font-family:Arial,sans-serif;color:#0B1220;line-height:1.5">
-        <h2 style="color:#0E5EAB">Ciao ${input.firstName || "nuotatore"},</h2>
+        <h2 style="color:#0E5EAB">Ciao ${firstName || "nuotatore"},</h2>
         <p>Il tuo coach ti ha aggiunto a <b>GLIDE</b>. Ecco i tuoi accessi:</p>
         <p>
           <b>Email:</b> ${email}<br/>

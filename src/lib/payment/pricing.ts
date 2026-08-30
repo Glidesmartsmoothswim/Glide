@@ -9,10 +9,11 @@ export type SubTier =
   | "one_to_one_monthly"
   | "one_to_one_season";
 
-// Sprint C.6: Open 10€/mese, Open Plus 12€/mese (era 12,90€/19,90€).
+// Prezzi pre-lancio (GLIDE_HANDOFF_PREZZI_FATTURAZIONE.md v3, 30/08):
+// Open 9,90€/mese, Open Plus 12,90€/mese (era 10€/12€, Sprint C.6).
 export const TIER_PRICE_CENTS: Record<SubTier, number> = {
-  open: 1000,
-  open_plus: 1200,
+  open: 990,
+  open_plus: 1290,
   one_to_one_monthly: 7900,
   one_to_one_season: 69000,
 };

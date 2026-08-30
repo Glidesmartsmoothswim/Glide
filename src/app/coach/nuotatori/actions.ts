@@ -8,6 +8,7 @@ import { createSwimmerAccount } from "@/lib/coach/create-swimmer";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hasOneToOne, grantMonthlyTokenIfMissing } from "@/lib/entitlements";
 import { TIERS, type Tier } from "@/lib/access";
+import { titleCaseName } from "@/lib/profile/name";
 import type { ServiceType, SwimmerStatus } from "@/lib/types";
 
 export type SwimmerActionState = {
@@ -33,8 +34,8 @@ export async function updateSwimmer(
     : "free";
 
   const patch = {
-    first_name: String(formData.get("first_name") ?? "").trim(),
-    last_name: String(formData.get("last_name") ?? "").trim(),
+    first_name: titleCaseName(String(formData.get("first_name") ?? "")),
+    last_name: titleCaseName(String(formData.get("last_name") ?? "")),
     phone: String(formData.get("phone") ?? "").trim() || null,
     service_type: String(formData.get("service_type") ?? "open") as ServiceType,
     tier,

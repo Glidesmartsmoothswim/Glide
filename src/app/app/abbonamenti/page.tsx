@@ -24,7 +24,14 @@ const C = {
   season: "var(--ink)",
 };
 
-const euro = (cents: number) => `€ ${(cents / 100).toFixed(2).replace(".00", "")}`;
+// Formattazione IT (virgola decimale) — con .toFixed+replace un prezzo come
+// 9,90€ finiva "€ 9.90" (punto, non virgola). toLocaleString con fraction
+// digits condizionali mantiene "€ 10" per i round e "€ 9,90" per gli altri.
+const euro = (cents: number) =>
+  `€ ${(cents / 100).toLocaleString("it-IT", {
+    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  })}`;
 
 // Righe feature ALLINEATE per far saltare all'occhio le differenze (13.5).
 const OPEN: Feature[] = [
@@ -178,7 +185,7 @@ export default async function Abbonamenti({
             color={C.open}
             badge="Consigliato"
             price={euro(TIER_PRICE_CENTS.open)}
-            period="al mese"
+            period="al mese · prezzo di lancio, stagione in corso"
             features={OPEN}
             cta={
               cur("open") ? (
@@ -192,7 +199,7 @@ export default async function Abbonamenti({
             name="Open+"
             color={C.openPlus}
             price={euro(TIER_PRICE_CENTS.open_plus)}
-            period="al mese"
+            period="al mese · prezzo di lancio, stagione in corso"
             features={OPEN_PLUS}
             cta={
               cur("open_plus") ? (
@@ -208,8 +215,8 @@ export default async function Abbonamenti({
       {/* Percorso 1:1 — TASK 7 (Sprint C): lo "Stagionale" a prezzo fisso
           (690€, set-giu) è stato tolto dal listino. Chi vuole prepagare
           l'intera stagione invece che mese per mese lo fa nello stesso
-          questionario Elite, con lo sconto 10% calcolato sulla combo
-          canone+credito che ha configurato (EliteQuestionnaire). */}
+          questionario Elite, con lo sconto 15% (doc v3, era 10%) calcolato
+          sulla combo canone+credito che ha configurato (EliteQuestionnaire). */}
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-lg text-foreground">Percorso 1:1</h2>
         <div className="grid grid-cols-1">
@@ -217,7 +224,7 @@ export default async function Abbonamenti({
             name="Elite"
             color={C.monthly}
             price={`a partire da ${euro(ELITE_ENTRY_PRICE_CENTS)}`}
-            period="al mese"
+            period="al mese · prezzo di lancio, stagione in corso"
             tagline="Canone allenamenti + check-in col coach, calcolato su misura"
             features={ONE_TO_ONE}
             cta={pending ? <CtaButton label="Richiesta inviata" color={C.monthly} disabled /> : <EliteQuestionnaire color={C.monthly} />}
@@ -228,7 +235,17 @@ export default async function Abbonamenti({
           settimana e quanto spesso vuoi un check-in col coach (in vasca o in
           call) — lo calcoli tu prima di richiedere l&apos;attivazione. Puoi
           pagare mese per mese o l&apos;intera stagione in un&apos;unica
-          soluzione (-10%). Videoanalisi resta un prodotto a parte (€100).
+          soluzione (-15%). Videoanalisi resta un prodotto a parte (€100).
+        </p>
+        {/* TASK 4 (doc v5, precisata su richiesta esplicita): dicitura
+            "prezzo di lancio" discreta, non invadente — già sui badge period
+            delle 3 card sopra; qui una riga unica per tutta la sezione,
+            coerente con lo stile del resto della pagina (stessa classe
+            text-sm text-muted usata ovunque). Specifica "stagione in corso"
+            invece del generico "primo anno". */}
+        <p className="text-sm text-muted">
+          Open, Open Plus e 1:1 Elite: prezzi di lancio per la stagione in
+          corso, non un impegno permanente sulle stagioni successive.
         </p>
       </section>
 

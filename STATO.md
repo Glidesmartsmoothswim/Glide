@@ -5,6 +5,153 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
+## 🌊 Reset tier al lancio — tutti Base tranne Marta Elite (30 ago notte, dato non codice)
+
+Ultima richiesta prima del push+merge di PR #52: reset del roster reale (10 nuotatori)
+al momento del lancio. Gate 🛑 mostrato ed eseguito con GO esplicito (UPDATE diretti,
+non migration — nessuno schema toccato).
+
+- **9 nuotatori** (Giuliana, Carlo Metta, Lapo, Rita, Federico, Wilma, Chiara, Salvatore
+  Amadio, Matteo Bianchi — tutti erano `open_plus`) → **Base**: `tier='free'`,
+  `tier_expires_at=null`, pagamento/richiesta pendente azzerati (già tutti NULL, nessuna
+  richiesta in corso da perdere).
+- **Marta Malorgio** (messa su Open pochi minuti prima, vedi sezione sotto — superata da
+  questa richiesta) → **1:1 Elite per sempre**: `tier='one_to_one'`,
+  `service_type='coaching_1_1'`, `tier_expires_at=null` **in modo permanente e
+  intenzionale** — non un "dimenticato a null" come gli altri: qui è la richiesta esplicita
+  "non chiedergli mai rinnovi e non dargli mai scadenze". Il gate (`gateState`) legge
+  `tier_expires_at` solo per calcolare due/grace/overdue: `null` → sempre `'ok'`, nessun
+  prompt di rinnovo possibile per costruzione, non serve altro codice.
+- Verificato live post-UPDATE: 9 righe `tier='free'`, 1 riga (Marta) `tier='one_to_one'`,
+  `service_type='coaching_1_1'`, `tier_expires_at` NULL. Nessuna riga toccata per errore
+  (where esplicito su `role='swimmer'` + esclusione per id, non un blanket update).
+
+## 🚦 Ultimo giro pre-lancio (30 ago notte, stesso branch/PR #52, richiesto in chat — NON mergiato)
+
+Quattro richieste dirette in chat (non da prompt file), eseguite tutte tranne la quinta
+(banner "nuovo evento/lezione di gruppo" — rimandata, semantica non chiara: le lezioni di
+gruppo non sono un "evento" pubblicabile nello schema attuale).
+
+- **Marta Malorgio → Canale Open, gratis tutta la stagione**: UPDATE diretto su
+  `profiles` (non codice, non migration): `tier='open'`, `service_type='open'` (era
+  `open_plus`/`both`), `tier_expires_at` = fine stagione (30/06/2027, stessa convenzione
+  `seasonEnd()`), `payment_status`/`payment_method`/`receipt_number`/`paid_at` a NULL
+  (nessuna transazione — omaggio del coach, stesso pattern "assegnato a mano" già
+  documentato per i tier senza flusso di pagamento).
+- **Dicitura prezzo di lancio, precisata**: "al mese · prezzo di lancio" → "al mese ·
+  prezzo di lancio, stagione in corso" sulle 3 card pubbliche + riga esplicativa
+  aggiornata (era "primo anno", ora "stagione in corso").
+- **Gate di re-consenso Termini + Privacy** (`docs/legal/GLIDE_CONSENSI.md` §6, **versione
+  minima**: solo Termini+Informativa, NON i consensi granulari C1/C2/C3 salute/video/
+  marketing della bozza — quelli restano da validare con legale/DPO, non toccati).
+  **Migration applicata (gate 🛑 confermato)**: `profiles.terms_privacy_accepted_at
+  timestamptz null` (migration_051). `lib/auth.ts` (`getCurrentProfile`) estesa con
+  il campo — punto centrale, riusato ovunque. Nuovo `ReconsentGate` (client) bloccante:
+  monta AL POSTO del resto del layout swimmer finché non accettato (mai un modale sopra
+  contenuto già fetchato) — checkbox unica "Ho letto e accetto…", link a `/termini` e
+  `/privacy` (già pubblicate), nessuna opzione di "rifiuto" parziale (a differenza del
+  consenso sanitario C1, Termini+Privacy sono condizione binaria d'uso del servizio) —
+  solo un link "Non accetto, esci" (`signOut`). Solo swimmer (`src/app/app/layout.tsx`);
+  il coach non passa da qui, come da doc. Una tantum, nessun versionamento del testo in
+  questa versione (segnalato: se i testi cambieranno, serve una colonna `_version` per
+  ri-richiedere — non fatto stanotte, fuori scope).
+- **Prompt "completa il profilo" (Nome/Cognome) + auto-maiuscole**: prima d'ora **non
+  esisteva alcuna azione self-service** per lo swimmer su questi due campi (solo il coach
+  poteva scriverli, da `edit-form.tsx`) — nuova `updateProfileName` in
+  `app/profilo/actions.ts`. Banner non bloccante (`CompleteNameBanner`, dismissibile con
+  "Più tardi", ricompare al prossimo accesso finché non salvato — nessun flag di
+  "rifiutato per sempre", non richiesto), montato dopo il gate di re-consenso. Nuova
+  `lib/profile/name.ts#titleCaseName` (capitalizza per parola, apostrofo/trattino/spazio
+  come separatori, gestisce accenti) — applicata sia qui sia lato coach
+  (`updateSwimmer`/`createSwimmerAccount`, stessa funzione, non duplicata) così un nome
+  digitato in minuscolo da entrambi i lati esce sempre formattato uguale. **Non è stato
+  fatto un bulk-fix dei nomi già in DB**: la normalizzazione si applica solo ai nuovi
+  salvataggi, non riscrive dati esistenti senza che sia stato chiesto esplicitamente.
+  5 nuovi test unitari su `titleCaseName`.
+- **Segnalato, non fatto**: banner "nuovo evento videoanalisi/lezione di gruppo" per i
+  registrati — le lezioni di gruppo sono slot prenotabili (`services`+`bookings`), non un
+  oggetto "evento" pubblicabile come `events`/`event_signups`; serve una decisione su cosa
+  esattamente genera il banner e chi lo riceve prima di poter disegnare lo schema. Non
+  improvvisato stanotte.
+- Verifica: `tsc`/`eslint` puliti, 58/58 test (+5 nuovi su `titleCaseName`). Migration
+  051 confermata live (`information_schema.columns`).
+
+## 💶 Prezzi pre-lancio v5 (30 ago sera, secondo giro sullo stesso branch/PR #52, modalità autonoma — NON mergiato)
+
+Aggiornamento del giro precedente (sezione subito sotto), stesso branch `claude/pricing-prelaunch-30ago`,
+stessa PR #52 ancora draft: il doc è passato a v5 mentre la PR era in revisione.
+
+- **Nuovo floor Asse A: 2 allenamenti/sett (era 3)** — `A(2)=35€`, `WORKOUT_FREQUENCIES` esteso a
+  `[2,3,4,5,6,7]`. Tutti gli scaglioni 3-7 restano quelli della v3 (44/52/59/65/70€), invariati.
+- **Entry price Elite: 46€/mese** (2 all. + call/bimestre, era 55€ a 3 all.) — `ELITE_ENTRY_PRICE_CENTS`
+  ricalcolato sul nuovo floor. Default del questionario spostato da 3 a 2 allenamenti, coerente con
+  il prezzo mostrato sulla card prima di aprirlo.
+- **TASK 2b — clausola sospensione stagionale:** aggiunta SOLO dove esisteva già copy sul rinnovo
+  stagionale prepagato (il box "Paga la stagione ora" in `elite-questionnaire.tsx` — l'unico punto
+  rivolto al nuotatore). **Non creata** su `/termini` (nessuna copy esistente lì sul rinnovo
+  stagionale — grep di conferma, zero risultati): come da istruzione esplicita del prompt
+  ("se non esiste, segnalalo soltanto"), copy legale nuova non scritta stanotte.
+- **TASK 4 — dicitura "prezzo di lancio":** aggiunta discreta sulle 3 card pubbliche (Open, Open+,
+  Elite) riusando lo slot `period` già esistente di `PricingCard` ("al mese · prezzo di lancio",
+  stesso stile tipografico di sempre, nessun nuovo componente) + una riga esplicativa unica sotto
+  la sezione 1:1. Non applicata alla card "Base — €0" (gratis, non nell'elenco del doc: "Open, Open
+  Plus, 1:1 Elite" — Base esplicitamente escluso).
+- `elite-pricing.test.ts`: 2 test aggiornati (entry price ora 2 all.=46€, non più 3 all.=55€ — quel
+  valore resta verificato ma come punto della matrice, non più come entry) + assert sul nuovo floor.
+  53/53 pass (+10 skip preesistenti).
+- Stessi vincoli rispettati: nessuna migration, `plan_entitlements`/`app_config.test_mode` non
+  toccati (grep di conferma sul diff). `tsc`/`eslint` puliti.
+- **Push aggiuntivo sullo stesso branch, PR #52 ancora draft/NON mergiata** — Alessio la rivede
+  un'unica volta col contenuto finale (v5), non due giri separati.
+
+## 💶 Prezzi pre-lancio (30 ago sera, PROMPT_CODE_PREZZI.md, modalità autonoma — branch, NON mergiato)
+
+- **Contesto:** `GLIDE_HANDOFF_PREZZI_FATTURAZIONE.md` v3 aggiunto al repo (mancava — era solo
+  citato, mai committato, vedi sprint sotto). Sostituisce interamente i valori v2 usati fin qui.
+- **TASK 1 — numeri:** `lib/payment/elite-pricing.ts` riscritto sui nuovi valori del doc v3:
+  - Asse A (canone): 3=44€/4=52€/5=59€/6=65€/**7=70€ (nuovo scaglione)** — prima 3=42/4=54/5=64/6=73€
+    (nessun 7). `WORKOUT_FREQUENCIES` esteso a `[3,4,5,6,7]`.
+  - Asse B (credito check-in): bimestre/mensile/bisettimanale invariati; **settimanale
+    ricalcolata su 4 lezioni/mese fisse** → 113€ presenza / 77€ remoto (era 108/75€).
+  - Entry price Elite: 55€/mese (era 53€), invariata la formula (3 all. + call/bimestre).
+  - Sconto prepagamento stagionale: **15%** (era 10%), `SEASON_PREPAY_DISCOUNT`.
+  - Open 9,90€/mese, Open Plus 12,90€/mese (`lib/payment/pricing.ts` — era 10€/12€, Sprint C.6
+    di stanotte stessa: il tier value non cambia, solo il prezzo, terza revisione in 24h).
+  - **Bug di formattazione scoperto e corretto** (non richiesto esplicitamente, ma necessario:
+    senza, la pricing page avrebbe mostrato "€ 9.90" col punto invece di "€ 9,90"): l'helper
+    `euro(cents)` in `abbonamenti/page.tsx`/`elite-questionnaire.tsx` usava
+    `toFixed(2).replace(".00","")`, che funzionava solo per importi tondi (mai capitato prima
+    d'ora: tutti i prezzi precedenti erano euro interi). Sostituito con `toLocaleString("it-IT")`.
+  - `elite-pricing.test.ts` riscritto sui nuovi numeri + 2 nuovi test (scaglione 7, settimanale
+    ricalcolata). 51/51 pass (+10 skip preesistenti).
+- **TASK 2 — rinnovo = cadenza check-in (solo copy… quasi):** la UI aveva un select
+  "Fatturazione" **indipendente** dalla cadenza di check-in — il doc v3 dice esplicitamente
+  "nessuna domanda separata nel questionario". Trattato come piccola correzione di logica UI
+  (non schema, non payment flow) coerente con lo spirito del task: rimosso il select, nuova
+  `billingPeriodForCadence()` deriva `periodo` da `cadenza` (bimestre→bimestrale, resto→mensile)
+  sia lato client (preview prezzo) sia **lato server** (`startEliteActivation` non si fida più
+  di un campo `periodo` dal client, nemmeno hidden — stesso principio "mai un importo dal
+  client" già in uso nel resto del flusso). Copy aggiornato per spiegare la regola.
+- **TASK 3 — pricing page:** verificata `/app/abbonamenti` — 4 fasce presenti (Base €0 con
+  35€/100€ extra-piano già corretti dalla sessione precedente, Open, Open+, 1:1 Elite "a
+  partire da 55€/mese"), CTA corrette, nessun numero vecchio residuo (grep mirato: zero
+  risultati in app e sito).
+- **Repo sito (`glide-site`), controllato come richiesto:** nessuno dei numeri vecchi elencati
+  compare lì. **Trovata una discrepanza distinta, NON in scope stanotte, segnalata invece di
+  improvvisata:** `/piani` (pagina waitlist pre-lancio) mostra un listino completamente
+  scollegato dal modello reale — "Canale Open 29€/mese", "Elite 1:1 da 79€", "Video analisi 5€"
+  — 3 fasce generiche che non corrispondono né al vecchio né al nuovo modello (manca Base,
+  manca Open+, "Video analisi" è probabilmente confuso con lo sblocco-video "birra" €5 di
+  ADR-014, concetto diverso dalla videoanalisi 100€ reale). Ha già un disclaimer proprio
+  ("i piani e i prezzi indicati possono cambiare prima dell'apertura ufficiale") — non
+  riscritto: allineare quella sezione al modello a 4 fasce è una decisione di contenuto/prodotto
+  (quante fasce mostrare su una landing pre-lancio), non un numero da sostituire 1:1.
+- **Vincoli rispettati:** nessuna migration, nessuna colonna nuova, `plan_entitlements` non
+  toccato, `app_config.test_mode` non toccato (grep di conferma sul diff). `tsc`/`eslint`
+  puliti sui file toccati.
+- **Branch `claude/pricing-prelaunch-30ago`, pushato, NON mergiato** come da istruzione
+  esplicita del prompt sorgente ("riguardalo tu prima del lancio, anche stanotte").
+
 ## 🎟️ Sprint C.1-C.10 — token/gruppo/prezzi/grafici (30 ago, PROMPT_CODE_TOKEN_GRAFICI_PREZZI.md, modalità semi-autonoma)
 
 - **Contesto:** riprende esattamente dal cancello lasciato aperto dalla sessione precedente
