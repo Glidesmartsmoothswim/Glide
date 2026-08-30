@@ -5,8 +5,37 @@ import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { categoriaMaster } from "@/lib/profile/categoria";
 import { isStile, isVasca, isEventoIndividuale } from "@/lib/profile/costanti";
+import { titleCaseName } from "@/lib/profile/name";
 
 export type ProfileState = { error?: string; info?: string };
+
+/**
+ * Completa Nome/Cognome dal banner "completa il profilo" — prima azione
+ * self-service per questi due campi: prima d'ora solo il coach poteva
+ * scriverli (edit-form). Normalizza sempre in Nome Cognome (mai fidarsi
+ * della capitalizzazione digitata dall'utente).
+ */
+export async function updateProfileName(input: {
+  first_name: string;
+  last_name: string;
+}): Promise<ProfileState> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { error: "Sessione scaduta." };
+
+  const firstName = titleCaseName(input.first_name);
+  const lastName = titleCaseName(input.last_name);
+  if (!firstName || !lastName) return { error: "Inserisci nome e cognome." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("profiles")
+    .update({ first_name: firstName, last_name: lastName })
+    .eq("id", profile.id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/", "layout");
+  return { info: "Profilo aggiornato." };
+}
 
 /** Passo 1-2 del profilo: anno/categoria + specialità dichiarate. */
 export async function saveProfileBasics(input: {

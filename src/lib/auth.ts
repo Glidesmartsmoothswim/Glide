@@ -14,6 +14,9 @@ export type Profile = {
   tier: Tier;
   /** ADR-014: scadenza del periodo pagato corrente. Null = nessun gate. */
   tier_expires_at: string | null;
+  /** Gate di re-consenso (GLIDE_CONSENSI.md §6, versione minima Termini +
+   *  Informativa). Null = non ancora accettato — solo swimmer, mai il coach. */
+  terms_privacy_accepted_at: string | null;
 };
 
 /**
@@ -32,7 +35,9 @@ export async function getCurrentProfile(): Promise<Profile | null> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, role, first_name, last_name, email, tier, tier_expires_at")
+    .select(
+      "id, role, first_name, last_name, email, tier, tier_expires_at, terms_privacy_accepted_at",
+    )
     .eq("id", userId)
     .single();
 
@@ -47,12 +52,15 @@ export async function getCurrentProfile(): Promise<Profile | null> {
       email,
       tier: "free",
       tier_expires_at: null,
+      terms_privacy_accepted_at: null,
     };
   }
   return {
     ...profile,
     tier: (profile.tier ?? "free") as Tier,
     tier_expires_at: (profile.tier_expires_at as string | null) ?? null,
+    terms_privacy_accepted_at:
+      (profile.terms_privacy_accepted_at as string | null) ?? null,
   } as Profile;
 }
 

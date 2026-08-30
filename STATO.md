@@ -5,6 +5,56 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
+## 🚦 Ultimo giro pre-lancio (30 ago notte, stesso branch/PR #52, richiesto in chat — NON mergiato)
+
+Quattro richieste dirette in chat (non da prompt file), eseguite tutte tranne la quinta
+(banner "nuovo evento/lezione di gruppo" — rimandata, semantica non chiara: le lezioni di
+gruppo non sono un "evento" pubblicabile nello schema attuale).
+
+- **Marta Malorgio → Canale Open, gratis tutta la stagione**: UPDATE diretto su
+  `profiles` (non codice, non migration): `tier='open'`, `service_type='open'` (era
+  `open_plus`/`both`), `tier_expires_at` = fine stagione (30/06/2027, stessa convenzione
+  `seasonEnd()`), `payment_status`/`payment_method`/`receipt_number`/`paid_at` a NULL
+  (nessuna transazione — omaggio del coach, stesso pattern "assegnato a mano" già
+  documentato per i tier senza flusso di pagamento).
+- **Dicitura prezzo di lancio, precisata**: "al mese · prezzo di lancio" → "al mese ·
+  prezzo di lancio, stagione in corso" sulle 3 card pubbliche + riga esplicativa
+  aggiornata (era "primo anno", ora "stagione in corso").
+- **Gate di re-consenso Termini + Privacy** (`docs/legal/GLIDE_CONSENSI.md` §6, **versione
+  minima**: solo Termini+Informativa, NON i consensi granulari C1/C2/C3 salute/video/
+  marketing della bozza — quelli restano da validare con legale/DPO, non toccati).
+  **Migration applicata (gate 🛑 confermato)**: `profiles.terms_privacy_accepted_at
+  timestamptz null` (migration_051). `lib/auth.ts` (`getCurrentProfile`) estesa con
+  il campo — punto centrale, riusato ovunque. Nuovo `ReconsentGate` (client) bloccante:
+  monta AL POSTO del resto del layout swimmer finché non accettato (mai un modale sopra
+  contenuto già fetchato) — checkbox unica "Ho letto e accetto…", link a `/termini` e
+  `/privacy` (già pubblicate), nessuna opzione di "rifiuto" parziale (a differenza del
+  consenso sanitario C1, Termini+Privacy sono condizione binaria d'uso del servizio) —
+  solo un link "Non accetto, esci" (`signOut`). Solo swimmer (`src/app/app/layout.tsx`);
+  il coach non passa da qui, come da doc. Una tantum, nessun versionamento del testo in
+  questa versione (segnalato: se i testi cambieranno, serve una colonna `_version` per
+  ri-richiedere — non fatto stanotte, fuori scope).
+- **Prompt "completa il profilo" (Nome/Cognome) + auto-maiuscole**: prima d'ora **non
+  esisteva alcuna azione self-service** per lo swimmer su questi due campi (solo il coach
+  poteva scriverli, da `edit-form.tsx`) — nuova `updateProfileName` in
+  `app/profilo/actions.ts`. Banner non bloccante (`CompleteNameBanner`, dismissibile con
+  "Più tardi", ricompare al prossimo accesso finché non salvato — nessun flag di
+  "rifiutato per sempre", non richiesto), montato dopo il gate di re-consenso. Nuova
+  `lib/profile/name.ts#titleCaseName` (capitalizza per parola, apostrofo/trattino/spazio
+  come separatori, gestisce accenti) — applicata sia qui sia lato coach
+  (`updateSwimmer`/`createSwimmerAccount`, stessa funzione, non duplicata) così un nome
+  digitato in minuscolo da entrambi i lati esce sempre formattato uguale. **Non è stato
+  fatto un bulk-fix dei nomi già in DB**: la normalizzazione si applica solo ai nuovi
+  salvataggi, non riscrive dati esistenti senza che sia stato chiesto esplicitamente.
+  5 nuovi test unitari su `titleCaseName`.
+- **Segnalato, non fatto**: banner "nuovo evento videoanalisi/lezione di gruppo" per i
+  registrati — le lezioni di gruppo sono slot prenotabili (`services`+`bookings`), non un
+  oggetto "evento" pubblicabile come `events`/`event_signups`; serve una decisione su cosa
+  esattamente genera il banner e chi lo riceve prima di poter disegnare lo schema. Non
+  improvvisato stanotte.
+- Verifica: `tsc`/`eslint` puliti, 58/58 test (+5 nuovi su `titleCaseName`). Migration
+  051 confermata live (`information_schema.columns`).
+
 ## 💶 Prezzi pre-lancio v5 (30 ago sera, secondo giro sullo stesso branch/PR #52, modalità autonoma — NON mergiato)
 
 Aggiornamento del giro precedente (sezione subito sotto), stesso branch `claude/pricing-prelaunch-30ago`,
