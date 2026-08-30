@@ -3,6 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
+import type { TokenRedeemableFor } from "@/lib/tokens";
+
+/** Tipo di token spendibile per un dato servizio (ADR-015 Sprint C.1):
+ *  i codici "group_*" sono lezioni di gruppo, il resto è lezione privata. */
+const tokenTypeForService = (code: string): TokenRedeemableFor =>
+  code.startsWith("group_") ? "group_lesson" : "private_lesson";
 
 type Svc = {
   code: string;
@@ -57,11 +63,11 @@ function next14(): string[] {
 export function SwimmerBooking({
   services,
   credit,
-  tokensAvailable = 0,
+  tokensByType = { private_lesson: 0, group_lesson: 0 },
 }: {
   services: Svc[];
   credit: Credit;
-  tokensAvailable?: number;
+  tokensByType?: Record<TokenRedeemableFor, number>;
 }) {
   const router = useRouter();
   const [days] = useState(next14());
@@ -74,7 +80,8 @@ export function SwimmerBooking({
   // ADR-014: Stripe rimosso — 'cash' resta l'unico metodo (bonifico/contanti,
   // saldato col coach fuori piattaforma).
   const method = "cash" as const;
-  const [useToken, setUseToken] = useState(tokensAvailable > 0);
+  const [useToken, setUseToken] = useState(true);
+  const tokensAvailable = svc ? tokensByType[tokenTypeForService(svc.code)] : 0;
   const [msg, setMsg] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
   const [busy, setBusy] = useState(false);

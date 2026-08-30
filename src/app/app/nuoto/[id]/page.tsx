@@ -6,8 +6,10 @@ import { getCurrentProfile } from "@/lib/auth";
 import { Card } from "@/components/ui/card";
 import { WorkoutCard } from "@/components/workout/workout-card";
 import { RequestChangeButton } from "@/components/workout/request-change";
+import { CompletionEditor } from "./completion-editor";
 import type { WorkoutRow } from "@/lib/types";
 import type { VReadinessRow } from "@/lib/readiness";
+import type { Block } from "@/lib/workout";
 
 export const metadata = { title: "Allenamento" };
 
@@ -47,6 +49,17 @@ export default async function WorkoutDetail({
         .limit(1)
     : { data: [] as VReadinessRow[] };
   const post = (postRows ?? [])[0] as VReadinessRow | undefined;
+
+  // Sprint C.4 (TASK 4) — "Svolto": la copia di workout_completions.blocks
+  // per questo workout/nuotatore, editabile con l'editor leggero.
+  const { data: completion } = profile
+    ? await supabase
+        .from("workout_completions")
+        .select("id, blocks, modified")
+        .eq("workout_id", id)
+        .eq("swimmer_id", profile.id)
+        .maybeSingle()
+    : { data: null };
 
   // Il check-in "pre" (sonno/energia) è giornaliero, non legato a un
   // workout_id (readiness-actions.ts lo inserisce prima di scegliere cosa
@@ -114,6 +127,13 @@ export default async function WorkoutDetail({
               <p className="text-muted">La tua nota</p>
               <p className="text-foreground">{post.nota}</p>
             </div>
+          )}
+          {completion && (
+            <CompletionEditor
+              completionId={completion.id}
+              blocks={(completion.blocks ?? []) as Block[]}
+              modified={Boolean(completion.modified)}
+            />
           )}
         </Card>
       ) : (

@@ -38,7 +38,7 @@ export interface Busy {
 export interface SlotQuery {
   dateStr: string; // "YYYY-MM-DD" nel fuso Europe/Rome
   weekday: number; // weekday di dateStr in Europe/Rome (0=dom)
-  durationMin: number; // 30 | 60
+  durationMin: number; // 30 | 45 | 60
   bufferMin: number;
   mode: Mode;
   rules: Rule[];

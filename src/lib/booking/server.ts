@@ -21,6 +21,9 @@ export type Service = {
   buffer_min: number;
   price_cents: number;
   credit_cost: number;
+  /** Posti per slot. 1 = un booking occupa l'intero slot (default storico).
+   *  >1 = lezione di gruppo, più booking condividono lo stesso slot (Sprint C.3). */
+  capacity: number;
 };
 
 const hhmm = (t: string) => t.slice(0, 5); // "12:00:00" → "12:00"
@@ -43,7 +46,9 @@ export async function getServiceByCode(
 ): Promise<Service | null> {
   const { data } = await db
     .from("services")
-    .select("id,code,name,mode,duration_min,buffer_min,price_cents,credit_cost")
+    .select(
+      "id,code,name,mode,duration_min,buffer_min,price_cents,credit_cost,capacity",
+    )
     .eq("code", code)
     .eq("active", true)
     .maybeSingle();
@@ -77,7 +82,7 @@ export async function computeDaySlots(
       .eq("day", dateStr),
     db
       .from("bookings")
-      .select("starts_at,block_until")
+      .select("starts_at,block_until,service_id")
       .eq("coach_id", coachId)
       // pending + confirmed occupano lo slot (una richiesta blocca già l'orario).
       .in("status", ["pending", "confirmed"])
@@ -117,8 +122,28 @@ export async function computeDaySlots(
     }),
   );
 
+  // Capienza multipla (Sprint C.3): per il servizio in esame, un booking
+  // sullo STESSO (starts_at, service_id) blocca lo slot solo se la capienza
+  // è già raggiunta — sotto capienza lo slot resta prenotabile da altri
+  // nuotatori. Un booking di un servizio DIVERSO blocca sempre (il coach è
+  // comunque impegnato in quell'orario).
+  const sameServiceCountByStart = new Map<string, number>();
+  for (const b of bookRes.data ?? []) {
+    const row = b as Record<string, string>;
+    if (row.service_id !== service.id) continue;
+    sameServiceCountByStart.set(
+      row.starts_at,
+      (sameServiceCountByStart.get(row.starts_at) ?? 0) + 1,
+    );
+  }
+  const bookBusy = (bookRes.data ?? []).filter((b) => {
+    const row = b as Record<string, string>;
+    if (row.service_id !== service.id) return true;
+    return (sameServiceCountByStart.get(row.starts_at) ?? 0) >= service.capacity;
+  });
+
   const busy: Busy[] = [
-    ...(bookRes.data ?? []).map((b: Record<string, string>) => ({
+    ...bookBusy.map((b: Record<string, string>) => ({
       start: new Date(b.starts_at),
       end: new Date(b.block_until),
     })),

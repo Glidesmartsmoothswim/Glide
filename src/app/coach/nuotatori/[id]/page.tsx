@@ -29,6 +29,7 @@ import {
 } from "@/lib/objectives";
 import { availableCount, type LessonTokenRow } from "@/lib/tokens";
 import { GiftToken } from "./gift-token";
+import { PricingPanel } from "./pricing-panel";
 import { savePersonalWorkout } from "../../workout-actions";
 import { archiveSwimmer } from "../actions";
 import { EditSwimmerForm } from "./edit-form";
@@ -64,7 +65,7 @@ export default async function SwimmerDetail({
   const { data: s } = await supabase
     .from("profiles")
     .select(
-      "id, role, first_name, last_name, email, phone, service_type, tier, level, package, status, cert_status, cert_expiry, member_since, athlete_type, anno_nascita, categoria, stili_abituali, distanze_abituali, tier_expires_at, requested_tier, requested_tier_detail, payment_status, payment_amount_cents, receipt_number, paid_at",
+      "id, role, first_name, last_name, email, phone, service_type, tier, level, package, status, cert_status, cert_expiry, member_since, athlete_type, anno_nascita, categoria, stili_abituali, distanze_abituali, tier_expires_at, requested_tier, requested_tier_detail, payment_status, payment_amount_cents, receipt_number, paid_at, group_lesson_affiliate, extra_lesson_price_override_cents",
     )
     .eq("id", id)
     .single();
@@ -88,6 +89,10 @@ export default async function SwimmerDetail({
     paid_at: string | null;
   };
   const gate = gateState(pay.tier_expires_at);
+  const pricingFlags = s as {
+    group_lesson_affiliate: boolean;
+    extra_lesson_price_override_cents: number | null;
+  };
 
   const [
     wRes,
@@ -714,6 +719,17 @@ export default async function SwimmerDetail({
               <span className="text-muted"> · 1 lezione inclusa a token</span>
             </p>
             <GiftToken swimmerId={id} />
+          </Card>
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <h2 className="font-display text-lg text-foreground">Prezzi per questo nuotatore</h2>
+          <Card>
+            <PricingPanel
+              swimmerId={id}
+              groupLessonAffiliate={pricingFlags.group_lesson_affiliate}
+              extraLessonPriceOverrideCents={pricingFlags.extra_lesson_price_override_cents}
+            />
           </Card>
         </section>
       </div>
