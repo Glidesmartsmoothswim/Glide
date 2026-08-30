@@ -14,14 +14,13 @@ import {
   eliteSelectionLabel,
   eliteSeasonQuote,
   eliteSeasonLabel,
+  billingPeriodForCadence,
   WORKOUT_FREQUENCIES,
   CHECKIN_CADENCES,
   CHECKIN_CHANNELS,
-  BILLING_PERIODS,
   type WorkoutFrequency,
   type CheckinCadence,
   type CheckinChannel,
-  type BillingPeriod,
 } from "@/lib/payment/elite-pricing";
 
 /**
@@ -66,16 +65,17 @@ export async function startEliteActivation(fd: FormData) {
   const allenamenti = Number(fd.get("allenamenti")) as WorkoutFrequency;
   const cadenza = String(fd.get("cadenza") ?? "") as CheckinCadence;
   const canale = String(fd.get("canale") ?? "") as CheckinChannel;
-  const periodo = String(fd.get("periodo") ?? "mensile") as BillingPeriod;
 
   if (
     !WORKOUT_FREQUENCIES.includes(allenamenti) ||
     !CHECKIN_CADENCES.includes(cadenza) ||
-    !CHECKIN_CHANNELS.includes(canale) ||
-    !BILLING_PERIODS.includes(periodo)
+    !CHECKIN_CHANNELS.includes(canale)
   )
     redirect("/app/abbonamenti?err=1");
 
+  // Doc v3 (30/08): il rinnovo/incasso segue 1:1 la cadenza di check-in,
+  // mai una scelta indipendente dal client (nemmeno il campo hidden).
+  const periodo = billingPeriodForCadence(cadenza);
   const sel = { allenamenti, cadenza, canale };
   const amountCents = eliteTotalPriceCents(sel, periodo);
   const detail = eliteSelectionLabel(sel, periodo);
@@ -99,8 +99,8 @@ export async function startEliteActivation(fd: FormData) {
 
 /**
  * TASK 7 (feedback 29/08) — stessa selezione del questionario Elite, ma
- * prepagamento dell'intera stagione con sconto 10% invece che mese per
- * mese. Stesso principio ADR-002 regola 1: il prezzo scontato è
+ * prepagamento dell'intera stagione con sconto 15% (doc v3, era 10%)
+ * invece che mese per mese. Stesso principio ADR-002 regola 1: il prezzo scontato è
  * ricalcolato qui da `eliteSeasonQuote`, mai da un importo del client.
  * `requested_tier` resta "one_to_one_monthly" (non esiste un tier a sé per
  * l'Elite stagionale) — il coach vede in `requested_tier_detail` che si

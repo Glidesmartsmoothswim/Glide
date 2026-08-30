@@ -11,14 +11,19 @@ import {
   eliteMonthlyPriceCents,
   eliteTotalPriceCents,
   eliteSeasonQuote,
+  billingPeriodForCadence,
   type WorkoutFrequency,
   type CheckinCadence,
   type CheckinChannel,
-  type BillingPeriod,
 } from "@/lib/payment/elite-pricing";
 import { startEliteActivation, startEliteSeasonActivation } from "./actions";
 
-const euro = (cents: number) => `€ ${(cents / 100).toFixed(2).replace(".00", "")}`;
+// Formattazione IT (virgola decimale) — vedi page.tsx per la stessa correzione.
+const euro = (cents: number) =>
+  `€ ${(cents / 100).toLocaleString("it-IT", {
+    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  })}`;
 
 const selectClass =
   "mt-1 w-full rounded-lg border border-border bg-background px-2.5 py-2 text-sm outline-none focus:border-blu";
@@ -34,7 +39,9 @@ export function EliteQuestionnaire({ color }: { color: string }) {
   const [allenamenti, setAllenamenti] = useState<WorkoutFrequency>(3);
   const [cadenza, setCadenza] = useState<CheckinCadence>("bimestrale");
   const [canale, setCanale] = useState<CheckinChannel>("remoto");
-  const [periodo, setPeriodo] = useState<BillingPeriod>("mensile");
+  // Doc v3 (30/08): il rinnovo/incasso segue 1:1 la cadenza di check-in,
+  // nessuna domanda separata — bimestre paga bimestrale, il resto mensile.
+  const periodo = billingPeriodForCadence(cadenza);
 
   if (!open) {
     return (
@@ -104,18 +111,10 @@ export function EliteQuestionnaire({ color }: { color: string }) {
         </select>
       </div>
 
-      <div>
-        <label className="t-label text-muted">Fatturazione</label>
-        <select
-          name="periodo"
-          value={periodo}
-          onChange={(e) => setPeriodo(e.target.value as BillingPeriod)}
-          className={selectClass}
-        >
-          <option value="mensile">Ogni mese</option>
-          <option value="bimestrale">Ogni 2 mesi</option>
-        </select>
-      </div>
+      {/* Nessuna domanda separata sul rinnovo (doc v3, 30/08): l'incasso
+          segue la cadenza di check-in scelta sopra — bimestre paga
+          bimestrale, il resto paga mensile. */}
+      <input type="hidden" name="periodo" value={periodo} />
 
       <div className="rounded-lg bg-background p-3 text-center">
         {periodo === "bimestrale" && (
@@ -123,6 +122,10 @@ export function EliteQuestionnaire({ color }: { color: string }) {
         )}
         <p className="font-display text-xl text-foreground">
           {euro(total)} {periodo === "bimestrale" ? "ogni 2 mesi" : "/mese"}
+        </p>
+        <p className="mt-1 text-xs text-muted">
+          Rinnovo {periodo === "bimestrale" ? "ogni 2 mesi" : "ogni mese"} —
+          segue la cadenza di check-in scelta sopra.
         </p>
       </div>
 
@@ -139,13 +142,13 @@ export function EliteQuestionnaire({ color }: { color: string }) {
             {euro(season.fullCents)}
           </span>
         </p>
-        <p className="text-xs font-bold text-teal">Sconto 10% per pagamento anticipato</p>
+        <p className="text-xs font-bold text-teal">Sconto 15% per pagamento anticipato</p>
       </div>
 
       <CheckoutConsent
         label="Richiedi attivazione"
         color={color}
-        secondary={{ label: "Paga la stagione ora (-10%)", formAction: startEliteSeasonActivation }}
+        secondary={{ label: "Paga la stagione ora (-15%)", formAction: startEliteSeasonActivation }}
       />
     </form>
   );

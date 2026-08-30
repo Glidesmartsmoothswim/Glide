@@ -5,6 +5,54 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
+## 💶 Prezzi pre-lancio (30 ago sera, PROMPT_CODE_PREZZI.md, modalità autonoma — branch, NON mergiato)
+
+- **Contesto:** `GLIDE_HANDOFF_PREZZI_FATTURAZIONE.md` v3 aggiunto al repo (mancava — era solo
+  citato, mai committato, vedi sprint sotto). Sostituisce interamente i valori v2 usati fin qui.
+- **TASK 1 — numeri:** `lib/payment/elite-pricing.ts` riscritto sui nuovi valori del doc v3:
+  - Asse A (canone): 3=44€/4=52€/5=59€/6=65€/**7=70€ (nuovo scaglione)** — prima 3=42/4=54/5=64/6=73€
+    (nessun 7). `WORKOUT_FREQUENCIES` esteso a `[3,4,5,6,7]`.
+  - Asse B (credito check-in): bimestre/mensile/bisettimanale invariati; **settimanale
+    ricalcolata su 4 lezioni/mese fisse** → 113€ presenza / 77€ remoto (era 108/75€).
+  - Entry price Elite: 55€/mese (era 53€), invariata la formula (3 all. + call/bimestre).
+  - Sconto prepagamento stagionale: **15%** (era 10%), `SEASON_PREPAY_DISCOUNT`.
+  - Open 9,90€/mese, Open Plus 12,90€/mese (`lib/payment/pricing.ts` — era 10€/12€, Sprint C.6
+    di stanotte stessa: il tier value non cambia, solo il prezzo, terza revisione in 24h).
+  - **Bug di formattazione scoperto e corretto** (non richiesto esplicitamente, ma necessario:
+    senza, la pricing page avrebbe mostrato "€ 9.90" col punto invece di "€ 9,90"): l'helper
+    `euro(cents)` in `abbonamenti/page.tsx`/`elite-questionnaire.tsx` usava
+    `toFixed(2).replace(".00","")`, che funzionava solo per importi tondi (mai capitato prima
+    d'ora: tutti i prezzi precedenti erano euro interi). Sostituito con `toLocaleString("it-IT")`.
+  - `elite-pricing.test.ts` riscritto sui nuovi numeri + 2 nuovi test (scaglione 7, settimanale
+    ricalcolata). 51/51 pass (+10 skip preesistenti).
+- **TASK 2 — rinnovo = cadenza check-in (solo copy… quasi):** la UI aveva un select
+  "Fatturazione" **indipendente** dalla cadenza di check-in — il doc v3 dice esplicitamente
+  "nessuna domanda separata nel questionario". Trattato come piccola correzione di logica UI
+  (non schema, non payment flow) coerente con lo spirito del task: rimosso il select, nuova
+  `billingPeriodForCadence()` deriva `periodo` da `cadenza` (bimestre→bimestrale, resto→mensile)
+  sia lato client (preview prezzo) sia **lato server** (`startEliteActivation` non si fida più
+  di un campo `periodo` dal client, nemmeno hidden — stesso principio "mai un importo dal
+  client" già in uso nel resto del flusso). Copy aggiornato per spiegare la regola.
+- **TASK 3 — pricing page:** verificata `/app/abbonamenti` — 4 fasce presenti (Base €0 con
+  35€/100€ extra-piano già corretti dalla sessione precedente, Open, Open+, 1:1 Elite "a
+  partire da 55€/mese"), CTA corrette, nessun numero vecchio residuo (grep mirato: zero
+  risultati in app e sito).
+- **Repo sito (`glide-site`), controllato come richiesto:** nessuno dei numeri vecchi elencati
+  compare lì. **Trovata una discrepanza distinta, NON in scope stanotte, segnalata invece di
+  improvvisata:** `/piani` (pagina waitlist pre-lancio) mostra un listino completamente
+  scollegato dal modello reale — "Canale Open 29€/mese", "Elite 1:1 da 79€", "Video analisi 5€"
+  — 3 fasce generiche che non corrispondono né al vecchio né al nuovo modello (manca Base,
+  manca Open+, "Video analisi" è probabilmente confuso con lo sblocco-video "birra" €5 di
+  ADR-014, concetto diverso dalla videoanalisi 100€ reale). Ha già un disclaimer proprio
+  ("i piani e i prezzi indicati possono cambiare prima dell'apertura ufficiale") — non
+  riscritto: allineare quella sezione al modello a 4 fasce è una decisione di contenuto/prodotto
+  (quante fasce mostrare su una landing pre-lancio), non un numero da sostituire 1:1.
+- **Vincoli rispettati:** nessuna migration, nessuna colonna nuova, `plan_entitlements` non
+  toccato, `app_config.test_mode` non toccato (grep di conferma sul diff). `tsc`/`eslint`
+  puliti sui file toccati.
+- **Branch `claude/pricing-prelaunch-30ago`, pushato, NON mergiato** come da istruzione
+  esplicita del prompt sorgente ("riguardalo tu prima del lancio, anche stanotte").
+
 ## 🎟️ Sprint C.1-C.10 — token/gruppo/prezzi/grafici (30 ago, PROMPT_CODE_TOKEN_GRAFICI_PREZZI.md, modalità semi-autonoma)
 
 - **Contesto:** riprende esattamente dal cancello lasciato aperto dalla sessione precedente

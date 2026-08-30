@@ -1,37 +1,44 @@
 /**
- * Prezzario 1:1 Elite — GLIDE_HANDOFF_PREZZI_FATTURAZIONE.md (28/08/2026).
+ * Prezzario 1:1 Elite — GLIDE_HANDOFF_PREZZI_FATTURAZIONE.md v3 (30/08/2026).
  * Due assi indipendenti, sommati per il prezzo mensile-equivalente:
  *
  *  - Asse A — canone allenamenti/settimana (programmazione scritta),
- *    floor a 3 (chi chiede meno paga comunque 3).
+ *    floor a 3 (chi chiede meno paga comunque 3). Formula: A(3)=44€,
+ *    A(n) = A(3) + Σ(12−k) per k=4..n — delta decrescente di 1€/scaglione.
  *  - Asse B — credito check-in, due binari per canale (in presenza / remoto),
- *    cadenza scelta dall'atleta (bimestre/mese/2 al mese/settimana).
+ *    cadenza scelta dall'atleta (bimestre/mese/bisettimanale/settimana).
+ *    Formula: P0 = 32€ presenza / 22€ call a cadenza mensile; ≤ mensile
+ *    stesso prezzo/lezione, > mensile prezzo/lezione = P0 × (1 − 6% ×
+ *    raddoppi). Settimanale calcolata su 4 lezioni/mese fisse (non 4,33
+ *    reali — decisione aperta #1 del doc, nessun nuovo period-type).
  *
  * Videoanalisi resta prodotto standalone (100€), non entra qui.
  *
  * `seasonEnd` importata da ./pricing: stessa convenzione di fine stagione
  * (30 giugno) usata da one_to_one_season, non una seconda regola parallela.
  *
- * Valori "reali" (calibrati sullo storico): canone(4)=54€, credito call/bim=22€.
- * Gli altri sono stime esplicitamente dichiarate tali nella nota sorgente —
- * usati così come dati, in attesa di conferma/correzione di Alessio (decisione
- * aperta #1 della nota: l'ancora 32€/lezione-bim). Nessuna tabella DB
- * configurabile dal gestionale per ora (la nota lo suggerisce come
- * architettura finale, "no hardcode" — qui i valori sono ancora in
- * discussione, quindi TS costanti in un solo file, facili da trovare e
- * correggere, sono la scelta più onesta finché non si stabilizzano).
+ * Valori "reali" (calibrati sullo storico, invariati dalla v2): credito
+ * lezione/bim=32€, credito call/bim=22€. Il canone (Asse A) è ora dato
+ * dalla formula, non da stime per scaglione — 4=52€ è uno scostamento
+ * consapevole di −2€/mese dal reale storico (54€), vedi nota v3 §2.
+ * Nessuna tabella DB configurabile dal gestionale per ora (i valori sono
+ * ancora in discussione — decisione aperta #3 del doc, tag sconto
+ * coach-assegnato — quindi TS costanti in un solo file, facili da trovare
+ * e correggere, restano la scelta più onesta finché non si stabilizzano).
  */
 import { seasonEnd } from "./pricing";
 
-export const WORKOUT_FREQUENCIES = [3, 4, 5, 6] as const;
+export const WORKOUT_FREQUENCIES = [3, 4, 5, 6, 7] as const;
 export type WorkoutFrequency = (typeof WORKOUT_FREQUENCIES)[number];
 
-/** Canone/mese per allenamenti/settimana. Floor 3: valori < 3 non esistono. */
+/** Canone/mese per allenamenti/settimana. Floor 3: valori < 3 non esistono.
+ *  Formula: A(3)=44€, delta −1€ a ogni scaglione (8,7,6,5,4… da k=4 a k=n). */
 export const WORKOUT_FREQUENCY_PRICE_CENTS: Record<WorkoutFrequency, number> = {
-  3: 4200, // stima
-  4: 5400, // reale (storico)
-  5: 6400, // stima
-  6: 7300, // stima
+  3: 4400,
+  4: 5200,
+  5: 5900,
+  6: 6500,
+  7: 7000,
 };
 
 export const CHECKIN_CADENCES = [
@@ -57,7 +64,9 @@ export const CHECKIN_CHANNEL_LABEL: Record<CheckinChannel, string> = {
   remoto: "Remoto (call)",
 };
 
-/** Credito check-in, €/mese-equivalente, per cadenza × canale. */
+/** Credito check-in, €/mese-equivalente, per cadenza × canale.
+ *  bimestrale/mensile/bisettimanale (due_al_mese) invariate dalla v2;
+ *  settimanale ricalcolata su 4 lezioni/mese fisse (v3, era 108/75€). */
 export const CHECKIN_CREDIT_PRICE_CENTS: Record<
   CheckinCadence,
   Record<CheckinChannel, number>
@@ -65,7 +74,7 @@ export const CHECKIN_CREDIT_PRICE_CENTS: Record<
   bimestrale: { presenza: 1600, remoto: 1100 }, // remoto = reale (storico)
   mensile: { presenza: 3200, remoto: 2200 },
   due_al_mese: { presenza: 6000, remoto: 4100 },
-  settimanale: { presenza: 10800, remoto: 7500 },
+  settimanale: { presenza: 11300, remoto: 7700 },
 };
 
 export type EliteSelection = {
@@ -101,6 +110,16 @@ export function eliteTotalPriceCents(
   return periodo === "bimestrale" ? monthly * 2 : monthly;
 }
 
+/**
+ * Doc v3 (30/08) — il rinnovo/incasso segue 1:1 la cadenza di check-in
+ * scelta, niente domanda separata: bimestre paga bimestrale, mensile/
+ * bisettimanale/settimanale pagano mensile. Un'eccezione manuale (cliente
+ * bimestre che spalma su base mensile) è un tag coach, non un'opzione qui.
+ */
+export function billingPeriodForCadence(cadenza: CheckinCadence): BillingPeriod {
+  return cadenza === "bimestrale" ? "bimestrale" : "mensile";
+}
+
 /** Descrizione leggibile della configurazione, per email/notifica/gestionale. */
 export function eliteSelectionLabel(
   sel: EliteSelection,
@@ -110,12 +129,13 @@ export function eliteSelectionLabel(
 }
 
 /**
- * TASK 7 (feedback 29/08) — sconto 10% per chi prepaga l'intera stagione
- * subito dopo il questionario, invece di pagare mese per mese. "Stagione"
- * è la stessa convenzione di `one_to_one_season` (payment/pricing.ts):
- * fino al 30 giugno più vicino, mai indietro.
+ * TASK 7 (feedback 29/08), sconto aggiornato a 15% dal doc v3 (30/08) —
+ * chi prepaga l'intera stagione subito dopo il questionario, invece di
+ * pagare mese per mese. "Stagione" è la stessa convenzione di
+ * `one_to_one_season` (payment/pricing.ts): fino al 30 giugno più vicino,
+ * mai indietro.
  */
-export const SEASON_PREPAY_DISCOUNT = 0.1;
+export const SEASON_PREPAY_DISCOUNT = 0.15;
 
 /**
  * Mesi dal mese di `from` (incluso) al mese di fine stagione (incluso).
@@ -139,7 +159,7 @@ export type EliteSeasonQuote = {
   discountedCents: number;
 };
 
-/** Preventivo stagione intera prepagata (canone mensile-equivalente × mesi, -10%). */
+/** Preventivo stagione intera prepagata (canone mensile-equivalente × mesi, -15%). */
 export function eliteSeasonQuote(
   sel: EliteSelection,
   from: Date = new Date(),
@@ -153,5 +173,5 @@ export function eliteSeasonQuote(
 
 /** Descrizione leggibile per il prepagamento stagione, per email/gestionale. */
 export function eliteSeasonLabel(sel: EliteSelection, months: number): string {
-  return `${sel.allenamenti} allenamenti/sett + check-in ${CHECKIN_CADENCE_LABEL[sel.cadenza].toLowerCase()} (${CHECKIN_CHANNEL_LABEL[sel.canale].toLowerCase()}) — stagione intera prepagata (${months} mesi, -10%)`;
+  return `${sel.allenamenti} allenamenti/sett + check-in ${CHECKIN_CADENCE_LABEL[sel.cadenza].toLowerCase()} (${CHECKIN_CHANNEL_LABEL[sel.canale].toLowerCase()}) — stagione intera prepagata (${months} mesi, -15%)`;
 }

@@ -24,7 +24,14 @@ const C = {
   season: "var(--ink)",
 };
 
-const euro = (cents: number) => `€ ${(cents / 100).toFixed(2).replace(".00", "")}`;
+// Formattazione IT (virgola decimale) — con .toFixed+replace un prezzo come
+// 9,90€ finiva "€ 9.90" (punto, non virgola). toLocaleString con fraction
+// digits condizionali mantiene "€ 10" per i round e "€ 9,90" per gli altri.
+const euro = (cents: number) =>
+  `€ ${(cents / 100).toLocaleString("it-IT", {
+    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  })}`;
 
 // Righe feature ALLINEATE per far saltare all'occhio le differenze (13.5).
 const OPEN: Feature[] = [
@@ -208,8 +215,8 @@ export default async function Abbonamenti({
       {/* Percorso 1:1 — TASK 7 (Sprint C): lo "Stagionale" a prezzo fisso
           (690€, set-giu) è stato tolto dal listino. Chi vuole prepagare
           l'intera stagione invece che mese per mese lo fa nello stesso
-          questionario Elite, con lo sconto 10% calcolato sulla combo
-          canone+credito che ha configurato (EliteQuestionnaire). */}
+          questionario Elite, con lo sconto 15% (doc v3, era 10%) calcolato
+          sulla combo canone+credito che ha configurato (EliteQuestionnaire). */}
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-lg text-foreground">Percorso 1:1</h2>
         <div className="grid grid-cols-1">
@@ -228,7 +235,7 @@ export default async function Abbonamenti({
           settimana e quanto spesso vuoi un check-in col coach (in vasca o in
           call) — lo calcoli tu prima di richiedere l&apos;attivazione. Puoi
           pagare mese per mese o l&apos;intera stagione in un&apos;unica
-          soluzione (-10%). Videoanalisi resta un prodotto a parte (€100).
+          soluzione (-15%). Videoanalisi resta un prodotto a parte (€100).
         </p>
       </section>
 
