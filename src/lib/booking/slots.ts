@@ -13,7 +13,14 @@
  * ai bordi ed è DST-safe (doppio raffinamento dell'offset).
  */
 
-export type Mode = "pool" | "remote";
+/**
+ * Hotfix post-lancio: "group" è un terzo mode distinto da "pool" — un
+ * servizio di gruppo NON eredita automaticamente le finestre di
+ * disponibilità aperte per le lezioni private (stesso `mode` = stessa
+ * disponibilità, per costruzione). Nessuna `availability_rules.modes`
+ * include "group" finché il coach non apre finestre dedicate.
+ */
+export type Mode = "pool" | "remote" | "group";
 
 export interface Rule {
   weekday: number; // 0=domenica … 6=sabato

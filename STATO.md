@@ -5,6 +5,35 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
+## 🔧 Hotfix post-lancio — slot fantasma lezioni di gruppo + Distribuzione carico vuota (30 ago notte, migration_052)
+
+Due bug reali segnalati subito dopo il merge di PR #52 (live in produzione). Gate 🛑
+mostrato ed eseguito con GO esplicito.
+
+- **Slot fantasma lezioni di gruppo**: `group_30/45/60` (Sprint C TASK 2) erano stati
+  creati con `mode='pool'` — stesso `mode` di una lezione privata in vasca, quindi
+  ereditavano AUTOMATICAMENTE ogni finestra di disponibilità già aperta per le lezioni
+  1:1 (il matching in `resolveWindows`/`slots.ts` è per `mode`, non per servizio). Il
+  coach non aveva "pubblicato" nessuno di quegli slot — il motore li generava da solo.
+  Verificato: **0 booking reali** su lezioni di gruppo esistevano, nessun danno fatto,
+  solo slot fantasma mostrati. Fix: nuovo `mode='group'` distinto (type `Mode` in
+  `lib/booking/slots.ts` esteso), i 3 servizi spostati lì. Nessuna
+  `availability_rules.modes` include oggi `'group'` → zero slot mostrati, pulito.
+  **Effetto collaterale onesto, segnalato**: da ora nessuno può prenotare una lezione di
+  gruppo finché non si costruisce un modo per il coach di aprire finestre dedicate
+  (`modes: ['group']` su una regola, oggi solo via SQL diretto) — non fatto stanotte,
+  prossimo passo.
+- **"Distribuzione carico" vuota per tutti** (Marta l'ha notato per prima): le
+  `workout_completions` create prima di migration_049 (stanotte stessa) sono rimaste al
+  default `blocks='[]'`, mai riempite retroattivamente — il grafico leggeva zero dati
+  ovunque, non solo per Marta. Backfill una tantum: 10 righe su 11 nel DB recuperano
+  `blocks` dal `workouts` collegato (1 riga resta vuota, il workout originale non esiste
+  più — nessun dato da cui recuperarla, comportamento corretto per costruzione, non un
+  crash).
+- Verifica: `tsc`/`eslint` puliti, 58/58 test invariati. `services.mode`/`bookings.mode`
+  confermati live (`group_30/45/60` → `mode='group'`; 10/11 completions con `blocks`
+  popolato, 1 legittimamente vuota).
+
 ## 🌊 Reset tier al lancio — tutti Base tranne Marta Elite (30 ago notte, dato non codice)
 
 Ultima richiesta prima del push+merge di PR #52: reset del roster reale (10 nuotatori)
