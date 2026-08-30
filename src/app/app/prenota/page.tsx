@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCreditStatus, ensureCreditPeriod } from "@/lib/booking/credits";
 import { SwimmerBooking } from "@/components/booking/swimmer-booking";
+import { availableCountByType } from "@/lib/tokens";
+import { effectiveCashPriceCents } from "@/lib/booking/pricing";
 import { UpcomingLessons } from "@/components/booking/upcoming-lessons";
 import { SwimmerEvents } from "@/components/booking/swimmer-events";
 
@@ -23,7 +25,7 @@ export default async function PrenotaPage() {
 
   const { data: p } = await supabase
     .from("profiles")
-    .select("service_type")
+    .select("service_type, group_lesson_affiliate, extra_lesson_price_override_cents")
     .eq("id", profile.id)
     .single();
 
@@ -33,24 +35,25 @@ export default async function PrenotaPage() {
 
   const credit = await getCreditStatus(supabase, profile.id, p?.service_type ?? null);
 
-  // Token lezione 1:1 disponibili (Onda 13.6).
+  // Token lezione disponibili (Onda 13.6, esteso a group_lesson — ADR-015 Sprint C.1).
   const { data: tokRows } = await supabase
     .from("lesson_tokens")
-    .select("id, redeemed_at, expires_at")
+    .select("id, redeemable_for, redeemed_at, expires_at")
     .eq("swimmer_id", profile.id)
     .is("redeemed_at", null);
-  const tokensAvailable = (tokRows ?? []).filter(
-    (t) => !t.expires_at || new Date(t.expires_at as string) > new Date(),
-  ).length;
+  const tokensByType = availableCountByType(tokRows ?? []);
 
   const { data: svcData } = await supabase
     .from("services")
     .select("code, name, mode, duration_min, price_cents")
     .eq("active", true)
     .order("sort");
-  const services = ((svcData ?? []) as Svc[]).filter(
-    (s) => s.mode !== "remote" || credit.remoteAllowed,
-  );
+  const services = ((svcData ?? []) as Svc[])
+    .filter((s) => s.mode !== "remote" || credit.remoteAllowed)
+    // Prezzo cash effettivo per QUESTO nuotatore (sconto affiliato gruppo /
+    // override lezione extra) — informativo lato UI, l'importo autoritativo
+    // resta ricalcolato server-side alla creazione del booking.
+    .map((s) => ({ ...s, price_cents: effectiveCashPriceCents(s, p ?? {}) }));
 
   const { data: upData } = await supabase
     .from("bookings")
@@ -199,7 +202,7 @@ export default async function PrenotaPage() {
       <SwimmerBooking
         services={services}
         credit={credit}
-        tokensAvailable={tokensAvailable}
+        tokensByType={tokensByType}
       />
 
       <SwimmerEvents events={events} />

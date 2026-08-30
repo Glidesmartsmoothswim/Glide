@@ -12,9 +12,12 @@ import type { WorkoutRow } from "@/lib/types";
 export const metadata = { title: "Archivio Open" };
 
 /**
- * Archivio storico Canale Open — SOLO open_plus (Onda 12.4). Enforcement lato
- * server: se il tier non è ammesso non interroghiamo nemmeno i dati, mostriamo
- * l'invito. (La RLS di per sé già nasconde le settimane passate agli open.)
+ * Archivio storico Canale Open (Onda 12.4, esteso Sprint C.6). Enforcement
+ * lato server: se il tier non è ammesso non interroghiamo nemmeno i dati,
+ * mostriamo l'invito. Open vede la pagina ma la RLS (migration_050) limita
+ * le righe restituite a settimana corrente + precedente; open_plus non ha
+ * filtro settimana e vede l'archivio intero — nessun filtro applicativo
+ * aggiuntivo qui, la differenza è tutta a livello di dati restituiti.
  */
 export default async function OpenArchive({
   searchParams,
@@ -67,6 +70,7 @@ export default async function OpenArchive({
   }
 
   const cur = currentMonday();
+  const isOpenPlus = tier === "open_plus";
   const weeks = [...new Set(items.map((w) => w.week_start ?? ""))];
   const byWeek = weeks.map((wk) => ({
     week: wk,
@@ -88,9 +92,18 @@ export default async function OpenArchive({
       <header>
         <h1 className="font-display text-2xl text-foreground">Archivio Open</h1>
         <p className="text-sm text-muted">
-          Scegli e rifai qualunque allenamento passato.
+          {isOpenPlus
+            ? "Scegli e rifai qualunque allenamento passato."
+            : "Settimana corrente e precedente. L'archivio storico completo è in Open+."}
         </p>
       </header>
+
+      {!isOpenPlus && (
+        <UpgradeHint
+          target="open_plus"
+          message="Vuoi anche le settimane più vecchie? Sono incluse in Open+."
+        />
+      )}
 
       <form method="get" className="flex flex-wrap items-end gap-2">
         <label className="flex flex-1 flex-col gap-1 text-sm text-muted">

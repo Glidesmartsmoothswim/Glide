@@ -1,12 +1,22 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { SwimmerProgress } from "@/components/readiness/progress";
+import { Card } from "@/components/ui/card";
 import { EfficiencyCurves, type EffPoint } from "@/components/readiness/efficiency";
 import { OndaCard, GlideScoreCard } from "@/components/score/score-cards";
 import { computeScore } from "@/lib/score/compute";
 import { IdentityCard } from "@/components/identity/identity-card";
 import { computeIdentity } from "@/lib/identity/compute";
 import type { EffettoAcquaRow } from "@/lib/readiness";
+import { Torta } from "@/components/charts/Torta";
+import { CurvaCarico } from "@/components/charts/CurvaCarico";
+import {
+  distribuzioneWorkout,
+  buildSettimane,
+  toFette,
+  type WorkoutForStats,
+} from "@/lib/workout-stats";
+import type { ZonaBucket } from "@/lib/chart-tokens";
 
 export const metadata = { title: "Progressi" };
 export const dynamic = "force-dynamic";
@@ -61,6 +71,25 @@ export default async function SwimmerProgressi() {
     .limit(200);
   const effPoints = (effData ?? []) as EffPoint[];
 
+  // Sprint C.5 (TASK 5) — "Distribuzione carico": legge workout_completions.
+  // blocks (Svolto, TASK 4), non workouts.blocks (Assegnato).
+  const { data: compData } = await supabase
+    .from("workout_completions")
+    .select("id, week_start, blocks")
+    .eq("swimmer_id", profile?.id ?? "")
+    .order("week_start", { ascending: true });
+  const completions = (compData ?? []) as WorkoutForStats[];
+  const distribuzioneTotale = completions.reduce<Partial<Record<ZonaBucket, number>>>(
+    (acc, c) => {
+      for (const [z, v] of Object.entries(distribuzioneWorkout(c.blocks ?? [])))
+        acc[z as ZonaBucket] = (acc[z as ZonaBucket] ?? 0) + (v ?? 0);
+      return acc;
+    },
+    {},
+  );
+  const fetteCarico = toFette(distribuzioneTotale);
+  const settimaneCarico = buildSettimane(completions);
+
   return (
     <div className="flex flex-col gap-5">
       <header>
@@ -74,6 +103,18 @@ export default async function SwimmerProgressi() {
       {score && !libero && <GlideScoreCard result={score} />}
       <SwimmerProgress effetto={effetto} />
       <EfficiencyCurves points={effPoints} />
+
+      {completions.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <h2 className="font-display text-lg text-foreground">Distribuzione carico</h2>
+          <Card className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <Torta fette={fetteCarico} />
+            <div className="w-full sm:flex-1">
+              <CurvaCarico settimane={settimaneCarico} />
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

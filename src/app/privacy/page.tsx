@@ -138,7 +138,7 @@ export default function PrivacyPage() {
             [
               "Supabase",
               "Database e autenticazione",
-              "Regione UE — [da confermare]",
+              "Frankfurt (EU)",
             ],
             [
               "Vercel",

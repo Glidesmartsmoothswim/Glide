@@ -41,9 +41,9 @@ test("Canale Open settimana — solo open e open_plus (NON free, NON one_to_one)
   assert.equal(canAccess("one_to_one", "open:week"), false);
 });
 
-test("Canale Open archivio storico — solo open_plus", () => {
+test("Canale Open archivio storico — open e open_plus (Sprint C.6: open limitato a corrente+precedente via RLS, open_plus intero)", () => {
   assert.equal(canAccess("free", "open:archive"), false);
-  assert.equal(canAccess("open", "open:archive"), false);
+  assert.equal(canAccess("open", "open:archive"), true);
   assert.equal(canAccess("open_plus", "open:archive"), true);
   assert.equal(canAccess("one_to_one", "open:archive"), false);
 });

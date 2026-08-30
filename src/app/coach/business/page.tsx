@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { RevenueChart, type RevPoint } from "@/components/business/revenue-chart";
 import { euro } from "@/lib/workout";
 import { gateState } from "@/lib/payment/gate";
+import { TIER_PRICE_CENTS } from "@/lib/payment/pricing";
 
 export const metadata = { title: "Business" };
 
@@ -40,10 +41,12 @@ export default async function BusinessPage() {
     .select("tier, tier_expires_at")
     .eq("role", "swimmer")
     .neq("tier", "free");
+  // SSOT: stesso listino di /app/abbonamenti (lib/payment/pricing.ts) —
+  // niente copia locale che possa disallinearsi (successo con Sprint C.6).
   const MONTHLY_EQUIV: Record<string, number> = {
-    open: 1290,
-    open_plus: 1990,
-    one_to_one: 7900,
+    open: TIER_PRICE_CENTS.open,
+    open_plus: TIER_PRICE_CENTS.open_plus,
+    one_to_one: TIER_PRICE_CENTS.one_to_one_monthly,
   };
   const active = (activeProfiles ?? []).filter(
     (p) => gateState(p.tier_expires_at) !== "overdue",

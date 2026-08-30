@@ -134,6 +134,10 @@ export async function savePost(
 
   // Onda 12.3: archivio personale svolti (self-contained: snapshot così
   // "resta mio" anche se l'allenamento sparisce o il tier scende a free).
+  // Sprint C.4 (TASK 4): copia anche `blocks` (Svolto) — stesso pattern di
+  // title/focus/total_meters. `modified` non è nel payload: se la riga
+  // esiste già (upsert su conflitto), resta quella salvata dall'editor
+  // "Modifica quello che hai fatto", non viene azzerata qui.
   if (workoutId && woMeta) {
     await supabase.from("workout_completions").upsert(
       {
@@ -143,6 +147,7 @@ export async function savePost(
         focus: woMeta.focus,
         week_start: woMeta.week_start,
         total_meters: woMeta.total_meters,
+        blocks: blocks ?? [],
         // ADR-012 (Onda 29.5): il self-service NON conta come aderenza al
         // programma — source proprio, escluso dalle query "open_channel"
         // che alimentano le statistiche del coach (/coach/open, /coach/social).

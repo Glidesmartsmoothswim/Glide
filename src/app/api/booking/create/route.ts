@@ -15,6 +15,7 @@ import {
   refundCredit,
   romeDateStr,
 } from "@/lib/booking/credits";
+import { effectiveCashPriceCents } from "@/lib/booking/pricing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,10 +70,13 @@ export async function POST(req: Request) {
 
   const { data: p } = await admin
     .from("profiles")
-    .select("service_type")
+    .select("service_type, group_lesson_affiliate, extra_lesson_price_override_cents")
     .eq("id", profile.id)
     .single();
   const serviceType = p?.service_type ?? null;
+  // Prezzo cash effettivo per QUESTO nuotatore (Sprint C.3): sconto
+  // affiliato su lezione di gruppo, o override storico su lezione extra.
+  const cashPriceCents = effectiveCashPriceCents(service, p ?? {});
 
   const credit = await getCreditStatus(admin, profile.id, serviceType);
   if (service.mode === "remote" && !credit.remoteAllowed)
@@ -97,9 +101,15 @@ export async function POST(req: Request) {
   let tokenId: string | null = null;
 
   if (useToken) {
-    // Reserve atomico di un token valido (Onda 13.6): niente doppio utilizzo.
+    // Reserve atomico di un token valido (Onda 13.6). Il tipo è derivato dal
+    // servizio prenotato (mai dal client): un token group_lesson non copre
+    // una lezione privata e viceversa (ADR-015, Sprint C.1).
+    const tokenType = service.code.startsWith("group_")
+      ? "group_lesson"
+      : "private_lesson";
     const { data: tid } = await admin.rpc("reserve_lesson_token", {
       p_swimmer: profile.id,
+      p_type: tokenType,
     });
     if (!tid)
       return Response.json(
@@ -148,7 +158,7 @@ export async function POST(req: Request) {
       payment,
       payment_method: paymentMethod,
       payment_status: isCash ? "da_incassare" : null,
-      amount_cents: isCash ? service.price_cents : null,
+      amount_cents: isCash ? cashPriceCents : null,
       swimmer_note: note,
     })
     .select("id")
@@ -189,7 +199,7 @@ export async function POST(req: Request) {
     minute: "2-digit",
   }).format(startsAt);
   const cashNote = isCash
-    ? ` · da incassare €${(service.price_cents / 100).toFixed(0)}`
+    ? ` · da incassare €${(cashPriceCents / 100).toFixed(0)}`
     : "";
 
   // TASK 4 (feedback 29/08): il coach oggi deve controllare a mano in
@@ -205,7 +215,7 @@ export async function POST(req: Request) {
       <h2 style="color:#0E5EAB">Nuova richiesta di prenotazione</h2>
       <p><b>${esc(swimmerName)}</b> ha prenotato <b>${esc(service.name)}</b>.</p>
       <p><b>Quando:</b> ${whenLabel}</p>
-      ${cashNote ? `<p><b>Da incassare:</b> €${(service.price_cents / 100).toFixed(0)}</p>` : ""}
+      ${cashNote ? `<p><b>Da incassare:</b> €${(cashPriceCents / 100).toFixed(0)}</p>` : ""}
       ${note ? `<p><b>Nota del nuotatore:</b> ${esc(note)}</p>` : ""}
       <p style="color:#5b6b7b;font-size:13px">Conferma dall'agenda quando puoi.</p>
     </div>`,
@@ -223,6 +233,6 @@ export async function POST(req: Request) {
     bookingId: booking!.id,
     payment,
     paymentMethod,
-    amountCents: isCash ? service.price_cents : null,
+    amountCents: isCash ? cashPriceCents : null,
   });
 }

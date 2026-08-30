@@ -5,6 +5,127 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
+## 🎟️ Sprint C.1-C.10 — token/gruppo/prezzi/grafici (30 ago, PROMPT_CODE_TOKEN_GRAFICI_PREZZI.md, modalità semi-autonoma)
+
+- **Contesto:** riprende esattamente dal cancello lasciato aperto dalla sessione precedente
+  ("Sprint C NON iniziato, serve il GO" — vedi sezione sotto). Letto `docs/GLIDE_ADR.md`
+  (ADR-007/015), STATO.md, PR #48 (merged) e PR #49 (draft, `claude/grafici-zone-carico`,
+  mai su `main`) prima di iniziare. **`GLIDE_HANDOFF_PREZZI_FATTURAZIONE.md` citato come
+  prerequisito NON esiste in questo repo** (mai committato, probabile artefatto di sessione
+  chat non salvato) — trattato ADR-015 come fonte di verità per i numeri già confermati (35€/
+  100€ extra-piano), nessun valore inventato.
+- **Nomi reali verificati contro il DB live prima di scrivere codice** (come richiesto):
+  `services_duration_min_check` era `[30,60]` (non ancora 45); `profiles_tier_check` **aveva
+  già `open_plus`** — TASK 6 non ha richiesto la migration condizionale prevista dal prompt,
+  solo la logica applicativa; `reserve_lesson_token(p_swimmer uuid)` firma confermata identica
+  al prompt.
+- **PR #49 mergiata nel branch di sessione** (non lavorato direttamente sul suo branch, per le
+  regole di questa sessione): TASK 1-4 di quella PR (Torta/CurvaCarico/chart-tokens/
+  workout-stats) sono ora nella storia di questo branch, un solo conflitto risolto in STATO.md
+  (sezioni parallele, nessuna perdita di contenuto).
+
+**TASK 1 (redeemable_for):** `lesson_tokens.redeemable_for` (private_lesson|group_lesson,
+default private_lesson — zero regressione sui token esistenti). `reserve_lesson_token`
+esteso con `p_type`, filtra `and redeemable_for = p_type`. Unico call site RPC
+(`api/booking/create/route.ts`): tipo derivato dal `service.code` prenotato (`group_*` →
+group_lesson), mai dal client. Il flusso "Regala token" (coach) ora sceglie il tipo — non
+esplicitamente richiesto dal prompt per questo TASK, ma necessario perché i token
+group_lesson esistano davvero (e per eseguire il test manuale finale).
+
+**TASK 2 (durata 45' + gruppo):** `services.duration_min` ora ammette 45; `capacity int
+default 1`; catalogo `group_30/45/60` (capacity=6, 10€ listino). Le 4 righe esistenti restano
+capacity=1.
+
+**TASK 3 (affiliazione + capienza):** `profiles.group_lesson_affiliate` +
+`extra_lesson_price_override_cents`. **Migration aggiuntiva non prevista dal prompt sorgente,
+gate 🛑 separato mostrato e confermato**: l'EXCLUDE `bookings_no_overlap` esistente blocca
+QUALSIASI overlap di orario per lo stesso coach — avrebbe impedito anche solo il 2° booking
+su una lezione di gruppo. Risolto con `conflict_key` (per servizi capacity>1 = service_id,
+condiviso tra i booking dello stesso slot → non si escludono a vicenda; per capacity=1 resta
+univoca per riga → comportamento invariato) + trigger `bookings_check_capacity` (lock
+deterministico + conteggio atomico, rifiuta oltre `services.capacity`, errcode 23505 già
+gestito dal catch esistente in `booking/create/route.ts`). `computeDaySlots` aggiornato: uno
+slot dello stesso servizio blocca solo a capienza raggiunta. Pricing cash: 5€ se
+`group_lesson_affiliate`, altrimenti 10€; override discrezionale sulla lezione privata extra
+(sostituisce `service.price_cents` nel flusso cash esistente — non è stato possibile
+verificare a quale service_id/percorso corrispondesse originariamente il "35€" di ADR-015
+dato che l'handoff non esiste nel repo; il meccanismo è generico e si applica ovunque oggi si
+addebita il prezzo di listino in contanti, corretto indipendentemente dal numero specifico).
+UI coach (scheda nuotatore → Pagamenti): toggle Affiliato + campo override in euro.
+
+**TASK 4 (Svolto editabile):** `workout_completions.blocks`/`modified`. Copiato da
+`workouts.blocks` al completamento (`readiness-actions.ts`, stesso upsert di title/focus/
+total_meters — `modified` non è nel payload, quindi un upsert successivo non lo azzera).
+Editor leggero "Modifica quello che hai fatto" su `/app/nuoto/[id]` (solo rounds/zona per
+blocco, riusa `ZONES`/`blockMeters` da `lib/workout.ts` — non il tool coach completo).
+`modified` diventa true (e resta true) alla prima modifica rispetto alla copia salvata.
+
+**TASK 5 (grafici, chiude PR #49):** "Distribuzione carico" (Torta + CurvaCarico) su scheda
+nuotatore → tab Andamento (per singolo nuotatore, non aggregato) e su `/app/progressi` lato
+nuotatore. Entrambe leggono `workout_completions.blocks` (Svolto), non `workouts.blocks`
+(Assegnato) — la nota "TASK 5/6 fermati, fonte dati non ovvia" lasciata dalla sessione PR #49
+è risolta da questo stesso sprint (TASK 4 ha aggiunto `blocks` a workout_completions).
+
+**TASK 6 (Open Plus gating):** nessuna migration sul valore tier (già presente). **Migration
+aggiuntiva non prevista, gate 🛑 separato confermato**: l'accesso storico "solo settimana
+corrente" per Open era imposto da RLS (`workouts: lettura`, migration_019), non solo da
+codice — sostituita con "corrente + precedente" per `open`, invariato (tutto) per
+`open_plus`. `access.ts`: `open:archive` ora ammette anche `open` (la differenza reale è nei
+dati che la RLS restituisce). Prezzi: Open 12,90€→10€, Open+ 19,90€→12€
+(`lib/payment/pricing.ts`, SSOT) — trovata e corretta una copia locale hardcoded degli stessi
+importi in `coach/business/page.tsx` (avrebbe disallineato silenziosamente il MRR stimato).
+
+**TASK 7 (stagionale → sconto anticipo):** **già implementato per intero dalla sessione
+precedente** (PR #50, `elite-pricing.ts#eliteSeasonQuote`, -10% sulla combo canone+credito
+del questionario) — mancava solo la rimozione della card fissa "Stagionale" (690€) da
+`/app/abbonamenti`, fatta qui.
+
+**TASK 8 (non-task sostituzione lezione/allenamento):** verificato che non esiste alcuna
+logica che scala/sconta il canone allenamenti in base a lezioni prenotate (grep mirato,
+0 risultati) — confermato non-task, nessuna ambiguità nel codice esistente.
+
+**TASK 9 (guard NM):** nessuna riga NM aggiunta a `zone_rpe_bands` (confermato: solo Z1-Z5).
+**Nessun "digest coach (RPE fuori banda)" esiste in questo repo** (grep su tutto `src/`: 0
+risultati) — il riferimento lasciato nella nota della sessione PR #49 presumeva una feature
+mai effettivamente costruita. L'unico punto che legge `zone_rpe_bands` è la dimensione
+"qualità" del Glide Score (`lib/score/compute.ts`): guard già corretto (`if (!band)
+continue`), zona assente scartata in silenzio, mai crash, mai falso positivo — nessuna
+modifica di codice necessaria.
+
+**TASK 10 (privacy):** placeholder Supabase → "Frankfurt (EU)" (confermato `eu-central-1` sul
+progetto live). Resend lasciato invariato come richiesto.
+
+### Migration applicate, in ordine (progetto Supabase live, via MCP)
+045 `lesson_token_redeemable_for` · 046 `services_duration45_capacity_group` · 047
+`profiles_group_affiliate_extra_override` · 048 `bookings_group_capacity` (conflict_key +
+trigger capienza, gate 🛑 aggiuntivo) · 049 `workout_completions_blocks_modified` · 050
+`open_archive_previous_week` (RLS, gate 🛑 aggiuntivo).
+
+### Test manuale (richiesto esplicitamente dal prompt, eseguito live con transazione+ROLLBACK)
+1. **Token per tipo**: creato 1 token `private_lesson` + 1 `group_lesson` per lo stesso
+   swimmer. `reserve_lesson_token(swimmer, 'group_lesson')` → ha riservato il token
+   group_lesson; `reserve_lesson_token(swimmer, 'private_lesson')` → ha riservato il token
+   private_lesson. **Nessuna contaminazione tra tipi. Confermato.**
+2. **Capienza gruppo**: 6 booking sullo stesso slot `group_30` → tutti inseriti; il 7° →
+   rifiutato ("slot pieno", trigger di capienza). Un secondo booking `pool_60` (capacity=1)
+   sullo stesso slot di un primo `pool_60` → rifiutato dall'EXCLUDE esistente, **comportamento
+   invariato rispetto a oggi**. **Confermato.** (Scoperto durante il test, comportamento
+   corretto non un bug: un `pool_60` che si sovrappone a uno slot `group_30` occupato viene
+   anch'esso bloccato — il coach non può essere in due posti, cross-servizio resta escluso.)
+   Tutte le righe di test rimosse via ROLLBACK, nessun residuo sul DB live.
+
+### Proposta ADR (non ancora formalizzata — da confermare con Alessio)
+La struttura `redeemable_for` + capienza multi-booking tocca sia ADR-007 (namespace events —
+`group_lesson` non è un evento, resta `bookings`, ma introduce per la prima volta un booking
+"non esclusivo" concettualmente vicino alla capienza di un evento) sia ADR-015 (terzo tier
+Base — i token ora coprono anche il gruppo, come previsto ma non ancora formalizzato lì).
+Proposta di ADR-016 "Booking a capienza multipla": documenterebbe (a) `services.capacity` +
+`conflict_key`/trigger come pattern generale per ogni futuro servizio non-1:1, (b) perché
+l'EXCLUDE nativo di Postgres non basta da solo per una soglia numerica (serve un trigger di
+conteggio, non solo l'esclusione pairwise) — riferimento tecnico riusabile se in futuro
+arrivano altri servizi a capienza (es. clinic in vasca). Bozza non scritta in questa sessione
+(fuori scope, solo segnalata come probabile secondo l'istruzione "Fine sprint" del prompt).
+
 ## 🛠️ Bugfix e feedback (29 ago, PROMPT_CODE_BUGFIX_FEEDBACK.md, modalità semi-autonoma)
 
 8 task, tutti chiusi tranne due gate 🛑 espliciti che restano in attesa di GO di Alessio
@@ -77,7 +198,10 @@
 
 **Fuori scope, rispettato:** Progressi / Glide Score non toccati.
 
-_Ultimo aggiornamento: 2026-08-28 — **Prezzario 1:1 Elite da questionario**
+_Ultimo aggiornamento: 2026-08-30 — **Sprint C.1-C.10 (token gruppo/prezzi/grafici)
+COMPLETO** (modalità semi-autonoma, gate 🛑 confermati incl. 2 aggiuntivi non previsti dal
+prompt — vedi sezione dedicata) ·
+2026-08-28 — **Prezzario 1:1 Elite da questionario**
 (GLIDE_HANDOFF_PREZZI_FATTURAZIONE.md, canone allenamenti/sett + credito check-in per
 canale/cadenza) su `/app/abbonamenti` (modalità guidata da Alessio, tabella prezzi fornita
 esplicitamente) ·
@@ -85,6 +209,8 @@ esplicitamente) ·
 manuale con gate ad accesso a degrado progressivo, redesign Nuotatori a 3 segmenti + scheda
 a tab** (modalità autonoma; Sprint C fermato PRIMA di C.1, in attesa del GO esplicito — vedi
 sezione dedicata) ·
+**Grafici zona/carico (Torta + CurvaCarico), TASK 1-4 completati** (modalità autonoma;
+TASK 5/6 fermati, serve conferma sul punto d'innesto — vedi sezione dedicata) ·
 2026-08-26 — leak retroattivo nel ledger corretto in diretta
 (`activity_events`, 22 righe con `corpo`/`health_flag`, dato sanitario a conservazione illimitata
 — vedi migration_042) · **ADR-013 v3.1: rimozione blocco dolore strutturato dal readiness
@@ -342,6 +468,68 @@ dati attuali, ma il codice è verificato (build/test/tsc/eslint puliti).**
   ADR-010 §Confine — non affrontato oltre la correzione minima.
 - **Pricing page**: non ha ancora la quarta voce "Base gratuito" (ADR-015 §Conseguenze) — non
   bloccante, dipende dal copy definitivo che Alessio deciderà.
+
+## 📊 Grafici zona/carico — Torta + CurvaCarico, porting (28 ago, modalità autonoma)
+
+- **Contesto:** `PROMPT_CODE_GRAFICI_ZONE.md` — porta Torta (distribuzione metri per zona) e
+  CurvaCarico (barre impilate settimanali) da un riferimento esterno (`glide-suite.jsx`), SVG
+  scritto a mano (niente Recharts per questi due componenti, VINCOLO §3).
+- **TASK 1 — `lib/chart-tokens.ts` (nuovo), DEVIAZIONE dal prompt sorgente:** `glide-suite.jsx`
+  non esiste in questo repo (solo citato come prototipo storico nel README, `reference/` è
+  vuota/assente). La palette zona REALE è già in `lib/workout.ts` (`ZONES`/`ZoneId`, usata dai
+  chip zona dell'editor/workout-hand, Onda 29.1) — Z1-Z5 coincidono esattamente col prompt, ma
+  **NM diverge**: prompt = `#94A3B8` (slate), produzione reale = `#7C3AED` (viola). Applicato il
+  VINCOLO §2 stesso ("nessun colore nuovo, riusala") sopra il valore letterale del prompt:
+  `chart-tokens.ts` ora **deriva** `ZONE_COLOR` da `ZONES` invece di ridichiararlo — niente
+  secondo NM diverso nella stessa app, impossibile che diverga in futuro.
+- **TASK 2 — `lib/workout-stats.ts` (nuovo), DEVIAZIONE dal prompt sorgente:** invece di
+  reimplementare un parser riga locale (`parseLine`/`lineMeters`, come scritto nel prompt), **importa
+  ed usa `blockMeters`/`parseLine` reali da `lib/workout.ts`** — lo stesso già usato da
+  editor.tsx/workout-actions.ts/self-actions.ts/readiness-actions.ts. Il prompt stesso motivava il
+  parser locale con "deve restare identica: se diverge, editor e grafici raccontano metri diversi"
+  — l'unico modo che lo garantisce per sempre (non solo al momento della copia) è non duplicarlo.
+- **Confermato (richiesto esplicitamente, non deciso da questa sessione): `block.z` è il nome
+  REALE salvato in produzione** — verificato su 3 righe `workouts.blocks` reali via query diretta
+  (non stato in-memory dell'editor): tutte e 3 usano `z`, mai `zone`.
+- **VERIFICA OBBLIGATORIA TASK 2 — eseguita su 3 workout reali** (non mock), `distribuzioneWorkout()`
+  vs `total_meters` già salvato: **3/3 combaciano esattamente** (3000=3000, 2000=2000, 3000=3000,
+  incluso un caso con testo libero "Fatti 2000 tranquilla" — il parser lo legge correttamente).
+  Nessuna discrepanza: non è stato necessario fermarsi.
+- **TASK 3 — `components/charts/Torta.tsx`, TASK 4 — `components/charts/CurvaCarico.tsx`**:
+  contenuto del prompt, con un solo adattamento — i colori struttura (`var(--c-ink, …)` ecc., non
+  zona) sostituiti con i token GLIDE reali (`var(--ink)`, `var(--muted)`, `var(--border)`,
+  `var(--blu)` da `globals.css`, ADR-009) invece dei placeholder `--c-*` inesistenti in questo
+  progetto. **Deviazione aggiuntiva in Torta.tsx (non richiesta dal prompt, trovata durante la
+  verifica):** l'accumulo angolare cumulativo usava un `let angolo` mutato dentro `.map()` —
+  flagged da `react-hooks/immutability` (nuova regola del linter React Compiler). Riscritto con
+  `reduce` puro, stesso identico output.
+- `npx tsc --noEmit` pulito. `npx eslint src`: 0 nuovi errori (i 3 preesistenti — `app/page.tsx`,
+  `assistant-widget.tsx`, `home-greeting.tsx` — invariati). `npm test`: 35/35 pass (+10 skip
+  preesistenti, DB live non configurato nel sandbox).
+
+### Segnalati esplicitamente (non risolti da questa sessione, come richiesto)
+1. **`zone_rpe_bands` non ha una riga NM** (verificato: solo Z1-Z5, RPE 1-3/3-5/6-7/8-9/9-10) — se/
+   quando NM compare nei workout reali, il digest coach (RPE fuori banda) non la controllerà. Valori
+   RPE min/max per NM non decisi qui: contenuto tecnico, spetta ad Alessio.
+2. **`block.z` confermato** come nome reale (vedi sopra).
+3. **Verifica TASK 2 confermata** (vedi sopra): 3/3 combaciano.
+
+### TASK 5/6 — FERMATI, serve conferma (non uno dei 3 stop espliciti del prompt, ma la stessa logica)
+- **TASK 5 (`glide-calendario-riepilogo.jsx`, lato coach):** il file **non esiste in questo repo**
+  — non c'è nulla da "sostituire" alla lettera. Il candidato più vicino come vista aggregata di
+  gruppo è `/coach/open` (Canale Open — oggi mostra il catalogo settimanale + "Preferenze"
+  aggregate, Onda 27.2), ma non ha oggi nessuna vista "distribuzione carico". Non inventata una
+  nuova sezione senza conferma.
+- **TASK 6 (vista nuotatore), come da stop esplicito del prompt stesso** se non ovvio: `/app/progressi`
+  esiste davvero ed è il posto suggerito dal prompt ("accanto a Effetto Acqua") — ma la fonte dati
+  non è ovvia: i "programmi" (`workouts.blocks`, con zona) esistono solo per `kind='personal'`/`'self'`
+  (assegnato/scritto, non necessariamente svolto); i "davvero svolti" (`workout_completions`) **non
+  salvano `blocks`** (solo `total_meters` snapshottato) — non è possibile calcolare la distribuzione
+  zone da lì. Serve una decisione su quale delle due fonti (assegnato vs svolto) mostrare.
+- **Nessun file creato per TASK 5/6** — in attesa di conferma da Alessio.
+- **Aggiornamento (Sprint C, questa sessione):** TASK 5/6 di allora sono TASK 5 nel nuovo sprint
+  (`PROMPT_CODE_TOKEN_GRAFICI_PREZZI.md`), che risolve esplicitamente il punto d'innesto — vedi
+  sezione "Sprint C.1-C.10" più in alto.
 
 ## 🚨 Leak retroattivo nel ledger — corretto in diretta (26 ago, modalità autonoma)
 

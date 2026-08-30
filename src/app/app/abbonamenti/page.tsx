@@ -205,10 +205,14 @@ export default async function Abbonamenti({
         </div>
       </section>
 
-      {/* Percorso 1:1 */}
+      {/* Percorso 1:1 — TASK 7 (Sprint C): lo "Stagionale" a prezzo fisso
+          (690€, set-giu) è stato tolto dal listino. Chi vuole prepagare
+          l'intera stagione invece che mese per mese lo fa nello stesso
+          questionario Elite, con lo sconto 10% calcolato sulla combo
+          canone+credito che ha configurato (EliteQuestionnaire). */}
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-lg text-foreground">Percorso 1:1</h2>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1">
           <PricingCard
             name="Elite"
             color={C.monthly}
@@ -218,20 +222,13 @@ export default async function Abbonamenti({
             features={ONE_TO_ONE}
             cta={pending ? <CtaButton label="Richiesta inviata" color={C.monthly} disabled /> : <EliteQuestionnaire color={C.monthly} />}
           />
-          <PricingCard
-            name="Stagionale"
-            color={C.season}
-            price={euro(TIER_PRICE_CENTS.one_to_one_season)}
-            tagline="settembre – giugno, prezzo fisso"
-            features={ONE_TO_ONE}
-            cta={activate("one_to_one_season")}
-          />
         </div>
         <p className="text-sm text-muted">
           1:1 Elite: il prezzo dipende da quanti allenamenti scritti a
           settimana e quanto spesso vuoi un check-in col coach (in vasca o in
-          call) — lo calcoli tu prima di richiedere l&apos;attivazione.
-          Videoanalisi resta un prodotto a parte (€100).
+          call) — lo calcoli tu prima di richiedere l&apos;attivazione. Puoi
+          pagare mese per mese o l&apos;intera stagione in un&apos;unica
+          soluzione (-10%). Videoanalisi resta un prodotto a parte (€100).
         </p>
       </section>
 
