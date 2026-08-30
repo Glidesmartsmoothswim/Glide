@@ -5,6 +5,34 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
+## 💶 Prezzi pre-lancio v5 (30 ago sera, secondo giro sullo stesso branch/PR #52, modalità autonoma — NON mergiato)
+
+Aggiornamento del giro precedente (sezione subito sotto), stesso branch `claude/pricing-prelaunch-30ago`,
+stessa PR #52 ancora draft: il doc è passato a v5 mentre la PR era in revisione.
+
+- **Nuovo floor Asse A: 2 allenamenti/sett (era 3)** — `A(2)=35€`, `WORKOUT_FREQUENCIES` esteso a
+  `[2,3,4,5,6,7]`. Tutti gli scaglioni 3-7 restano quelli della v3 (44/52/59/65/70€), invariati.
+- **Entry price Elite: 46€/mese** (2 all. + call/bimestre, era 55€ a 3 all.) — `ELITE_ENTRY_PRICE_CENTS`
+  ricalcolato sul nuovo floor. Default del questionario spostato da 3 a 2 allenamenti, coerente con
+  il prezzo mostrato sulla card prima di aprirlo.
+- **TASK 2b — clausola sospensione stagionale:** aggiunta SOLO dove esisteva già copy sul rinnovo
+  stagionale prepagato (il box "Paga la stagione ora" in `elite-questionnaire.tsx` — l'unico punto
+  rivolto al nuotatore). **Non creata** su `/termini` (nessuna copy esistente lì sul rinnovo
+  stagionale — grep di conferma, zero risultati): come da istruzione esplicita del prompt
+  ("se non esiste, segnalalo soltanto"), copy legale nuova non scritta stanotte.
+- **TASK 4 — dicitura "prezzo di lancio":** aggiunta discreta sulle 3 card pubbliche (Open, Open+,
+  Elite) riusando lo slot `period` già esistente di `PricingCard` ("al mese · prezzo di lancio",
+  stesso stile tipografico di sempre, nessun nuovo componente) + una riga esplicativa unica sotto
+  la sezione 1:1. Non applicata alla card "Base — €0" (gratis, non nell'elenco del doc: "Open, Open
+  Plus, 1:1 Elite" — Base esplicitamente escluso).
+- `elite-pricing.test.ts`: 2 test aggiornati (entry price ora 2 all.=46€, non più 3 all.=55€ — quel
+  valore resta verificato ma come punto della matrice, non più come entry) + assert sul nuovo floor.
+  53/53 pass (+10 skip preesistenti).
+- Stessi vincoli rispettati: nessuna migration, `plan_entitlements`/`app_config.test_mode` non
+  toccati (grep di conferma sul diff). `tsc`/`eslint` puliti.
+- **Push aggiuntivo sullo stesso branch, PR #52 ancora draft/NON mergiata** — Alessio la rivede
+  un'unica volta col contenuto finale (v5), non due giri separati.
+
 ## 💶 Prezzi pre-lancio (30 ago sera, PROMPT_CODE_PREZZI.md, modalità autonoma — branch, NON mergiato)
 
 - **Contesto:** `GLIDE_HANDOFF_PREZZI_FATTURAZIONE.md` v3 aggiunto al repo (mancava — era solo

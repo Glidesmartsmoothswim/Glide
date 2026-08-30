@@ -36,7 +36,9 @@ const selectClass =
  */
 export function EliteQuestionnaire({ color }: { color: string }) {
   const [open, setOpen] = useState(false);
-  const [allenamenti, setAllenamenti] = useState<WorkoutFrequency>(3);
+  // v5: default sul nuovo floor (2), coerente con l'entry price mostrato
+  // sulla card prima di aprire il questionario.
+  const [allenamenti, setAllenamenti] = useState<WorkoutFrequency>(2);
   const [cadenza, setCadenza] = useState<CheckinCadence>("bimestrale");
   const [canale, setCanale] = useState<CheckinChannel>("remoto");
   // Doc v3 (30/08): il rinnovo/incasso segue 1:1 la cadenza di check-in,
@@ -143,6 +145,14 @@ export function EliteQuestionnaire({ color }: { color: string }) {
           </span>
         </p>
         <p className="text-xs font-bold text-teal">Sconto 15% per pagamento anticipato</p>
+        {/* TASK 2b (doc v5) — clausola sospensione, solo qui dove esiste già
+            copy sul rinnovo stagionale prepagato: vale solo per questo,
+            non per il rinnovo mensile. */}
+        <p className="mt-2 text-xs text-muted">
+          In caso di pausa, gli allenamenti non goduti si recuperano fino al
+          31/08. Oltre questa data si entra nella stagione successiva e non è
+          più possibile recuperarli.
+        </p>
       </div>
 
       <CheckoutConsent

@@ -185,7 +185,7 @@ export default async function Abbonamenti({
             color={C.open}
             badge="Consigliato"
             price={euro(TIER_PRICE_CENTS.open)}
-            period="al mese"
+            period="al mese · prezzo di lancio"
             features={OPEN}
             cta={
               cur("open") ? (
@@ -199,7 +199,7 @@ export default async function Abbonamenti({
             name="Open+"
             color={C.openPlus}
             price={euro(TIER_PRICE_CENTS.open_plus)}
-            period="al mese"
+            period="al mese · prezzo di lancio"
             features={OPEN_PLUS}
             cta={
               cur("open_plus") ? (
@@ -224,7 +224,7 @@ export default async function Abbonamenti({
             name="Elite"
             color={C.monthly}
             price={`a partire da ${euro(ELITE_ENTRY_PRICE_CENTS)}`}
-            period="al mese"
+            period="al mese · prezzo di lancio"
             tagline="Canone allenamenti + check-in col coach, calcolato su misura"
             features={ONE_TO_ONE}
             cta={pending ? <CtaButton label="Richiesta inviata" color={C.monthly} disabled /> : <EliteQuestionnaire color={C.monthly} />}
@@ -236,6 +236,14 @@ export default async function Abbonamenti({
           call) — lo calcoli tu prima di richiedere l&apos;attivazione. Puoi
           pagare mese per mese o l&apos;intera stagione in un&apos;unica
           soluzione (-15%). Videoanalisi resta un prodotto a parte (€100).
+        </p>
+        {/* TASK 4 (doc v5) — dicitura "prezzo di lancio" discreta, non
+            invadente: già sui badge period delle 3 card sopra; qui una riga
+            unica per tutta la sezione, coerente con lo stile del resto della
+            pagina (stessa classe text-sm text-muted usata ovunque). */}
+        <p className="text-sm text-muted">
+          Open, Open Plus e 1:1 Elite: prezzi di lancio del primo anno, non
+          un impegno permanente sulle stagioni successive.
         </p>
       </section>
 

@@ -1,5 +1,5 @@
 # GLIDE — Handoff: Prezzario 1:1 e Stripe/Fatturazione
-Data: 28/08/2026 · aggiornato 30/08/2026 (v3 — prezzi Open/Open Plus + rinnovo Elite = cadenza check-in)
+Data: 28/08/2026 · aggiornato 30/08/2026 (v5 — dicitura "prezzo di lancio" su tutte le cifre)
 
 ## 1. ATECO — CHIUSO
 Confermato con commercialista: attività rientra interamente nell'ambito consulenza. Nessuna modifica ai codici necessaria.
@@ -8,19 +8,23 @@ Confermato con commercialista: attività rientra interamente nell'ambito consule
 
 ## 2. Prezzario 1:1 — CHIUSO (formule + matrice). Residui non bloccanti in fondo.
 
+### ⚠️ Nota — prezzi di lancio
+Tutte le cifre di questo documento (Open, Open Plus, 1:1 Elite, sconto stagionale) sono **prezzi di lancio, primo anno**. Non sono un impegno permanente: le stagioni successive possono rivedere i numeri. Deve comparire come dicitura discreta ovunque i prezzi sono mostrati pubblicamente (pricing page, CTA, eventuale conferma d'ordine) — non nascosta nei termini, ma nemmeno invadente.
+
 ### Struttura
 Due assi indipendenti + un prodotto a sé:
-- **Asse A — canone allenamenti/settimana** (programmazione scritta, floor a 3)
+- **Asse A — canone allenamenti/settimana** (programmazione scritta, floor a 2)
 - **Asse B — credito check-in**, due binari per canale — **in presenza** e **remoto (call)** — cadenza scelta dall'atleta (bimestre/mese/bisettimanale/settimana). Stessa cadenza = rinnovo/incasso del piano Elite, nessuna domanda separata nel questionario.
 - **Videoanalisi** resta prodotto standalone (100€), non fusa nei crediti check-in
 
-### Formula Asse A — canone/settimana (floor 3)
-`A(3) = 44€` · `A(n) = A(3) + Σ(12−k)` per k=4..n
-Delta decrescente di 1€ a ogni scaglione (8, 7, 6, 5…): ogni allenamento extra costa un po' meno del precedente — riflette il costo marginale reale, basso e decrescente, di una riga in più su un piano già scritto.
+### Formula Asse A — canone/settimana (floor 2)
+`A(2) = 35€` · `A(n) = A(2) + Σ(12−k)` per k=3..n
+Stessa logica, estesa di uno scaglione all'indietro: delta decrescente di 1€ (9, 8, 7, 6, 5…) man mano che si sale — il delta 2→3 (9€) è il più alto della serie, coerente con la curva concava (il primo salto di impegno settimanale è quello che pesa di più).
 
 | n. allenamenti | canone/mese |
 |---|---|
-| 3 (floor) | 44€ |
+| 2 (floor, nuovo minimo) | 35€ |
+| 3 | 44€ |
 | 4 | 52€ *(era 54€ reale — scostamento consapevole di −2€/mese, vedi verifica storico)* |
 | 5 | 59€ |
 | 6 | 65€ |
@@ -48,6 +52,7 @@ Delta decrescente di 1€ a ogni scaglione (8, 7, 6, 5…): ogni allenamento ext
 ### Matrice completa — canone + credito, IN PRESENZA (€/mese)
 | n. allenamenti | bimestre | mensile | bisettimanale | settimanale |
 |---|---|---|---|---|
+| 2 (nuovo minimo) | 51 | 67 | 95 | 148 |
 | 3 | 60 | 76 | 104 | 157 |
 | 4 | 68 | 84 | 112 | 165 |
 | 5 | 75 | 91 | 119 | 172 |
@@ -57,6 +62,7 @@ Delta decrescente di 1€ a ogni scaglione (8, 7, 6, 5…): ogni allenamento ext
 ### Matrice completa — canone + credito, REMOTO/CALL (€/mese)
 | n. allenamenti | bimestre | mensile | bisettimanale | settimanale |
 |---|---|---|---|---|
+| 2 (nuovo minimo) | 46 | 57 | 76 | 112 |
 | 3 | 55 | 66 | 85 | 121 |
 | 4 | 63 | 74 | 93 | 129 |
 | 5 | 70 | 81 | 100 | 136 |
@@ -64,12 +70,15 @@ Delta decrescente di 1€ a ogni scaglione (8, 7, 6, 5…): ogni allenamento ext
 | 7 | 81 | 92 | 111 | 147 |
 
 ### Entry price ("a partire da", 1:1 Elite)
-- 3 all/sett + call/bim = 44+11 = **55€/mese** *(era 53€)*
-- 3 all/sett + lezione/bim = 44+16 = **60€/mese** *(era 58€)*
-- Pricing page mostra solo "a partire da 55€/mese" → CTA questionario → prezzo dalla matrice sopra, calcolato prima della sottoscrizione.
+- 2 all/sett + call/bim = 35+11 = **46€/mese** *(nuovo minimo — era 55€ a 3 allenamenti)*
+- 2 all/sett + lezione/bim = 35+16 = **51€/mese**
+- Pricing page mostra solo "a partire da 46€/mese" → CTA questionario → prezzo dalla matrice sopra, calcolato prima della sottoscrizione.
 
 ### Sconto stagionale — prepagamento
 **15%** (sostituisce il 10% precedente), sul totale del pacchetto configurato dal questionario iniziale, se pagato in un'unica soluzione anticipata. A queste fasce di prezzo non interagisce con la soglia bollo (77,47€): un prepagamento pluri-mensile resta comunque sopra soglia con o senza sconto. **Non verificabile da qui**: se il 15% eroda il margine minimo target — solo Alessio ha il dato di costo per validarlo.
+
+### Sospensione — rinnovo stagionale
+In caso di pausa durante la stagione (infortunio, viaggio, o altro), gli allenamenti/lezioni non goduti si possono recuperare fino al **31/08**. Oltre questa data si entra nella stagione successiva: non è più possibile protrarre o recuperare gli allenamenti della stagione precedente — i crediti residui decadono, non si trascinano. Vale solo per chi ha scelto il rinnovo stagionale prepagato (`requested_tier = one_to_one_season`), non per chi paga mensile. Applicazione oggi manuale (coach su `lesson_credits`/`lesson_tokens`), nessuna logica di scadenza automatica in app — se in futuro serve automatizzarla, è lavoro a parte.
 
 ### Cadenza di rinnovo Elite
 Nessuna domanda separata nel questionario: il rinnovo/incasso segue 1:1 la cadenza di check-in scelta in Asse B (`plan_entitlements.period`) — bimestre paga bimestrale, mensile/bisettimanale/settimanale pagano mensile. Un cliente bimestre che vuole spalmare il pagamento su base mensile per motivi propri di cassa è un'eccezione manuale (stesso pattern del tag sconto coach-assegnato), non un'opzione da onboarding.
@@ -79,9 +88,10 @@ Nessuna domanda separata nel questionario: il rinnovo/incasso segue 1:1 la caden
 - Tag coach-assegnata per clienti storici (es. Experience 360€/anno): sconto a 25-30€ sulla lezione extra — da formalizzare, non automatico
 
 ### Pricing page
+Tutti i prezzi sotto portano la dicitura "prezzo di lancio" (vedi nota a inizio sezione).
 - **Open**: 9,90€/mese — rolling 2 settimane di allenamenti pubblicati
 - **Open Plus**: 12,90€/mese — archivio completo, nessun limite di tempo
-- **1:1 Elite**: "a partire da 55€/mese" → questionario → prezzo dalla matrice, rinnovo = cadenza di check-in scelta
+- **1:1 Elite**: "a partire da 46€/mese" (2 allenamenti/sett + call/bimestre) → questionario → prezzo dalla matrice, rinnovo = cadenza di check-in scelta
 
 ### Architettura
 Le due tabelle (`workout_frequency_pricing`, credito check-in) restano righe pre-calcolate — non la formula in sé — ma la formula è la fonte di verità per generarle ed estenderle se cambiano floor/ceiling. Al checkout, somma server-side → importo da segnare come "da incassare" (vedi nota su ADR-014 sotto), non price object precreati per ogni combinazione.
@@ -92,6 +102,9 @@ Le due tabelle (`workout_frequency_pricing`, credito check-in) restano righe pre
 3. Sconto stagionale 15% — confermato (verifica margine ancora lato Alessio)
 4. Prezzi Open (9,90€/mese) e Open Plus (12,90€/mese) — confermati
 5. Cadenza di rinnovo Elite = cadenza di check-in scelta, nessuna domanda separata nel questionario — confermato
+6. Nuovo floor a 2 allenamenti/sett (era 3), stessa formula estesa all'indietro — confermato. Entry price scende a 46€/mese
+7. Clausola sospensione stagionale (recupero fino al 31/08, nessun trascinamento in stagione successiva, solo per rinnovo stagionale) — confermata
+8. Tutte le cifre sono "prezzi di lancio" primo anno, dicitura da mostrare ovunque i prezzi sono pubblici — confermato
 
 ### Decisioni ancora aperte
 1. Settimanale: 4 lezioni/mese fisse o nuovo `period='week'`? (raccomando 4 fisse)

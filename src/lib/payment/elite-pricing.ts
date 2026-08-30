@@ -1,10 +1,11 @@
 /**
- * Prezzario 1:1 Elite — GLIDE_HANDOFF_PREZZI_FATTURAZIONE.md v3 (30/08/2026).
+ * Prezzario 1:1 Elite — GLIDE_HANDOFF_PREZZI_FATTURAZIONE.md v5 (30/08/2026).
  * Due assi indipendenti, sommati per il prezzo mensile-equivalente:
  *
  *  - Asse A — canone allenamenti/settimana (programmazione scritta),
- *    floor a 3 (chi chiede meno paga comunque 3). Formula: A(3)=44€,
- *    A(n) = A(3) + Σ(12−k) per k=4..n — delta decrescente di 1€/scaglione.
+ *    floor a 2 (v5: abbassato da 3 — chi chiede meno paga comunque 2).
+ *    Formula: A(2)=35€, A(n) = A(2) + Σ(12−k) per k=3..n — delta
+ *    decrescente di 1€/scaglione (il salto 2→3, 9€, è il più alto).
  *  - Asse B — credito check-in, due binari per canale (in presenza / remoto),
  *    cadenza scelta dall'atleta (bimestre/mese/bisettimanale/settimana).
  *    Formula: P0 = 32€ presenza / 22€ call a cadenza mensile; ≤ mensile
@@ -18,9 +19,9 @@
  * (30 giugno) usata da one_to_one_season, non una seconda regola parallela.
  *
  * Valori "reali" (calibrati sullo storico, invariati dalla v2): credito
- * lezione/bim=32€, credito call/bim=22€. Il canone (Asse A) è ora dato
- * dalla formula, non da stime per scaglione — 4=52€ è uno scostamento
- * consapevole di −2€/mese dal reale storico (54€), vedi nota v3 §2.
+ * lezione/bim=32€, credito call/bim=22€. Il canone (Asse A) è dato dalla
+ * formula, non da stime per scaglione — 4=52€ è uno scostamento consapevole
+ * di −2€/mese dal reale storico (54€), vedi nota v3/v5 §2.
  * Nessuna tabella DB configurabile dal gestionale per ora (i valori sono
  * ancora in discussione — decisione aperta #3 del doc, tag sconto
  * coach-assegnato — quindi TS costanti in un solo file, facili da trovare
@@ -28,12 +29,13 @@
  */
 import { seasonEnd } from "./pricing";
 
-export const WORKOUT_FREQUENCIES = [3, 4, 5, 6, 7] as const;
+export const WORKOUT_FREQUENCIES = [2, 3, 4, 5, 6, 7] as const;
 export type WorkoutFrequency = (typeof WORKOUT_FREQUENCIES)[number];
 
-/** Canone/mese per allenamenti/settimana. Floor 3: valori < 3 non esistono.
- *  Formula: A(3)=44€, delta −1€ a ogni scaglione (8,7,6,5,4… da k=4 a k=n). */
+/** Canone/mese per allenamenti/settimana. Floor 2 (v5, era 3): valori < 2
+ *  non esistono. Formula: A(2)=35€, delta −1€ a ogni scaglione successivo. */
 export const WORKOUT_FREQUENCY_PRICE_CENTS: Record<WorkoutFrequency, number> = {
+  2: 3500,
   3: 4400,
   4: 5200,
   5: 5900,
@@ -91,9 +93,10 @@ export function eliteMonthlyPriceCents(sel: EliteSelection): number {
   );
 }
 
-/** "A partire da" — combinazione più economica disponibile (3 all. + call/bimestre). */
+/** "A partire da" — combinazione più economica disponibile
+ *  (2 all. + call/bimestre — v5, nuovo floor, era 3 all.). */
 export const ELITE_ENTRY_PRICE_CENTS = eliteMonthlyPriceCents({
-  allenamenti: 3,
+  allenamenti: 2,
   cadenza: "bimestrale",
   canale: "remoto",
 });

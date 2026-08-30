@@ -6,9 +6,9 @@ import {
   ELITE_ENTRY_PRICE_CENTS,
 } from "./elite-pricing";
 
-// Verifica sullo storico reale (GLIDE_HANDOFF_PREZZI_FATTURAZIONE.md v3):
+// Verifica sullo storico reale (GLIDE_HANDOFF_PREZZI_FATTURAZIONE.md v5):
 // 4 allenamenti/sett, prezzi bimestrali storici — 140€/bim (lezione),
-// 130€/bim (call). La formula v3 (Asse A) sconta di 2€/mese rispetto al
+// 130€/bim (call). La formula (Asse A) sconta di 2€/mese rispetto al
 // reale storico: 68€/mese (136€/bim) e 63€/mese (126€/bim), scostamento
 // consapevole documentato nella nota sorgente.
 
@@ -26,12 +26,26 @@ test("elite pricing — 4 all. + call/bimestre = 63€/mese (126€/bim, storico
   );
 });
 
-test("elite pricing — entry price (3 all. + call/bimestre) = 55€/mese", () => {
+test("elite pricing — entry price (2 all. + call/bimestre, v5 nuovo floor) = 46€/mese", () => {
+  assert.equal(
+    eliteMonthlyPriceCents({ allenamenti: 2, cadenza: "bimestrale", canale: "remoto" }),
+    4600,
+  );
+  assert.equal(ELITE_ENTRY_PRICE_CENTS, 4600);
+});
+
+test("elite pricing — 2 all. + lezione/bimestre = 51€/mese", () => {
+  assert.equal(
+    eliteMonthlyPriceCents({ allenamenti: 2, cadenza: "bimestrale", canale: "presenza" }),
+    5100,
+  );
+});
+
+test("elite pricing — 3 all. + call/bimestre = 55€/mese (non più l'entry, resta in matrice)", () => {
   assert.equal(
     eliteMonthlyPriceCents({ allenamenti: 3, cadenza: "bimestrale", canale: "remoto" }),
     5500,
   );
-  assert.equal(ELITE_ENTRY_PRICE_CENTS, 5500);
 });
 
 test("elite pricing — 3 all. + lezione/bimestre = 60€/mese", () => {
