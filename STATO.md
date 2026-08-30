@@ -5,6 +5,27 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
+## 🌊 Reset tier al lancio — tutti Base tranne Marta Elite (30 ago notte, dato non codice)
+
+Ultima richiesta prima del push+merge di PR #52: reset del roster reale (10 nuotatori)
+al momento del lancio. Gate 🛑 mostrato ed eseguito con GO esplicito (UPDATE diretti,
+non migration — nessuno schema toccato).
+
+- **9 nuotatori** (Giuliana, Carlo Metta, Lapo, Rita, Federico, Wilma, Chiara, Salvatore
+  Amadio, Matteo Bianchi — tutti erano `open_plus`) → **Base**: `tier='free'`,
+  `tier_expires_at=null`, pagamento/richiesta pendente azzerati (già tutti NULL, nessuna
+  richiesta in corso da perdere).
+- **Marta Malorgio** (messa su Open pochi minuti prima, vedi sezione sotto — superata da
+  questa richiesta) → **1:1 Elite per sempre**: `tier='one_to_one'`,
+  `service_type='coaching_1_1'`, `tier_expires_at=null` **in modo permanente e
+  intenzionale** — non un "dimenticato a null" come gli altri: qui è la richiesta esplicita
+  "non chiedergli mai rinnovi e non dargli mai scadenze". Il gate (`gateState`) legge
+  `tier_expires_at` solo per calcolare due/grace/overdue: `null` → sempre `'ok'`, nessun
+  prompt di rinnovo possibile per costruzione, non serve altro codice.
+- Verificato live post-UPDATE: 9 righe `tier='free'`, 1 riga (Marta) `tier='one_to_one'`,
+  `service_type='coaching_1_1'`, `tier_expires_at` NULL. Nessuna riga toccata per errore
+  (where esplicito su `role='swimmer'` + esclusione per id, non un blanket update).
+
 ## 🚦 Ultimo giro pre-lancio (30 ago notte, stesso branch/PR #52, richiesto in chat — NON mergiato)
 
 Quattro richieste dirette in chat (non da prompt file), eseguite tutte tranne la quinta
