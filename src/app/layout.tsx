@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { glacial } from "./fonts";
 import { RegisterSW } from "@/components/pwa/register-sw";
+import { UpdateBanner } from "@/components/pwa/update-banner";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -45,6 +46,7 @@ export default function RootLayout({
       <body className="min-h-full">
         {children}
         <RegisterSW />
+        <UpdateBanner />
       </body>
     </html>
   );

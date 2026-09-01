@@ -519,6 +519,16 @@ export default async function SwimmerDetail({
           </section>
         )}
 
+        {/* PROMPT_CODE_PAGAMENTI TASK 6 (01/09/2026): "tipologia abbonamento"
+            solo per 1:1 Elite — allenamenti/sett + cadenza check-in + canale,
+            da requested_tier_detail (migration_044, "solo display"). */}
+        {swimmer.tier === "one_to_one" && pay.requested_tier_detail && (
+          <Card className="flex flex-col gap-1">
+            <h2 className="font-display text-lg text-foreground">Tipologia abbonamento</h2>
+            <p className="text-sm text-foreground">{pay.requested_tier_detail}</p>
+          </Card>
+        )}
+
         <Card>
           <h2 className="mb-4 font-display text-lg text-foreground">Scheda atleta</h2>
           <EditSwimmerForm s={swimmer} />
@@ -794,7 +804,13 @@ export default async function SwimmerDetail({
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col">
-      <SwimmerTabs header={header} panels={panels} />
+      <SwimmerTabs
+        header={header}
+        panels={panels}
+        // PROMPT_CODE_PAGAMENTI TASK 6 (01/09/2026): "Programmazione" (schede
+        // personali di allenamento) non è prevista per open/open_plus/free.
+        hiddenTabs={swimmer.tier !== "one_to_one" ? (["programmazione"] as const) : []}
+      />
       <div className="flex flex-col gap-6 pb-8 pt-1">
         <form action={archiveSwimmer} className="pt-2">
           <input type="hidden" name="id" value={swimmer.id} />

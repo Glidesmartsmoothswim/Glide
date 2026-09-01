@@ -34,14 +34,20 @@ export default async function SwimmerNuoto() {
   // non più a cascata. La RLS gata comunque il Canale Open per tier.
   const weekAccess = canAccess(tier, "open:week");
   const selfAccess = canAccess(tier, "open:self");
+  // PROMPT_CODE_PAGAMENTI TASK 6 (01/09/2026): la "scheda personale di
+  // allenamento" (workouts kind='personal', assegnata dal coach) non è
+  // prevista per open/open_plus/free — solo 1:1 Elite.
+  const personalAccess = tier === "one_to_one";
   const sid = profile?.id ?? "";
   const [personalRes, openRes, doneRes, selfRes] = await Promise.all([
-    supabase
-      .from("workouts")
-      .select("*")
-      .eq("kind", "personal")
-      .eq("swimmer_id", sid)
-      .order("created_at", { ascending: false }),
+    personalAccess
+      ? supabase
+          .from("workouts")
+          .select("*")
+          .eq("kind", "personal")
+          .eq("swimmer_id", sid)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] as WorkoutRow[] }),
     weekAccess
       ? supabase
           .from("workouts")

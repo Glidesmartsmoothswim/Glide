@@ -15,8 +15,11 @@
  *
  * Videoanalisi resta prodotto standalone (100€), non entra qui.
  *
- * `seasonEnd` importata da ./pricing: stessa convenzione di fine stagione
- * (30 giugno) usata da one_to_one_season, non una seconda regola parallela.
+ * Stagione (prepagamento, sotto): mesi/sconto da `seasonEnrollment`
+ * (payment/pricing.ts) — 10 mesi fissi + 15% se ci si iscrive PRIMA
+ * dell'inizio stagione (luglio/agosto), mesi restanti + 15%/10% (Sett-Dic/
+ * Gen-Giu) se ci si iscrive a stagione già iniziata (TASK 5 + chiarimento
+ * utente successivo).
  *
  * Valori "reali" (calibrati sullo storico, invariati dalla v2): credito
  * lezione/bim=32€, credito call/bim=22€. Il canone (Asse A) è dato dalla
@@ -27,7 +30,7 @@
  * coach-assegnato — quindi TS costanti in un solo file, facili da trovare
  * e correggere, restano la scelta più onesta finché non si stabilizzano).
  */
-import { seasonEnd } from "./pricing";
+import { seasonEnrollment } from "./pricing";
 
 export const WORKOUT_FREQUENCIES = [2, 3, 4, 5, 6, 7] as const;
 export type WorkoutFrequency = (typeof WORKOUT_FREQUENCIES)[number];
@@ -132,49 +135,47 @@ export function eliteSelectionLabel(
 }
 
 /**
- * TASK 7 (feedback 29/08), sconto aggiornato a 15% dal doc v3 (30/08) —
- * chi prepaga l'intera stagione subito dopo il questionario, invece di
- * pagare mese per mese. "Stagione" è la stessa convenzione di
- * `one_to_one_season` (payment/pricing.ts): fino al 30 giugno più vicino,
- * mai indietro.
+ * TASK 7 (feedback 29/08) — chi prepaga la stagione subito dopo il
+ * questionario, invece di pagare mese per mese.
+ *
+ * PROMPT_CODE_PAGAMENTI TASK 5 (01/09/2026) + chiarimento utente
+ * successivo — mesi e sconto derivano da `seasonEnrollment` (payment/
+ * pricing.ts), mai da un moltiplicatore fisso applicato alla cieca:
+ *  - iscrizione ANTICIPATA (luglio/agosto, prima dell'inizio stagione):
+ *    sempre 10 mesi fissi, sconto 15%. Un'iscrizione a fine agosto non
+ *    deve far scattare un undicesimo mese (prima di questo fix
+ *    `monthsToSeasonEnd` calcolava i mesi da "ora" a giugno, che per fine
+ *    agosto dava 11 mesi — l'errore che TASK 5 corregge).
+ *  - iscrizione a STAGIONE GIÀ INIZIATA (Settembre in poi): solo i mesi
+ *    RESTANTI fino a fine giugno, sconto 15% se ci si iscrive Sett-Dic,
+ *    10% da Gennaio in poi (meno della metà stagione residua).
  */
-export const SEASON_PREPAY_DISCOUNT = 0.15;
-
-/**
- * Mesi dal mese di `from` (incluso) al mese di fine stagione (incluso).
- * Es. 29 agosto → stagione fino a giugno prossimo = 11 mesi (ago…giu).
- * Nessun calcolo sul giorno del mese: chi si iscrive oggi paga il mese
- * corrente per intero, come le altre attivazioni manuali del progetto.
- */
-export function monthsToSeasonEnd(from: Date = new Date()): number {
-  const end = seasonEnd(from);
-  return (
-    (end.getUTCFullYear() - from.getUTCFullYear()) * 12 +
-    (end.getUTCMonth() - from.getUTCMonth()) +
-    1
-  );
-}
-
 export type EliteSeasonQuote = {
   months: number;
   monthlyCents: number;
   fullCents: number;
   discountedCents: number;
+  /** Frazione di sconto applicata (0.15 o 0.10) — per la copy, mai un "-15%" fisso. */
+  discount: number;
 };
 
-/** Preventivo stagione intera prepagata (canone mensile-equivalente × mesi, -15%). */
+/** Preventivo stagione (mesi/sconto da seasonEnrollment — mai un fisso applicato alla cieca). */
 export function eliteSeasonQuote(
   sel: EliteSelection,
   from: Date = new Date(),
 ): EliteSeasonQuote {
   const monthlyCents = eliteMonthlyPriceCents(sel);
-  const months = monthsToSeasonEnd(from);
+  const { months, discount } = seasonEnrollment(from);
   const fullCents = monthlyCents * months;
-  const discountedCents = Math.round(fullCents * (1 - SEASON_PREPAY_DISCOUNT));
-  return { months, monthlyCents, fullCents, discountedCents };
+  const discountedCents = Math.round(fullCents * (1 - discount));
+  return { months, monthlyCents, fullCents, discountedCents, discount };
 }
 
 /** Descrizione leggibile per il prepagamento stagione, per email/gestionale. */
-export function eliteSeasonLabel(sel: EliteSelection, months: number): string {
-  return `${sel.allenamenti} allenamenti/sett + check-in ${CHECKIN_CADENCE_LABEL[sel.cadenza].toLowerCase()} (${CHECKIN_CHANNEL_LABEL[sel.canale].toLowerCase()}) — stagione intera prepagata (${months} mesi, -15%)`;
+export function eliteSeasonLabel(
+  sel: EliteSelection,
+  months: number,
+  discount: number,
+): string {
+  return `${sel.allenamenti} allenamenti/sett + check-in ${CHECKIN_CADENCE_LABEL[sel.cadenza].toLowerCase()} (${CHECKIN_CHANNEL_LABEL[sel.canale].toLowerCase()}) — stagione prepagata (${months} mesi, -${Math.round(discount * 100)}%)`;
 }
