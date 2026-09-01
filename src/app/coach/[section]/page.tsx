@@ -9,7 +9,7 @@ const SECTIONS: Record<
 > = {
   nuotatori: {
     title: "Nuotatori",
-    subtitle: "Anagrafica atleti, servizio attivo, certificati e stato.",
+    subtitle: "Anagrafica atleti, servizio attivo e stato.",
   },
   lead: {
     title: "Lead",
