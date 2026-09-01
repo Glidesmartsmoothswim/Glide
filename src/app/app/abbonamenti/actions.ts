@@ -102,10 +102,14 @@ export async function startEliteActivation(fd: FormData) {
  * prepagamento dell'intera stagione con sconto 15% (doc v3, era 10%)
  * invece che mese per mese. Stesso principio ADR-002 regola 1: il prezzo scontato è
  * ricalcolato qui da `eliteSeasonQuote`, mai da un importo del client.
- * `requested_tier` resta "one_to_one_monthly" (non esiste un tier a sé per
- * l'Elite stagionale) — il coach vede in `requested_tier_detail` che si
- * tratta di un prepagamento stagione e per quanti mesi, e sceglie di
- * conseguenza in "Segna pagato" (payment-panel.tsx, periodMonths).
+ * PROMPT_CODE_PAGAMENTI TASK 4 (01/09/2026): `requested_tier` è ora
+ * "one_to_one_season" (prima era "one_to_one_monthly" anche qui — bug di
+ * discriminazione: senza questo, ogni messaggio/QR di richiesta pagamento
+ * per una stagione prepagata leggeva "canone mensile" invece di "pagamento
+ * unico stagione", vedi lib/payment/message.ts). `markPaid`
+ * (lib/payment/request.ts) legge lo stesso `requested_tier` per applicare
+ * la scadenza fissa di stagione (TASK 5), senza bisogno di un
+ * `periodMonths` scelto a mano dal coach.
  */
 export async function startEliteSeasonActivation(fd: FormData) {
   const profile = await getCurrentProfile();
@@ -133,7 +137,7 @@ export async function startEliteSeasonActivation(fd: FormData) {
   const result = await requestActivation(
     admin,
     { id: profile.id, email: profile.email, firstName: profile.first_name },
-    "one_to_one_monthly",
+    "one_to_one_season",
     await buildWithdrawalWaiver(),
     { amountCentsOverride: quote.discountedCents, detail },
   );

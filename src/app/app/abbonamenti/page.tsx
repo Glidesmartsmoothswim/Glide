@@ -5,11 +5,9 @@ import { PricingCard, type Feature } from "@/components/pricing/pricing-card";
 import { CheckoutConsent } from "@/components/pricing/checkout-consent";
 import { TIER_LABEL } from "@/lib/access";
 import { gateState, daysOverdue } from "@/lib/payment/gate";
-import {
-  TIER_PRICE_CENTS,
-  TIER_LABEL as SUB_TIER_LABEL,
-  type SubTier,
-} from "@/lib/payment/pricing";
+import { TIER_PRICE_CENTS, type SubTier } from "@/lib/payment/pricing";
+import { PaymentRequestCard } from "@/components/payment/payment-request-card";
+import { fullName } from "@/lib/types";
 import { startActivation } from "./actions";
 import { EliteQuestionnaire } from "./elite-questionnaire";
 import { ELITE_ENTRY_PRICE_CENTS } from "@/lib/payment/elite-pricing";
@@ -144,12 +142,17 @@ export default async function Abbonamenti({
           l&apos;incasso, quindi la legge chiede il tuo consenso esplicito ora.
         </Card>
       )}
-      {pending && !sp.requested && (
-        <Card className="text-blu">
-          Richiesta di attivazione{" "}
-          {pay!.requested_tier_detail || SUB_TIER_LABEL[pay!.requested_tier as SubTier]}{" "}
-          in attesa di conferma — il coach la registra dopo l&apos;incasso.
-        </Card>
+      {/* PROMPT_CODE_PAGAMENTI TASK 2/3/4 (01/09/2026) — questa È la
+          schermata "richiedi attivazione": stesso blocco IBAN/QR/importo
+          del profilo, un solo componente condiviso. */}
+      {pending && !sp.requested && profile && (
+        <PaymentRequestCard
+          requestedTier={pay!.requested_tier as SubTier}
+          requestedTierDetail={pay!.requested_tier_detail}
+          amountCents={pay!.payment_amount_cents ?? 0}
+          fullName={fullName(profile)}
+          profileId={profile.id}
+        />
       )}
       {gate === "grace" && (
         <Card className="text-muted">

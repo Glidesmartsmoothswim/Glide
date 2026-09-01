@@ -40,8 +40,10 @@ export function isMonthly(tier: SubTier): boolean {
 }
 
 /**
- * Fine stagione 1:1: il prossimo 30 giugno (la stagione va set→giu).
- * Spostato da lib/stripe-checkout.ts (rimosso), logica invariata.
+ * Stagione allenamenti 1:1: Settembre → fine Giugno (10 mesi effettivi).
+ * Usata SOLO per la copy ("fino a fine giugno"): il prezzo/scadenza non ne
+ * dipendono più, vedi seasonExpiryDate sotto (TASK 5, GLIDE_HANDOFF_
+ * PREZZI_FATTURAZIONE.md v7 §Stagione fissa a 10 mesi).
  */
 export function seasonEnd(now = new Date()): Date {
   const y = now.getUTCFullYear();
@@ -51,9 +53,22 @@ export function seasonEnd(now = new Date()): Date {
     : new Date(Date.UTC(y + 1, 5, 30, 23, 59, 59));
 }
 
+/**
+ * PROMPT_CODE_PAGAMENTI TASK 5 (01/09/2026) — `tier_expires_at` per
+ * `one_to_one_season` è una data FISSA di calendario (31/08 dell'anno
+ * successivo alla richiesta), mai "data pagamento + 10 mesi": un
+ * prepagamento anticipato nella seconda metà di agosto non deve spostare
+ * silenziosamente la scadenza né far scattare un undicesimo mese. Coerente
+ * con la finestra di recupero sospensione (fino al 31/08, doc §Sospensione).
+ */
+export function seasonExpiryDate(from = new Date()): Date {
+  const y = from.getUTCFullYear();
+  return new Date(Date.UTC(y + 1, 7, 31, 23, 59, 59));
+}
+
 /** Scadenza del periodo che parte ORA, per il piano richiesto. */
 export function expiryFor(tier: SubTier, from = new Date()): Date {
-  if (tier === "one_to_one_season") return seasonEnd(from);
+  if (tier === "one_to_one_season") return seasonExpiryDate(from);
   const d = new Date(from);
   d.setUTCMonth(d.getUTCMonth() + 1);
   return d;

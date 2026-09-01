@@ -136,7 +136,7 @@ export function EliteQuestionnaire({ color }: { color: string }) {
           non una pagina a parte. */}
       <div className="rounded-lg border border-dashed border-teal/40 bg-teal/5 p-3 text-center">
         <p className="text-sm text-muted">
-          Oppure paga tutta la stagione ora — fino a fine giugno, {season.months} mesi
+          Oppure paga tutta la stagione ora — {season.months} mesi, Settembre-Giugno
         </p>
         <p className="font-display text-lg text-foreground">
           {euro(season.discountedCents)}{" "}

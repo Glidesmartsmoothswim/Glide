@@ -128,11 +128,15 @@ export function PaymentPanel({
             inputMode="decimal"
             className="w-24 rounded-lg border border-border bg-background px-2 py-2 text-sm"
           />
+          {/* 1:1 Elite fatturato mensile/bimestrale: quanti mesi copre
+              l'incasso. Non per one_to_one_season (TASK 5, 01/09/2026): la
+              stagione è SEMPRE 10 mesi fissi, mai una scelta del coach —
+              markPaid la calcola da sola via expiryFor/seasonExpiryDate. */}
           {tier === "one_to_one_monthly" && (
             <select
               value={periodMonths}
               onChange={(e) => setPeriodMonths(Number(e.target.value))}
-              title="Quanti mesi copre l'incasso (1:1 Elite) — fino a 12 per un prepagamento stagione (TASK 7)"
+              title="Quanti mesi copre l'incasso (1:1 Elite, fatturazione mensile/bimestrale)"
               className="rounded-lg border border-border bg-background px-2 py-2 text-sm"
             >
               {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
@@ -141,6 +145,11 @@ export function PaymentPanel({
                 </option>
               ))}
             </select>
+          )}
+          {tier === "one_to_one_season" && (
+            <span className="self-center text-xs text-muted">
+              Stagione fissa — 10 mesi, scadenza 31/08 anno successivo
+            </span>
           )}
           <input
             value={receipt}

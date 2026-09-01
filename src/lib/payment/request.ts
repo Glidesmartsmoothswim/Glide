@@ -11,7 +11,9 @@ import {
   expiryFor,
   type SubTier,
 } from "./pricing";
-import { bankTransferDetails } from "./config";
+import { bankTransferDetails } from "./bank";
+import { epcQrPngBuffer } from "./epc-qr";
+import { paymentRequestCopy, paymentCausale } from "./message";
 import type { WithdrawalWaiver } from "@/lib/legal/withdrawal";
 
 export type RequestResult = { error?: string; info?: string };
@@ -66,25 +68,54 @@ export async function requestActivation(
   }
 
   const resend = getResend();
-  const bank = bankTransferDetails();
-  const causale = `GLIDE ${TIER_LABEL[tier]} — ${fullName({
+  // TASK 1/2 (app_config, non più env) + TASK 4 (mai assumere: la copy
+  // distingue pagamento unico stagione da canone mensile leggendo
+  // `tier`/`requested_tier`, non un testo fisso).
+  const bank = await bankTransferDetails(admin);
+  const swimmerFullName = fullName({
     first_name: swimmer.firstName,
     last_name: null,
     email: swimmer.email,
-  })}`;
+  });
+  const causale = paymentCausale(swimmerFullName, swimmer.id);
+  const { headline } = paymentRequestCopy(tier);
+
+  // TASK 3 — QR EPC069-12 dinamico per questa transazione (IBAN/intestatario
+  // fissi da app_config, importo/causale specifici di questa richiesta).
+  // Nessun QR se l'IBAN non è configurato: l'email cade sul messaggio
+  // "il coach ti contatterà" come già faceva prima di questo task.
+  const qrPng = bank
+    ? await epcQrPngBuffer({
+        iban: bank.iban,
+        holder: bank.holder,
+        amountCents,
+        causale,
+      })
+    : null;
+
   const { error: mailError } = (await resend!.emails.send({
     from: emailFrom(),
     to: swimmer.email,
     subject: `Richiesta di attivazione — ${TIER_LABEL[tier]}`,
+    attachments: qrPng
+      ? [
+          {
+            filename: "bonifico-qr.png",
+            content: qrPng,
+            contentType: "image/png",
+            contentId: "epc-qr",
+          },
+        ]
+      : undefined,
     html: `
       <div style="font-family:Arial,sans-serif;color:#0B1220;line-height:1.5">
         <h2 style="color:#0E5EAB">Ciao ${swimmer.firstName || "nuotatore"},</h2>
-        <p>Abbiamo ricevuto la tua richiesta di attivazione per <b>${TIER_LABEL[tier]}</b>.</p>
-        ${opts?.detail ? `<p>${opts.detail}</p>` : ""}
-        <p><b>Importo:</b> €${(amountCents / 100).toFixed(2)}</p>
+        <p>Abbiamo ricevuto la tua richiesta di attivazione per <b>${opts?.detail ?? TIER_LABEL[tier]}</b>.</p>
+        <p><b>${headline}</b> — Importo: €${(amountCents / 100).toFixed(2)}</p>
         ${
           bank
-            ? `<p><b>IBAN:</b> ${bank.iban}<br/><b>Intestatario:</b> ${bank.holder}<br/><b>Causale:</b> ${causale}</p>`
+            ? `<p><b>IBAN:</b> ${bank.iban}<br/><b>Intestatario:</b> ${bank.holder}<br/><b>Causale:</b> ${causale}</p>
+               ${qrPng ? `<p><img src="cid:epc-qr" alt="QR bonifico SEPA" width="220" height="220" /><br/><span style="color:#5b6b7b;font-size:12px">Inquadra con l'app della tua banca: importo e causale sono già precompilati.</span></p>` : ""}`
             : `<p>Il coach ti contatterà a breve con le coordinate per il bonifico.</p>`
         }
         <p>Appena il coach registra l'incasso, il piano si attiva automaticamente — nessun'altra azione richiesta da parte tua.</p>
@@ -157,7 +188,13 @@ export async function markPaid(
       tier: subTierToAccessTier(tier),
       tier_expires_at: expiresAt.toISOString(),
       requested_tier: null,
-      requested_tier_detail: null,
+      // PROMPT_CODE_PAGAMENTI TASK 6 (01/09/2026): NON azzerare più questo
+      // campo qui. Resta come descrizione "solo display" della tipologia
+      // 1:1 attiva (allenamenti/sett + cadenza + canale) — è quello che il
+      // profilo/gestionale mostra nel blocco "Tipologia abbonamento" per i
+      // tier one_to_one (migration_044: "solo display, mai usata per
+      // calcoli"). Viene sovrascritto dalla richiesta successiva, se ce
+      // n'è una.
       payment_status: "paid",
       payment_amount_cents: amountCents,
       payment_method: "cash",

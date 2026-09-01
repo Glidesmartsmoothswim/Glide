@@ -3,7 +3,7 @@ import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { serverFeatures } from "@/lib/flags";
 import { publicEnv } from "@/lib/env";
-import { bankTransferDetails } from "@/lib/payment/config";
+import { bankTransferDetails } from "@/lib/payment/bank";
 import { Card } from "@/components/ui/card";
 import { currentMonday } from "@/lib/week";
 
@@ -48,7 +48,8 @@ export default async function StatoSistema() {
   const appUrl = publicEnv.NEXT_PUBLIC_APP_URL;
   const appUrlOk = !/localhost|127\.0\.0\.1|placeholder/.test(appUrl);
   const cronSet = Boolean(process.env.CRON_SECRET);
-  const bank = bankTransferDetails();
+  // TASK 1/2 (01/09/2026): IBAN/intestatario ora in app_config, non più env.
+  const bank = await bankTransferDetails(supabase);
 
   // Conteggi "campo pronto" (RLS: il coach legge).
   const monday = currentMonday();
@@ -104,7 +105,7 @@ export default async function StatoSistema() {
             detail="attivo — incasso a bonifico/contanti"
           />
           <Row
-            label="Coordinate bonifico in email"
+            label="Coordinate bonifico (app_config, TASK 1)"
             tone={bank ? "ok" : "off"}
             detail={bank ? "impostate" : "manca IBAN/intestatario → il coach le comunica a mano"}
           />

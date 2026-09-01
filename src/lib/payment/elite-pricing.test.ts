@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import {
   eliteMonthlyPriceCents,
   eliteTotalPriceCents,
+  eliteSeasonQuote,
   ELITE_ENTRY_PRICE_CENTS,
+  SEASON_MONTHS,
+  SEASON_PREPAY_DISCOUNT,
 } from "./elite-pricing";
 
 // Verifica sullo storico reale (GLIDE_HANDOFF_PREZZI_FATTURAZIONE.md v5):
@@ -78,4 +81,28 @@ test("elite pricing — fatturazione bimestrale raddoppia l'importo, non il mens
   const monthly = eliteMonthlyPriceCents(sel);
   assert.equal(eliteTotalPriceCents(sel, "mensile"), monthly);
   assert.equal(eliteTotalPriceCents(sel, "bimestrale"), monthly * 2);
+});
+
+// PROMPT_CODE_PAGAMENTI TASK 5 (01/09/2026) — il moltiplicatore stagionale è
+// sempre ×10, mai variabile in base alla data: prima di questo fix
+// un'iscrizione a fine agosto restituiva 11 mesi (monthsToSeasonEnd contava
+// da "ora" a giugno), gonfiando l'importo di un mese intero.
+test("elite pricing — stagione sempre 10 mesi fissi, indipendente dalla data (mai un undicesimo mese)", () => {
+  const sel = { allenamenti: 4, cadenza: "mensile", canale: "presenza" } as const;
+  assert.equal(SEASON_MONTHS, 10);
+  const quote = eliteSeasonQuote(sel);
+  assert.equal(quote.months, 10);
+  assert.equal(quote.monthlyCents, eliteMonthlyPriceCents(sel));
+  assert.equal(quote.fullCents, eliteMonthlyPriceCents(sel) * 10);
+  assert.equal(
+    quote.discountedCents,
+    Math.round(quote.fullCents * (1 - SEASON_PREPAY_DISCOUNT)),
+  );
+});
+
+test("elite pricing — verifica sullo storico: 3 all/sett + check-in mensile presenza, stagione = 646€ (Salvatore Amadio)", () => {
+  const sel = { allenamenti: 3, cadenza: "mensile", canale: "presenza" } as const;
+  const quote = eliteSeasonQuote(sel);
+  assert.equal(quote.monthlyCents, 7600); // 44+32
+  assert.equal(quote.discountedCents, 64600); // 76×10×0,85 = 646€
 });

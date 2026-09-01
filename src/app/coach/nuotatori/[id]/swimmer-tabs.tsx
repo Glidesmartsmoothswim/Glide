@@ -28,19 +28,28 @@ export function SwimmerTabs({
   header,
   panels,
   initial = "panoramica",
+  hiddenTabs = [],
 }: {
   header: ReactNode;
   panels: Record<SwimmerTabKey, ReactNode>;
   initial?: SwimmerTabKey;
+  // PROMPT_CODE_PAGAMENTI TASK 6 (01/09/2026) — "Programmazione" (la scheda
+  // personale di allenamento 1:1) non è prevista per open/open_plus/free:
+  // il chiamante passa qui le tab da non renderizzare per il tier corrente,
+  // invece di un secondo elenco di tab parallelo a SWIMMER_TABS.
+  hiddenTabs?: readonly SwimmerTabKey[];
 }) {
-  const [active, setActive] = useState<SwimmerTabKey>(initial);
+  const visibleTabs = SWIMMER_TABS.filter((t) => !hiddenTabs.includes(t.key));
+  const [active, setActive] = useState<SwimmerTabKey>(
+    hiddenTabs.includes(initial) ? visibleTabs[0].key : initial,
+  );
 
   return (
     <>
       <div className="sticky top-0 z-20 -mx-4 bg-background px-4 lg:-mx-8 lg:px-8">
         {header}
         <nav className="flex gap-1 overflow-x-auto border-b border-border">
-          {SWIMMER_TABS.map((t) => (
+          {visibleTabs.map((t) => (
             <button
               key={t.key}
               type="button"

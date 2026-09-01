@@ -15,8 +15,9 @@
  *
  * Videoanalisi resta prodotto standalone (100€), non entra qui.
  *
- * `seasonEnd` importata da ./pricing: stessa convenzione di fine stagione
- * (30 giugno) usata da one_to_one_season, non una seconda regola parallela.
+ * Stagione (prepagamento, sotto): SEASON_MONTHS fisso a 10, stessa
+ * convenzione Sett→Giu di `one_to_one_season` (payment/pricing.ts) ma senza
+ * più dipendere da `seasonEnd` per il moltiplicatore (TASK 5).
  *
  * Valori "reali" (calibrati sullo storico, invariati dalla v2): credito
  * lezione/bim=32€, credito call/bim=22€. Il canone (Asse A) è dato dalla
@@ -27,7 +28,6 @@
  * coach-assegnato — quindi TS costanti in un solo file, facili da trovare
  * e correggere, restano la scelta più onesta finché non si stabilizzano).
  */
-import { seasonEnd } from "./pricing";
 
 export const WORKOUT_FREQUENCIES = [2, 3, 4, 5, 6, 7] as const;
 export type WorkoutFrequency = (typeof WORKOUT_FREQUENCIES)[number];
@@ -134,26 +134,22 @@ export function eliteSelectionLabel(
 /**
  * TASK 7 (feedback 29/08), sconto aggiornato a 15% dal doc v3 (30/08) —
  * chi prepaga l'intera stagione subito dopo il questionario, invece di
- * pagare mese per mese. "Stagione" è la stessa convenzione di
- * `one_to_one_season` (payment/pricing.ts): fino al 30 giugno più vicino,
- * mai indietro.
+ * pagare mese per mese. "Stagione" per il prezzo è sempre 10 mesi fissi
+ * (SEASON_MONTHS sotto, TASK 5) — non più legata a `seasonEnd`.
  */
 export const SEASON_PREPAY_DISCOUNT = 0.15;
 
 /**
- * Mesi dal mese di `from` (incluso) al mese di fine stagione (incluso).
- * Es. 29 agosto → stagione fino a giugno prossimo = 11 mesi (ago…giu).
- * Nessun calcolo sul giorno del mese: chi si iscrive oggi paga il mese
- * corrente per intero, come le altre attivazioni manuali del progetto.
+ * PROMPT_CODE_PAGAMENTI TASK 5 (01/09/2026) — la stagione è SEMPRE 10 mesi
+ * (Sett→Giu), un moltiplicatore fisso mai variabile in base alla data di
+ * pagamento. Un'iscrizione anticipata nella seconda metà di agosto non deve
+ * far scattare un undicesimo mese: prima di questa versione
+ * `monthsToSeasonEnd` calcolava i mesi dal mese corrente a giugno, che per
+ * un pagamento di fine agosto restituiva 11 mesi — l'errore che questo task
+ * corregge. `seasonExpiryDate` (payment/pricing.ts) segue la stessa regola
+ * fissa per `tier_expires_at`.
  */
-export function monthsToSeasonEnd(from: Date = new Date()): number {
-  const end = seasonEnd(from);
-  return (
-    (end.getUTCFullYear() - from.getUTCFullYear()) * 12 +
-    (end.getUTCMonth() - from.getUTCMonth()) +
-    1
-  );
-}
+export const SEASON_MONTHS = 10;
 
 export type EliteSeasonQuote = {
   months: number;
@@ -162,13 +158,10 @@ export type EliteSeasonQuote = {
   discountedCents: number;
 };
 
-/** Preventivo stagione intera prepagata (canone mensile-equivalente × mesi, -15%). */
-export function eliteSeasonQuote(
-  sel: EliteSelection,
-  from: Date = new Date(),
-): EliteSeasonQuote {
+/** Preventivo stagione intera prepagata (canone mensile-equivalente × 10 mesi fissi, -15%). */
+export function eliteSeasonQuote(sel: EliteSelection): EliteSeasonQuote {
   const monthlyCents = eliteMonthlyPriceCents(sel);
-  const months = monthsToSeasonEnd(from);
+  const months = SEASON_MONTHS;
   const fullCents = monthlyCents * months;
   const discountedCents = Math.round(fullCents * (1 - SEASON_PREPAY_DISCOUNT));
   return { months, monthlyCents, fullCents, discountedCents };

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { gateState, daysOverdue, effectiveTier } from "./gate";
 import { PAYMENT_GATE } from "./config";
-import { seasonEnd, expiryFor } from "./pricing";
+import { seasonExpiryDate, expiryFor } from "./pricing";
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = new Date("2026-08-28T12:00:00Z");
@@ -46,9 +46,25 @@ test("effectiveTier — ADR-014: overdue collassa sul tier free, mai un cron che
   assert.equal(effectiveTier("open_plus", at(10), "free", NOW), "open_plus");
 });
 
-test("expiryFor — mensile = +1 mese da ora, stagionale = 30 giugno successivo", () => {
+test("expiryFor — mensile = +1 mese da ora, stagionale = 31 agosto fisso (TASK 5)", () => {
   const monthly = expiryFor("open", NOW);
   assert.equal(monthly.getUTCMonth(), 8); // settembre (0-based), da agosto
   const season = expiryFor("one_to_one_season", NOW);
-  assert.deepEqual(season, seasonEnd(NOW));
+  assert.deepEqual(season, seasonExpiryDate(NOW));
+});
+
+test("expiryFor — stagionale: data fissa 31/08 dell'anno successivo, indipendente dal mese di richiesta (TASK 5)", () => {
+  // Iscrizione anticipata in seconda metà agosto (NOW = 28/08/2026): non
+  // deve far scattare un undicesimo mese né spostare la scadenza.
+  const lateAugust = expiryFor("one_to_one_season", NOW);
+  assert.equal(lateAugust.getUTCFullYear(), 2027);
+  assert.equal(lateAugust.getUTCMonth(), 7); // agosto (0-based)
+  assert.equal(lateAugust.getUTCDate(), 31);
+
+  // Un pagamento in un mese diverso (es. gennaio) resta sulla stessa regola
+  // fissa: 31/08 dell'anno successivo al pagamento, mai "pagamento + 10 mesi".
+  const january = expiryFor("one_to_one_season", new Date("2027-01-15T12:00:00Z"));
+  assert.equal(january.getUTCFullYear(), 2028);
+  assert.equal(january.getUTCMonth(), 7);
+  assert.equal(january.getUTCDate(), 31);
 });

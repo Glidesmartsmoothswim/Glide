@@ -6,7 +6,9 @@ import { signOut } from "@/app/login/actions";
 import { Card } from "@/components/ui/card";
 import { TIER_LABEL as ACCESS_TIER_LABEL } from "@/lib/access";
 import { gateState, daysOverdue } from "@/lib/payment/gate";
-import { TIER_LABEL as SUB_TIER_LABEL, type SubTier } from "@/lib/payment/pricing";
+import type { SubTier } from "@/lib/payment/pricing";
+import { bankTransferDetails } from "@/lib/payment/bank";
+import { PaymentRequestCard } from "@/components/payment/payment-request-card";
 import { ObjectivesManager } from "./objectives-manager";
 import { MfaSettings } from "@/components/account/mfa-settings";
 import { PbManager, type Pb } from "./pb-manager";
@@ -33,11 +35,11 @@ export default async function SwimmerProfilo() {
   // Onda 14.2: un solo read profili (full+ath erano la stessa riga) e tutte le
   // query indipendenti in parallelo (Promise.all), non a cascata.
   const sid = profile?.id ?? "";
-  const [profRes, objRes, tokRes, pbRes] = await Promise.all([
+  const [profRes, objRes, tokRes, pbRes, bank] = await Promise.all([
     supabase
       .from("profiles")
       .select(
-        "id, role, first_name, last_name, email, phone, service_type, tier, tier_expires_at, requested_tier, payment_status, payment_amount_cents, level, package, status, member_since, anno_nascita, categoria, stili_abituali, distanze_abituali",
+        "id, role, first_name, last_name, email, phone, service_type, tier, tier_expires_at, requested_tier, requested_tier_detail, payment_status, payment_amount_cents, level, package, status, member_since, anno_nascita, categoria, stili_abituali, distanze_abituali",
       )
       .eq("id", sid)
       .single(),
@@ -59,6 +61,9 @@ export default async function SwimmerProfilo() {
       .eq("swimmer_id", sid)
       .order("stile", { ascending: true })
       .order("distanza_m", { ascending: true }),
+    // PROMPT_CODE_PAGAMENTI TASK 2 (01/09/2026): IBAN/intestatario da
+    // app_config, secondo punto di verifica indipendente dall'email.
+    bankTransferDetails(supabase),
   ]);
 
   const me = profRes.data as SwimmerRow | null;
@@ -71,6 +76,7 @@ export default async function SwimmerProfilo() {
   const pay = profRes.data as {
     tier_expires_at: string | null;
     requested_tier: SubTier | null;
+    requested_tier_detail: string | null;
     payment_status: "pending_payment" | "paid" | null;
     payment_amount_cents: number | null;
   } | null;
@@ -104,6 +110,16 @@ export default async function SwimmerProfilo() {
         </Card>
       )}
 
+      {/* PROMPT_CODE_PAGAMENTI TASK 6 (01/09/2026): "tipologia abbonamento"
+          solo per 1:1 Elite — allenamenti/sett + cadenza check-in + canale,
+          da requested_tier_detail (migration_044, "solo display"). */}
+      {me?.tier === "one_to_one" && pay?.requested_tier_detail && (
+        <Card className="flex flex-col gap-1 text-sm">
+          <p className="t-label text-muted">Tipologia abbonamento</p>
+          <p className="text-foreground">{pay.requested_tier_detail}</p>
+        </Card>
+      )}
+
       {gate === "grace" && (
         <p className="rounded-xl bg-amber-500/5 p-3 text-sm text-muted">
           Il tuo piano è scaduto da {daysOverdue(pay?.tier_expires_at)}{" "}
@@ -118,11 +134,32 @@ export default async function SwimmerProfilo() {
           restano visibili.
         </p>
       )}
-      {pay?.payment_status === "pending_payment" && (
-        <p className="rounded-xl bg-blu/5 p-3 text-sm text-blu">
-          Richiesta di attivazione {SUB_TIER_LABEL[pay.requested_tier!]} in
-          attesa di conferma — il coach la registra dopo l&apos;incasso.
-        </p>
+      {/* PROMPT_CODE_PAGAMENTI TASK 2/3/4 (01/09/2026) — sezione pagamento:
+          se c'è una richiesta in attesa, il blocco completo con importo,
+          causale e QR EPC dinamici; altrimenti solo IBAN/intestatario in
+          sola lettura, sempre disponibili come verifica anti-spoofing
+          indipendente dall'email (HANDOFF §Canali). */}
+      {pay?.payment_status === "pending_payment" && pay.requested_tier && me ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-display text-lg text-foreground">Pagamento</h2>
+          <PaymentRequestCard
+            requestedTier={pay.requested_tier}
+            requestedTierDetail={pay.requested_tier_detail}
+            amountCents={pay.payment_amount_cents ?? 0}
+            fullName={fullName(me)}
+            profileId={me.id}
+          />
+        </section>
+      ) : (
+        bank && (
+          <section className="flex flex-col gap-3">
+            <h2 className="font-display text-lg text-foreground">Pagamento</h2>
+            <Card className="flex flex-col gap-2 text-sm">
+              <Row label="IBAN" value={bank.iban} />
+              <Row label="Intestatario" value={bank.holder} />
+            </Card>
+          </section>
+        )
       )}
 
       <section className="flex flex-col gap-3">
