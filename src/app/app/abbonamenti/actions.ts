@@ -129,7 +129,7 @@ export async function startEliteSeasonActivation(fd: FormData) {
 
   const sel = { allenamenti, cadenza, canale };
   const quote = eliteSeasonQuote(sel);
-  const detail = eliteSeasonLabel(sel, quote.months);
+  const detail = eliteSeasonLabel(sel, quote.months, quote.discount);
 
   const admin = createAdminClient();
   if (!admin) redirect("/app/abbonamenti?sim=1");

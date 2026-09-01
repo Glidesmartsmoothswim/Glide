@@ -129,9 +129,11 @@ export function PaymentPanel({
             className="w-24 rounded-lg border border-border bg-background px-2 py-2 text-sm"
           />
           {/* 1:1 Elite fatturato mensile/bimestrale: quanti mesi copre
-              l'incasso. Non per one_to_one_season (TASK 5, 01/09/2026): la
-              stagione è SEMPRE 10 mesi fissi, mai una scelta del coach —
-              markPaid la calcola da sola via expiryFor/seasonExpiryDate. */}
+              l'incasso. Non per one_to_one_season (TASK 5, 01/09/2026): il
+              coach non sceglie mesi/scadenza a mano — markPaid la calcola
+              da sola via expiryFor/seasonEnrollment (10 mesi fissi + 31/08
+              anno successivo se iscrizione anticipata luglio/agosto,
+              altrimenti i mesi restanti fino a fine giugno). */}
           {tier === "one_to_one_monthly" && (
             <select
               value={periodMonths}
@@ -148,7 +150,7 @@ export function PaymentPanel({
           )}
           {tier === "one_to_one_season" && (
             <span className="self-center text-xs text-muted">
-              Stagione fissa — 10 mesi, scadenza 31/08 anno successivo
+              Stagione — mesi/scadenza calcolati in automatico
             </span>
           )}
           <input

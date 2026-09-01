@@ -136,7 +136,11 @@ export function EliteQuestionnaire({ color }: { color: string }) {
           non una pagina a parte. */}
       <div className="rounded-lg border border-dashed border-teal/40 bg-teal/5 p-3 text-center">
         <p className="text-sm text-muted">
-          Oppure paga tutta la stagione ora — {season.months} mesi, Settembre-Giugno
+          {/* Mesi/sconto da eliteSeasonQuote — 10 mesi fissi prima
+              dell'inizio stagione (luglio/agosto), i mesi restanti a
+              stagione già iniziata (Settembre in poi). */}
+          Oppure paga tutta la stagione ora — {season.months}{" "}
+          {season.months === 1 ? "mese" : "mesi"}, fino a fine giugno
         </p>
         <p className="font-display text-lg text-foreground">
           {euro(season.discountedCents)}{" "}
@@ -144,7 +148,9 @@ export function EliteQuestionnaire({ color }: { color: string }) {
             {euro(season.fullCents)}
           </span>
         </p>
-        <p className="text-xs font-bold text-teal">Sconto 15% per pagamento anticipato</p>
+        <p className="text-xs font-bold text-teal">
+          Sconto {Math.round(season.discount * 100)}% per pagamento anticipato
+        </p>
         {/* TASK 2b (doc v5) — clausola sospensione, solo qui dove esiste già
             copy sul rinnovo stagionale prepagato: vale solo per questo,
             non per il rinnovo mensile. */}

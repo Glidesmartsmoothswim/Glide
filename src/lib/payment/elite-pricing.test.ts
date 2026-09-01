@@ -5,8 +5,6 @@ import {
   eliteTotalPriceCents,
   eliteSeasonQuote,
   ELITE_ENTRY_PRICE_CENTS,
-  SEASON_MONTHS,
-  SEASON_PREPAY_DISCOUNT,
 } from "./elite-pricing";
 
 // Verifica sullo storico reale (GLIDE_HANDOFF_PREZZI_FATTURAZIONE.md v5):
@@ -83,26 +81,65 @@ test("elite pricing — fatturazione bimestrale raddoppia l'importo, non il mens
   assert.equal(eliteTotalPriceCents(sel, "bimestrale"), monthly * 2);
 });
 
-// PROMPT_CODE_PAGAMENTI TASK 5 (01/09/2026) — il moltiplicatore stagionale è
-// sempre ×10, mai variabile in base alla data: prima di questo fix
-// un'iscrizione a fine agosto restituiva 11 mesi (monthsToSeasonEnd contava
-// da "ora" a giugno), gonfiando l'importo di un mese intero.
-test("elite pricing — stagione sempre 10 mesi fissi, indipendente dalla data (mai un undicesimo mese)", () => {
+// PROMPT_CODE_PAGAMENTI TASK 5 (01/09/2026) — iscrizione ANTICIPATA
+// (luglio/agosto, prima dell'inizio stagione): sempre ×10 mesi fissi,
+// mai variabile in base alla data. Prima di questo fix un'iscrizione a
+// fine agosto restituiva 11 mesi (monthsToSeasonEnd contava da "ora" a
+// giugno), gonfiando l'importo di un mese intero.
+test("elite pricing — iscrizione anticipata (agosto): sempre 10 mesi fissi, sconto 15% (mai un undicesimo mese)", () => {
   const sel = { allenamenti: 4, cadenza: "mensile", canale: "presenza" } as const;
-  assert.equal(SEASON_MONTHS, 10);
-  const quote = eliteSeasonQuote(sel);
+  const lateAugust = new Date("2026-08-28T12:00:00Z");
+  const quote = eliteSeasonQuote(sel, lateAugust);
   assert.equal(quote.months, 10);
+  assert.equal(quote.discount, 0.15);
   assert.equal(quote.monthlyCents, eliteMonthlyPriceCents(sel));
   assert.equal(quote.fullCents, eliteMonthlyPriceCents(sel) * 10);
   assert.equal(
     quote.discountedCents,
-    Math.round(quote.fullCents * (1 - SEASON_PREPAY_DISCOUNT)),
+    Math.round(quote.fullCents * (1 - 0.15)),
   );
 });
 
-test("elite pricing — verifica sullo storico: 3 all/sett + check-in mensile presenza, stagione = 646€ (Salvatore Amadio)", () => {
+test("elite pricing — verifica sullo storico: 3 all/sett + check-in mensile presenza, iscrizione anticipata = 646€ (Salvatore Amadio)", () => {
   const sel = { allenamenti: 3, cadenza: "mensile", canale: "presenza" } as const;
-  const quote = eliteSeasonQuote(sel);
+  const quote = eliteSeasonQuote(sel, new Date("2026-08-28T12:00:00Z"));
   assert.equal(quote.monthlyCents, 7600); // 44+32
   assert.equal(quote.discountedCents, 64600); // 76×10×0,85 = 646€
+});
+
+// Chiarimento utente (01/09/2026) — "iscrizione a stagione già iniziata":
+// da Settembre in poi si pagano solo i mesi RESTANTI fino a fine giugno
+// (non più il fisso ×10), sconto 15% se ci si iscrive Sett-Dic, 10% da
+// Gennaio in poi.
+test("elite pricing — stagione già iniziata a Settembre: 10 mesi restanti (Sett→Giu), sconto 15%", () => {
+  const sel = { allenamenti: 4, cadenza: "mensile", canale: "presenza" } as const;
+  const quote = eliteSeasonQuote(sel, new Date("2026-09-05T12:00:00Z"));
+  assert.equal(quote.months, 10);
+  assert.equal(quote.discount, 0.15);
+});
+
+test("elite pricing — stagione già iniziata a Dicembre: 7 mesi restanti (Dic→Giu), sconto 15%", () => {
+  const sel = { allenamenti: 4, cadenza: "mensile", canale: "presenza" } as const;
+  const quote = eliteSeasonQuote(sel, new Date("2026-12-10T12:00:00Z"));
+  assert.equal(quote.months, 7);
+  assert.equal(quote.discount, 0.15);
+});
+
+test("elite pricing — stagione già iniziata a Gennaio: 6 mesi restanti (Gen→Giu), sconto scende al 10%", () => {
+  const sel = { allenamenti: 4, cadenza: "mensile", canale: "presenza" } as const;
+  const quote = eliteSeasonQuote(sel, new Date("2027-01-15T12:00:00Z"));
+  assert.equal(quote.months, 6);
+  assert.equal(quote.discount, 0.1);
+  assert.equal(quote.fullCents, eliteMonthlyPriceCents(sel) * 6);
+  assert.equal(
+    quote.discountedCents,
+    Math.round(quote.fullCents * (1 - 0.1)),
+  );
+});
+
+test("elite pricing — stagione già iniziata a Giugno: 1 mese restante (solo giugno), sconto 10%", () => {
+  const sel = { allenamenti: 4, cadenza: "mensile", canale: "presenza" } as const;
+  const quote = eliteSeasonQuote(sel, new Date("2027-06-10T12:00:00Z"));
+  assert.equal(quote.months, 1);
+  assert.equal(quote.discount, 0.1);
 });
