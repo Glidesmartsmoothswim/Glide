@@ -22,7 +22,7 @@ const TABS: Record<
   },
   profilo: {
     title: "Profilo",
-    subtitle: "Dati, abbonamento e certificato medico.",
+    subtitle: "Dati e abbonamento.",
   },
 };
 
