@@ -1671,6 +1671,7 @@ Tutte le tabelle esistono (verificato via REST, 200): `profiles`, `workouts`,
 
 ## ✅ Fatto (Sprint 3 — Video gare + Stripe)
 - **Upload video** (`components/video/uploader.tsx`): carica su Storage `race-videos/{user_id}/…` col client browser (RLS: cartella propria), poi `registerVideo`. tier dal servizio: 1:1/both → analisi inclusa (`pending`, paid); Open → `locked`.
+  - **Limiti upload (M-6)**: max **500 MB** e solo `video/*` (`lib/video.ts` → `VIDEO_MAX_BYTES`). Tre livelli: UI (feedback), `registerVideo` (rilegge size/MIME da Storage e cancella il file non conforme + verifica che il path sia nella cartella dell'utente), **bucket** `race-videos` con `file_size_limit`/`allowed_mime_types` (`migration_053`) — l'unico che blocca davvero, perché l'upload va browser→Storage. Il limite effettivo è `min(limite globale del progetto, 500 MB)`.
 - **Nuotatore** `/app/video`: lista propri video, playback con **signed URL**, sblocco "Offrimi una birra €5", analisi del coach.
 - **Coach** `/coach/video`: coda (pending→locked→reviewed), playback firmato, **commenti** (`video_comments`) → mette il video `reviewed`, "segna analizzato".
 - **Stripe** (`lib/stripe-checkout.ts`): checkout birra (una tantum) + abbonamenti (Open/Open Water/Elite) su `/app/profilo`. **Webhook** `/api/stripe/webhook`: sblocca video (birra) e specchia abbonamenti/transazioni via service_role.
