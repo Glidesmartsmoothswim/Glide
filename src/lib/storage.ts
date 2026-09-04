@@ -18,6 +18,29 @@ export async function removeVideoObject(path: string | null): Promise<boolean> {
   return !error;
 }
 
+/**
+ * Metadati dell'oggetto video (M-6): dimensione e MIME reali, letti da
+ * Storage DOPO l'upload del browser. Null se lo storage non è configurato
+ * o l'oggetto non esiste.
+ */
+export async function videoObjectInfo(
+  path: string,
+): Promise<{ size: number; mimetype: string } | null> {
+  const admin = createAdminClient();
+  if (!admin) return null;
+  const slash = path.lastIndexOf("/");
+  const folder = slash > 0 ? path.slice(0, slash) : "";
+  const name = path.slice(slash + 1);
+  const { data } = await admin.storage
+    .from(VIDEO_BUCKET)
+    .list(folder, { search: name, limit: 100 });
+  const meta = data?.find((o) => o.name === name)?.metadata as
+    | { size?: number; mimetype?: string }
+    | undefined;
+  if (!meta) return null;
+  return { size: Number(meta.size ?? 0), mimetype: String(meta.mimetype ?? "") };
+}
+
 /** Signed URL di lettura (breve durata). Null se path assente o storage off. */
 export async function videoSignedUrl(
   path: string | null,

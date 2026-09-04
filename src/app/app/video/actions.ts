@@ -5,10 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/lib/auth";
 import { canAccess, accessTier } from "@/lib/access";
-import { BIRRA_CENTS } from "@/lib/video";
+import { BIRRA_CENTS, videoObjectError } from "@/lib/video";
 import { notifyCoaches } from "@/lib/notify";
 import { logEvent } from "@/lib/ledger";
 import { RETENTION } from "@/lib/retention";
+import { removeVideoObject, videoObjectInfo } from "@/lib/storage";
 import { fullName } from "@/lib/types";
 
 export type VideoState = { error?: string; info?: string };
@@ -137,6 +138,24 @@ export async function registerVideo(
   const raceDate = String(formData.get("race_date") ?? "").trim() || null;
   if (!event) return { error: "Indica la gara (es. 50 SL — Regionali)." };
   if (!storagePath) return { error: "Carica prima il file video." };
+
+  // M-6 — il path deve stare nella cartella dell'utente (stesso vincolo della
+  // policy Storage): impedisce di registrare il file di un altro nuotatore.
+  if (!storagePath.startsWith(`${profile.id}/`))
+    return { error: "Percorso del file non valido." };
+
+  // M-6 — dimensione e MIME riletti da Storage: il check del browser è
+  // aggirabile. Se l'oggetto non è conforme lo rimuoviamo subito, senza
+  // creare la riga. (Info null = storage non configurato o file assente:
+  // resta il limite hard del bucket, migration_053.)
+  const info = await videoObjectInfo(storagePath);
+  if (info) {
+    const invalid = videoObjectError(info);
+    if (invalid) {
+      await removeVideoObject(storagePath);
+      return { error: invalid };
+    }
+  }
 
   // Videoanalisi inclusa (13.4): il tier di accesso one_to_one la include,
   // senza pagamento. Retro-compatibilità col service_type 1:1/both.

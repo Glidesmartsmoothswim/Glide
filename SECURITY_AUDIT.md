@@ -616,8 +616,8 @@ nessun testo consenso/retention/DPIA, nessun vocabolario clinico. Solo lettura +
 | **M-3** leads separati | ✅ | sito e app su tabelle/progetti distinti (invariato). |
 | **M-4** rate limiting | ✅ | Upstash (`src/lib/ratelimit.ts`) su `/api/assistant` e auth. Gate: env Upstash su Vercel. |
 | **M-5** validazione input | 🟡 parziale | le server action validano; audit completo dei form resta da fare. |
-| **M-6** upload video | 🟡 parziale | bucket privato ok; **aperto:** limiti MIME/dimensione/durata sull'upload. |
+| **M-6** upload video | ✅ | bucket privato + **limiti**: 500 MB e `video/*` sul bucket (`migration_053`, l'unico enforcement reale: l'upload è browser→Storage), ricontrollo di size/MIME in `registerVideo` con rimozione del file non conforme, check UI in `uploader.tsx`. Test `src/lib/video.test.ts`. **Gate umano:** limite globale Storage ≥ 500 MB da Dashboard. La *durata* resta non verificata (servirebbe transcodifica). |
 | **Email "notifica non contiene"** | ✅ | digest coach → solo conteggi + "Apri GLIDE" (niente dati sanitari in email). |
 | **npm audit HIGH (postcss/sharp)** | 🟡 aperto | fix = `next@16.2.12` (patch); bump **a parte e verificato** (Next modificato, `AGENTS.md`). Dependabot attivo. |
 
-**Gate umani residui (non è codice):** test manuale role-escalation · MFA coach · leaked-password (Pro) · backup PITR+restore · promozione CSP a enforcing · scansione git history · limiti upload video · bump `next` · env Upstash su Vercel.
+**Gate umani residui (non è codice):** test manuale role-escalation · MFA coach · leaked-password (Pro) · backup PITR+restore · promozione CSP a enforcing · scansione git history · limite globale Storage ≥ 500 MB (M-6) · bump `next` · env Upstash su Vercel.

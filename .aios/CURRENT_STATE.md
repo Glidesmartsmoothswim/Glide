@@ -22,7 +22,9 @@
   applicati + test (`npm test`, 26 verdi). Migration 030/031 applicate. ADR-006 accepted.
 - Restano i **gate umani** (non codice): test manuale role-escalation, env Upstash su
   Vercel, promozione CSP a enforcing, MFA/leaked-password/backup, scansione git history,
-  bump `next@16.2.12`, limiti upload video (M-6).
+  bump `next@16.2.12`. M-6 (limiti upload video) chiuso lato codice con
+  `migration_053` (500 MB + `video/*` sul bucket `race-videos`): resta da alzare il
+  limite globale Storage a ≥ 500 MB da Dashboard.
 
 ## Problemi aperti / blocchi
 - **Divergenza runbook↔repo:** il runbook assume "ledger vuoto + `003_tenancy` con `coach_id`".

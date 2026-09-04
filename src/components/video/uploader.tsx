@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import { UploadCloud } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { registerVideo } from "@/app/app/video/actions";
+import {
+  VIDEO_EXT_LABEL,
+  VIDEO_MAX_MB,
+  videoContentType,
+  videoFileError,
+} from "@/lib/video";
 
 const field =
   "rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-blu";
@@ -21,6 +27,13 @@ export function VideoUploader() {
       setMsg({ error: "Scegli un file video." });
       return;
     }
+    // M-6 — stesso controllo del server: qui è solo per non far aspettare
+    // l'utente durante un upload che verrebbe comunque rifiutato.
+    const invalid = videoFileError(file);
+    if (invalid) {
+      setMsg({ error: invalid });
+      return;
+    }
     setBusy(true);
     try {
       const supabase = createClient();
@@ -35,7 +48,12 @@ export function VideoUploader() {
       const path = `${user.id}/${Date.now()}-${safe}`;
       const { error: upErr } = await supabase.storage
         .from("race-videos")
-        .upload(path, file, { upsert: false });
+        .upload(path, file, {
+          upsert: false,
+          // Esplicito: se il browser non popola `File.type`, supabase-js
+          // manderebbe un content-type non-video e il bucket lo rifiuterebbe.
+          contentType: videoContentType(file.name, file.type) ?? undefined,
+        });
       if (upErr) {
         setMsg({ error: "Upload fallito: " + upErr.message });
         return;
@@ -67,9 +85,16 @@ export function VideoUploader() {
       <input
         type="file"
         accept="video/*"
-        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        onChange={(e) => {
+          const f = e.target.files?.[0] ?? null;
+          setFile(f);
+          setMsg(f ? { error: videoFileError(f) ?? undefined } : {});
+        }}
         className="text-sm text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-navy file:px-3 file:py-2 file:text-white"
       />
+      <p className="text-xs text-muted">
+        Massimo {VIDEO_MAX_MB} MB per video ({VIDEO_EXT_LABEL}).
+      </p>
       {msg.error && <p className="text-sm text-[#DC2626]">{msg.error}</p>}
       {msg.info && <p className="text-sm text-teal">{msg.info}</p>}
       <button
