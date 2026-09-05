@@ -47,6 +47,26 @@ export async function updateSwimmer(
   };
 
   const supabase = await createClient();
+
+  // ADR-016 — un tier a pagamento non si assegna "nudo" da questo form:
+  // senza `payment_status` e senza scadenza il gate derivato lo legge come
+  // `due` e il nuotatore resta bloccato. È esattamente come sono nati i tre
+  // profili rotti. Il vincolo `tier_needs_payment_status` lo rifiuterebbe
+  // comunque, ma con un errore Postgres illeggibile: meglio dirlo in
+  // italiano e indicare la leva giusta, che è una sola.
+  if (tier !== "free") {
+    const { data: cur } = await supabase
+      .from("profiles")
+      .select("payment_status")
+      .eq("id", id)
+      .maybeSingle();
+    if (!cur?.payment_status)
+      return {
+        error:
+          'Per attivare un piano a pagamento usa "Segna pagato" nella sezione Pagamenti: serve anche la data di scadenza, altrimenti il nuotatore resta senza accesso.',
+      };
+  }
+
   const { error } = await supabase.from("profiles").update(patch).eq("id", id);
   if (error) return { error: error.message };
 
