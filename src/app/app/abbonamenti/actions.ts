@@ -3,11 +3,16 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { requestPackage } from "@/lib/payment/packages";
 import {
   buildWithdrawalWaiver,
   withdrawalWaived,
 } from "@/lib/legal/withdrawal";
-import { requestActivation } from "@/lib/payment/request";
+import {
+  requestActivation,
+  type RequestResult,
+} from "@/lib/payment/request";
 import type { SubTier } from "@/lib/payment/pricing";
 import {
   eliteTotalPriceCents,
@@ -22,6 +27,20 @@ import {
   type CheckinCadence,
   type CheckinChannel,
 } from "@/lib/payment/elite-pricing";
+
+/**
+ * Task 4 — l'errore deve arrivare a video, ma NON come testo libero nella
+ * URL: un messaggio arbitrario in query string è testo che chiunque può far
+ * comparire dentro la pagina con un link costruito ad arte. Passiamo solo
+ * SQLSTATE e nome colonna, entrambi ricostruiti in una frase dalla pagina.
+ * Il messaggio completo del DB resta nei log del server
+ * (reportPaymentWriteError).
+ */
+function errorUrl(result: RequestResult): string {
+  const p = new URLSearchParams({ err: result.failure?.code ?? "1" });
+  if (result.failure?.column) p.set("col", result.failure.column);
+  return `/app/abbonamenti?${p}`;
+}
 
 /**
  * ADR-014 — "Richiedi attivazione" sostituisce il checkout Stripe: crea
@@ -44,11 +63,7 @@ export async function startActivation(fd: FormData) {
     tier,
     await buildWithdrawalWaiver(),
   );
-  redirect(
-    result.error
-      ? "/app/abbonamenti?err=1"
-      : "/app/abbonamenti?requested=1",
-  );
+  redirect(result.error ? errorUrl(result) : "/app/abbonamenti?requested=1");
 }
 
 /**
@@ -90,11 +105,7 @@ export async function startEliteActivation(fd: FormData) {
     await buildWithdrawalWaiver(),
     { amountCentsOverride: amountCents, detail },
   );
-  redirect(
-    result.error
-      ? "/app/abbonamenti?err=1"
-      : "/app/abbonamenti?requested=1",
-  );
+  redirect(result.error ? errorUrl(result) : "/app/abbonamenti?requested=1");
 }
 
 /**
@@ -141,9 +152,34 @@ export async function startEliteSeasonActivation(fd: FormData) {
     await buildWithdrawalWaiver(),
     { amountCentsOverride: quote.discountedCents, detail },
   );
-  redirect(
-    result.error
-      ? "/app/abbonamenti?err=1"
-      : "/app/abbonamenti?requested=1",
-  );
+  redirect(result.error ? errorUrl(result) : "/app/abbonamenti?requested=1");
+}
+
+/**
+ * ADR-016 (pacchetti) — richiesta di acquisto di un pacchetto lezioni.
+ * Passa dal client RLS del nuotatore, non dall'admin: la RPC è
+ * SECURITY DEFINER e ricava `auth.uid()` da sola, quindi nessuno può
+ * ordinare per conto di un altro. L'importo lo snapshotta il server dal
+ * listino: qui non viaggia nessun prezzo.
+ */
+export async function requestLessonPackage(fd: FormData) {
+  const profile = await getCurrentProfile();
+  if (!profile) return;
+
+  const packageId = String(fd.get("package_id") ?? "");
+  if (!packageId) redirect("/app/abbonamenti?err=1");
+
+  const supabase = await createClient();
+  const { error } = await requestPackage(supabase, packageId);
+  if (!error) redirect("/app/abbonamenti?pkg=1");
+
+  // Come per l'attivazione: nella URL va un CODICE, mai il testo dell'errore.
+  // Un messaggio libero in query string è testo che chiunque può far
+  // comparire nella pagina con un link costruito ad arte.
+  const code = /richiesta in attesa/i.test(error)
+    ? "pending"
+    : /non disponibile/i.test(error)
+      ? "unavailable"
+      : "1";
+  redirect(`/app/abbonamenti?pkgerr=${code}`);
 }

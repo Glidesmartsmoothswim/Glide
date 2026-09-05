@@ -17,18 +17,6 @@ export function hasOneToOne(serviceType: ServiceType | null | undefined): boolea
   return serviceType === "coaching_1_1" || serviceType === "both";
 }
 
-/** Modalità test attiva? Letta dalla config DB con la service_role. */
-export async function isTestMode(): Promise<boolean> {
-  const admin = createAdminClient();
-  if (!admin) return false;
-  const { data } = await admin
-    .from("app_config")
-    .select("value")
-    .eq("key", "test_mode")
-    .maybeSingle();
-  return data?.value === true;
-}
-
 /** Primo istante del mese corrente (UTC). */
 function startOfMonthUTC(now = new Date()): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0));

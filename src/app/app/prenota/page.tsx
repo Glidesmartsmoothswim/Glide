@@ -1,4 +1,5 @@
 import { requireRole } from "@/lib/auth";
+import { canBookRemote } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCreditStatus, ensureCreditPeriod } from "@/lib/booking/credits";
@@ -49,7 +50,9 @@ export default async function PrenotaPage() {
     .eq("active", true)
     .order("sort");
   const services = ((svcData ?? []) as Svc[])
-    .filter((s) => s.mode !== "remote" || credit.remoteAllowed)
+    // Le call sono incluse nel coaching, non vendibili a sé: in elenco solo
+    // per chi ha il percorso 1:1 davvero attivo (stesso criterio del server).
+    .filter((s) => s.mode !== "remote" || canBookRemote(profile, credit.remoteAllowed))
     // Prezzo cash effettivo per QUESTO nuotatore (sconto affiliato gruppo /
     // override lezione extra) — informativo lato UI, l'importo autoritativo
     // resta ricalcolato server-side alla creazione del booking.

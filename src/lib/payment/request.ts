@@ -14,9 +14,22 @@ import {
 import { bankTransferDetails } from "./bank";
 import { epcQrPngBuffer } from "./epc-qr";
 import { paymentRequestCopy, paymentCausale } from "./message";
+import {
+  reportPaymentWriteError,
+  type PaymentWriteFailure,
+} from "./errors";
 import type { WithdrawalWaiver } from "@/lib/legal/withdrawal";
 
-export type RequestResult = { error?: string; info?: string };
+export type RequestResult = {
+  error?: string;
+  info?: string;
+  /**
+   * Task 4 — dettaglio strutturato del fallimento (SQLSTATE + colonna), per i
+   * chiamanti che devono ricostruire il messaggio dopo un redirect senza
+   * passarsi testo libero nella URL.
+   */
+  failure?: PaymentWriteFailure;
+};
 
 /**
  * ADR-014 A.3 — "Richiedi attivazione": crea l'entitlement in stato
@@ -48,12 +61,21 @@ export async function requestActivation(
       requested_tier_detail: opts?.detail ?? null,
       payment_status: "pending_payment",
       payment_amount_cents: amountCents,
-      payment_method: "cash",
+      // ADR-016 Task 3 — il metodo reale è il bonifico. Finché il CHECK
+      // ammetteva solo 'cash' si scriveva un dato falso; ora non più.
+      payment_method: "bank_transfer",
       withdrawal_waived_at: waiver.waivedAt,
       withdrawal_waiver_ip_hash: waiver.ipHash,
     })
     .eq("id", swimmer.id);
-  if (error) return { error: error.message };
+  // Task 4 — mai in silenzio: log server-side + messaggio leggibile a video.
+  if (error) {
+    const failure = reportPaymentWriteError(error, {
+      op: "requestActivation",
+      swimmerId: swimmer.id,
+    });
+    return { error: failure.message, failure };
+  }
 
   await notifyCoaches(
     "pay",
@@ -164,6 +186,13 @@ export async function markPaid(
     // 1:1 Elite (fatturazione mensile/bimestrale): sostituisce l'estensione
     // di 1 mese di default con N mesi. Assente per gli altri piani.
     periodMonths?: number;
+    /**
+     * ADR-016 Task 3 — scadenza decisa dal coach (ISO). Le date reali sono
+     * negoziate via email e possono divergere da `requested_tier_detail`,
+     * quindi vince sempre su quella calcolata dal listino. Obbligatoria dal
+     * form: senza, il gate cade su `due` e si ricrea il bug.
+     */
+    expiresAt?: string;
   },
 ): Promise<RequestResult> {
   const { data: p } = await admin
@@ -178,9 +207,15 @@ export async function markPaid(
 
   const amountCents = input.amountCents ?? p?.payment_amount_cents ?? TIER_PRICE_CENTS[tier];
   const now = new Date();
-  const expiresAt = input.periodMonths
-    ? new Date(now.getFullYear(), now.getMonth() + input.periodMonths, now.getDate())
-    : expiryFor(tier, now);
+  // Precedenza: data indicata dal coach → N mesi (1:1 Elite) → listino.
+  const explicit = input.expiresAt ? new Date(input.expiresAt) : null;
+  if (explicit && Number.isNaN(explicit.getTime()))
+    return { error: "Data di scadenza non valida." };
+  const expiresAt =
+    explicit ??
+    (input.periodMonths
+      ? new Date(now.getFullYear(), now.getMonth() + input.periodMonths, now.getDate())
+      : expiryFor(tier, now));
 
   const { error } = await admin
     .from("profiles")
@@ -197,12 +232,15 @@ export async function markPaid(
       // n'è una.
       payment_status: "paid",
       payment_amount_cents: amountCents,
-      payment_method: "cash",
+      payment_method: "bank_transfer",
       receipt_number: input.receiptNumber?.trim() || null,
       paid_at: now.toISOString(),
     })
     .eq("id", swimmerId);
-  if (error) return { error: error.message };
+  if (error) {
+    const failure = reportPaymentWriteError(error, { op: "markPaid", swimmerId });
+    return { error: failure.message, failure };
+  }
 
   // Business/Ricavi (src/app/coach/business/page.tsx, v_monthly_revenue):
   // legge SOLO `transactions` — senza questa riga un incasso manuale non

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/lib/auth";
+import { canBookRemote } from "@/lib/access";
 import { getCoachId, getServiceByCode, computeDaySlots } from "@/lib/booking/server";
 import { getEntitlement } from "@/lib/booking/credits";
 
@@ -29,7 +30,9 @@ export async function GET(req: Request) {
   const service = await getServiceByCode(db, code);
   if (!service) return Response.json({ error: "servizio ignoto" }, { status: 404 });
 
-  // Gating remoto: se il pacchetto non prevede le call, niente slot remoti.
+  // Gating remoto: la call è inclusa nel coaching, non vendibile a sé —
+  // slot solo per chi ha il percorso 1:1 davvero attivo (stesso criterio di
+  // /api/booking/create e della pagina di prenotazione).
   if (service.mode === "remote") {
     const { data: p } = await db
       .from("profiles")
@@ -37,7 +40,8 @@ export async function GET(req: Request) {
       .eq("id", profile.id)
       .single();
     const ent = await getEntitlement(db, p?.service_type ?? null);
-    if (!ent?.remote_allowed) return Response.json({ slots: [] });
+    if (!canBookRemote(profile, ent?.remote_allowed ?? false))
+      return Response.json({ slots: [] });
   }
 
   const coachId = await getCoachId(db);

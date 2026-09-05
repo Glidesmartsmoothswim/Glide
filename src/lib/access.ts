@@ -12,7 +12,7 @@
  * anche se il tier scende: non passa da qui.
  */
 
-import { effectiveTier } from "./payment/gate";
+import { effectiveTierFor, type PaymentGate } from "./payment/status";
 
 export const TIERS = ["free", "open", "open_plus", "one_to_one"] as const;
 export type Tier = (typeof TIERS)[number];
@@ -65,17 +65,44 @@ export function canAccess(tier: Tier, resource: Resource): boolean {
 }
 
 /**
- * ADR-014 — tier "effettivo" per il gating: se il periodo pagato è
- * `overdue` (lib/payment/gate.ts), si comporta come `free` per ogni
- * risorsa che passa da qui. Da usare ovunque `canAccess`/`canOpenLibraryItem`
+ * ADR-016 — tier "effettivo" per il gating: se il gate non eroga (`due` o
+ * `overdue`, lib/payment/status.ts) si comporta come `free` per ogni risorsa
+ * che passa da qui. Da usare ovunque `canAccess`/`canOpenLibraryItem`
  * decidono l'accesso a NUOVO contenuto. Non copre l'archivio storico/
  * readiness, che non passano da qui per costruzione (ownership, non tier).
+ *
+ * Prende il gate GIÀ CALCOLATO (`Profile.payment_gate`, da `getCurrentProfile`)
+ * invece di ricalcolarlo: è ciò che tiene questa funzione sincrona ora che i
+ * giorni di grazia arrivano da `app_config`, ed esclude per costruzione una
+ * seconda implementazione del contratto — il rischio che ADR-016 chiama
+ * "l'unico da presidiare".
  */
 export function accessTier(profile: {
   tier: Tier;
-  tier_expires_at?: string | null;
+  payment_gate: PaymentGate;
 }): Tier {
-  return effectiveTier(profile.tier, profile.tier_expires_at ?? null, "free");
+  return effectiveTierFor(profile.tier, profile.payment_gate, "free");
+}
+
+/**
+ * Check-in da remoto (call): prenotabile SOLO da chi ha davvero il percorso
+ * 1:1 attivo (Alessio, 05/09/2026 — "solo se si ha la spec di Coaching
+ * specifica"). La call non è più un prodotto vendibile a sé: è una
+ * prestazione inclusa nel coaching.
+ *
+ * `remoteAllowed` da solo non basta: viene da `plan_entitlements`, che è
+ * indicizzata su `service_type` (l'etichetta che il coach mette sul profilo)
+ * e vale `true` anche per un Base a cui è stato assegnato il tipo di
+ * servizio 1:1 senza pagare nulla — oggi due profili sono in quel caso.
+ * Il tier EFFETTIVO ci mette d'accordo: passa da `accessTier`, quindi
+ * rispetta anche il gate di pagamento (chi è `due`/`overdue` decade a free
+ * e perde le call finché non rientra).
+ */
+export function canBookRemote(
+  profile: { tier: Tier; payment_gate: PaymentGate },
+  remoteAllowed: boolean,
+): boolean {
+  return remoteAllowed && accessTier(profile) === "one_to_one";
 }
 
 /** Risorsa libreria corrispondente a una visibilità. */

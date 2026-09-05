@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile, type Profile } from "@/lib/auth";
 import { logEvent } from "@/lib/ledger";
+import { reportPaymentWriteError } from "@/lib/payment/errors";
 import { notifyUser } from "@/lib/notify";
 import { romeWallToUtc } from "@/lib/booking/slots";
 import {
@@ -403,7 +404,7 @@ export async function markCollected(fd: FormData): Promise<void> {
   if (!b || b.payment_method !== "cash" || b.payment_status !== "da_incassare")
     return;
 
-  await supabase
+  const { error } = await supabase
     .from("bookings")
     .update({
       payment_status: "incassato",
@@ -412,6 +413,16 @@ export async function markCollected(fd: FormData): Promise<void> {
       payment: "paid",
     })
     .eq("id", id);
+
+  // ADR-016 Task 4 — prima l'esito dell'update non veniva guardato affatto:
+  // se il DB rifiutava, la pagina si ricaricava identica e l'incasso
+  // risultava registrato senza esserlo. Almeno il log deve esistere, e il
+  // ledger non deve registrare un incasso che non è avvenuto.
+  if (error) {
+    reportPaymentWriteError(error, { op: "markCollected", swimmerId: b.swimmer_id });
+    revalidatePath("/coach/agenda");
+    return;
+  }
 
   await logEvent(supabase, b.swimmer_id, "payment.collected", {
     booking_id: b.id,

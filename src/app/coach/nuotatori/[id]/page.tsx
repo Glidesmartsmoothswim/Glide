@@ -43,7 +43,12 @@ import { savePersonalWorkout } from "../../workout-actions";
 import { archiveSwimmer } from "../actions";
 import { EditSwimmerForm } from "./edit-form";
 import { PaymentPanel } from "./payment-panel";
-import { gateState, daysOverdue } from "@/lib/payment/gate";
+import { PackagePanel, type PurchaseRow } from "./package-panel";
+import {
+  derivePaymentGate,
+  daysExpired,
+  paymentGraceDays,
+} from "@/lib/payment/status";
 import type { SubTier } from "@/lib/payment/pricing";
 import { SwimmerTabs, type SwimmerTabKey } from "./swimmer-tabs";
 import { CommentForm } from "@/app/coach/video/comment-form";
@@ -74,7 +79,7 @@ export default async function SwimmerDetail({
   const { data: s } = await supabase
     .from("profiles")
     .select(
-      "id, role, first_name, last_name, email, phone, service_type, tier, level, package, status, cert_status, cert_expiry, member_since, athlete_type, anno_nascita, categoria, stili_abituali, distanze_abituali, tier_expires_at, requested_tier, requested_tier_detail, payment_status, payment_amount_cents, receipt_number, paid_at, group_lesson_affiliate, extra_lesson_price_override_cents",
+      "id, role, first_name, last_name, email, phone, service_type, tier, level, package, status, member_since, athlete_type, anno_nascita, categoria, stili_abituali, distanze_abituali, tier_expires_at, requested_tier, requested_tier_detail, payment_status, payment_amount_cents, receipt_number, paid_at, group_lesson_affiliate, extra_lesson_price_override_cents",
     )
     .eq("id", id)
     .single();
@@ -97,7 +102,17 @@ export default async function SwimmerDetail({
     receipt_number: string | null;
     paid_at: string | null;
   };
-  const gate = gateState(pay.tier_expires_at);
+  // ADR-016 — gate dal contratto unico: vede anche il caso "tier pagante,
+  // payment_status nullo" che gateState non poteva vedere.
+  const gate = derivePaymentGate(
+    {
+      tier: s.tier,
+      payment_status: pay.payment_status,
+      paid_at: pay.paid_at,
+      tier_expires_at: pay.tier_expires_at,
+    },
+    await paymentGraceDays(supabase),
+  );
   const pricingFlags = s as {
     group_lesson_affiliate: boolean;
     extra_lesson_price_override_cents: number | null;
@@ -116,6 +131,7 @@ export default async function SwimmerDetail({
     scoreRowRes,
     videoRes,
     completionsRes,
+    purchasesRes,
   ] = await Promise.all([
     supabase
       .from("workouts")
@@ -185,7 +201,15 @@ export default async function SwimmerDetail({
       .select("id, week_start, blocks")
       .eq("swimmer_id", id)
       .order("week_start", { ascending: true }),
+    // ADR-016 — ordini pacchetto lezioni del nuotatore.
+    supabase
+      .from("package_purchases")
+      .select("id, quantity, amount_cents, status, requested_at, paid_at, receipt_number")
+      .eq("swimmer_id", id)
+      .order("requested_at", { ascending: false }),
   ]);
+
+  const purchases = (purchasesRes.data ?? []) as PurchaseRow[];
 
   const workouts = (wRes.data ?? []) as WorkoutRow[];
   const pbs = pbRes.data;
@@ -417,10 +441,17 @@ export default async function SwimmerDetail({
   const headerAlerts: { text: string; tone: "warn" | "bad" | "brand" }[] = [];
   if (pay.payment_status === "pending_payment")
     headerAlerts.push({ text: "Richiesta di attivazione in attesa", tone: "brand" });
+  else if (gate === "due")
+    // ADR-016: piano pagante senza pagamento registrato. Nessuna azione del
+    // nuotatore lo sblocca — deve intervenire il coach da questa scheda.
+    headerAlerts.push({
+      text: "Nessun pagamento registrato — accesso ridotto a Base",
+      tone: "bad",
+    });
   else if (gate === "overdue")
-    headerAlerts.push({ text: `Pagamento scaduto da ${daysOverdue(pay.tier_expires_at)}gg`, tone: "bad" });
+    headerAlerts.push({ text: `Pagamento scaduto da ${daysExpired(pay.tier_expires_at)}gg`, tone: "bad" });
   else if (gate === "grace")
-    headerAlerts.push({ text: `Pagamento in grazia — ${daysOverdue(pay.tier_expires_at)}gg`, tone: "warn" });
+    headerAlerts.push({ text: `Pagamento in grazia — ${daysExpired(pay.tier_expires_at)}gg`, tone: "warn" });
 
   const header = (
     <div className="pb-3 pt-4">
@@ -755,7 +786,7 @@ export default async function SwimmerDetail({
           <PaymentPanel
             swimmerId={id}
             gate={gate}
-            daysOverdue={daysOverdue(pay.tier_expires_at)}
+            daysExpired={daysExpired(pay.tier_expires_at)}
             tierExpiresAt={pay.tier_expires_at}
             requestedTier={pay.requested_tier}
             requestedTierDetail={pay.requested_tier_detail}
@@ -763,6 +794,20 @@ export default async function SwimmerDetail({
             paymentAmountCents={pay.payment_amount_cents}
             receiptNumber={pay.receipt_number}
             paidAt={pay.paid_at}
+          />
+        </section>
+
+        {/* ADR-016 — ordini pacchetto: richieste in attesa di incasso e
+            storico, col saldo token accanto per verificare a colpo d'occhio
+            che l'emissione sia avvenuta. */}
+        <section className="flex flex-col gap-3">
+          <h2 className="font-display text-lg text-foreground">
+            Pacchetti lezioni
+          </h2>
+          <PackagePanel
+            swimmerId={id}
+            purchases={purchases}
+            tokenBalance={tokenBalance}
           />
         </section>
 

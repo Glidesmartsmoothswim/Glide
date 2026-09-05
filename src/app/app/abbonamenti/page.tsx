@@ -4,11 +4,20 @@ import { Card } from "@/components/ui/card";
 import { PricingCard, type Feature } from "@/components/pricing/pricing-card";
 import { CheckoutConsent } from "@/components/pricing/checkout-consent";
 import { TIER_LABEL } from "@/lib/access";
-import { gateState, daysOverdue } from "@/lib/payment/gate";
+import { daysExpired } from "@/lib/payment/status";
 import { TIER_PRICE_CENTS, type SubTier } from "@/lib/payment/pricing";
-import { PaymentRequestCard } from "@/components/payment/payment-request-card";
+import {
+  PaymentRequestCard,
+  BankTransferCard,
+} from "@/components/payment/payment-request-card";
 import { fullName } from "@/lib/types";
-import { startActivation } from "./actions";
+import { startActivation, requestLessonPackage } from "./actions";
+import {
+  activePackages,
+  pendingPurchase,
+  packageTotalCents,
+  packagePerLessonCents,
+} from "@/lib/payment/packages";
 import { EliteQuestionnaire } from "./elite-questionnaire";
 import { ELITE_ENTRY_PRICE_CENTS } from "@/lib/payment/elite-pricing";
 
@@ -44,7 +53,11 @@ const OPEN_PLUS: Feature[] = OPEN.map((f) => ({ ...f, included: true }));
 const ONE_TO_ONE: Feature[] = [
   { label: "Programmazione dedicata", included: true },
   { label: "Allenamento personalizzato sulle tue esigenze ed obiettivi", included: true },
-  { label: "1 lezione/mese inclusa (vasca o remoto)", included: true },
+  // Il remoto resta incluso nel percorso 1:1 (Alessio, 05/09/2026): il
+  // check-in da remoto ha senso DENTRO il coaching, ed è prenotabile solo da
+  // chi ha questo piano attivo (canBookRemote). Fuori dal coaching la call
+  // non si vende: non è un prodotto a sé.
+  { label: "1 lezione/mese inclusa (vasca o call)", included: true },
   { label: "Video gara: caricamento e analisi del coach inclusi", included: true },
   { label: "Contatto diretto col coach", included: true },
 ];
@@ -70,13 +83,46 @@ function CtaButton({
   );
 }
 
+
+/**
+ * Task 4 — l'errore mostrato è ricostruito da SQLSTATE + nome colonna, mai
+ * dal testo che arriva in query string: così l'utente vede la causa reale
+ * ("valore non ammesso: payment_method") senza che un link costruito ad arte
+ * possa far comparire una frase qualsiasi dentro la pagina. Il messaggio
+ * integrale del database resta nei log del server.
+ */
+function activationErrorText(code: string, col?: string): string {
+  // Solo un nome di colonna plausibile, altrimenti si ignora.
+  const column = col && /^[a-z][a-z0-9_]{0,39}$/.test(col) ? col : null;
+  if (code === "23514")
+    return column
+      ? `Il database non ammette il valore scritto in "${column}". La richiesta non è stata registrata: scrivi al coach.`
+      : "Il database ha rifiutato un valore non ammesso. La richiesta non è stata registrata: scrivi al coach.";
+  if (code === "42501")
+    return "Il database ha rifiutato la scrittura per permessi insufficienti. La richiesta non è stata registrata: scrivi al coach.";
+  return "Non è stato possibile inviare la richiesta. Riprova o scrivi al coach.";
+}
+
+/** Esito della richiesta pacchetto, ricostruito da un codice — mai da testo
+ *  libero in query string (stesso motivo di activationErrorText). */
+function packageErrorText(code: string): string {
+  if (code === "pending")
+    return "Hai già una richiesta di pacchetto in attesa di pagamento: completa quella prima di farne un'altra.";
+  if (code === "unavailable")
+    return "Questo pacchetto non è più disponibile.";
+  return "Non è stato possibile registrare la richiesta. Riprova o scrivi al coach.";
+}
+
 export default async function Abbonamenti({
   searchParams,
 }: {
   searchParams: Promise<{
     requested?: string;
     err?: string;
+    col?: string;
     consent?: string;
+    pkg?: string;
+    pkgerr?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -93,7 +139,15 @@ export default async function Abbonamenti({
         .maybeSingle()
     : { data: null };
   const pending = pay?.payment_status === "pending_payment";
-  const gate = gateState(profile?.tier_expires_at ?? null);
+  // ADR-016 (pacchetti): listino e richiesta in corso del nuotatore.
+  const [packages, pkgPending] = profile
+    ? await Promise.all([
+        activePackages(supabase),
+        pendingPurchase(supabase, profile.id),
+      ])
+    : [[], null];
+  // ADR-016: gate già calcolato da getCurrentProfile, non ricalcolato qui.
+  const gate = profile?.payment_gate ?? "not_applicable";
 
   const colorFor = (t: SubTier) =>
     t === "open"
@@ -131,9 +185,17 @@ export default async function Abbonamenti({
         </Card>
       )}
       {sp.err && (
-        <Card className="text-[#DC2626]">
-          Non è stato possibile inviare la richiesta. Riprova o scrivi al coach.
+        <Card className="text-[#DC2626]">{activationErrorText(sp.err, sp.col)}</Card>
+      )}
+      {sp.pkg && (
+        <Card className="text-blu">
+          Richiesta di acquisto registrata: qui sotto trovi IBAN, causale e QR
+          per il bonifico. Appena il coach registra l&apos;incasso ricevi i
+          token.
         </Card>
+      )}
+      {sp.pkgerr && (
+        <Card className="text-[#DC2626]">{packageErrorText(sp.pkgerr)}</Card>
       )}
       {sp.consent && (
         <Card className="text-muted">
@@ -154,16 +216,27 @@ export default async function Abbonamenti({
           profileId={profile.id}
         />
       )}
+      {/* ADR-016 — `due` senza richiesta in corso: il piano risulta attivo ma
+          nessun pagamento è registrato. Prima questa schermata non esisteva e
+          il nuotatore restava bloccato senza sapere perché né cosa fare. */}
+      {gate === "due" && !pending && (
+        <Card className="text-[#DC2626]">
+          Il tuo piano <b>{TIER_LABEL[tier]}</b> risulta attivo ma non abbiamo
+          un pagamento registrato, quindi per ora l&apos;accesso è ridotto alle
+          funzioni Base. Se hai già pagato, scrivi al coach: gli basta
+          registrare l&apos;incasso e riparte tutto subito.
+        </Card>
+      )}
       {gate === "grace" && (
         <Card className="text-muted">
-          Il tuo piano è scaduto da {daysOverdue(profile?.tier_expires_at)}{" "}
-          {daysOverdue(profile?.tier_expires_at) === 1 ? "giorno" : "giorni"}:
+          Il tuo piano è scaduto da {daysExpired(profile?.tier_expires_at)}{" "}
+          {daysExpired(profile?.tier_expires_at) === 1 ? "giorno" : "giorni"}:
           l&apos;accesso resta invariato, ma rinnova a breve.
         </Card>
       )}
       {gate === "overdue" && (
         <Card className="text-[#DC2626]">
-          Il tuo piano è scaduto da {daysOverdue(profile?.tier_expires_at)}{" "}
+          Il tuo piano è scaduto da {daysExpired(profile?.tier_expires_at)}{" "}
           giorni: niente nuovo programma finché non rinnovi. Storico e
           readiness restano visibili.
         </Card>
@@ -251,6 +324,52 @@ export default async function Abbonamenti({
           corso, non un impegno permanente sulle stagioni successive.
         </p>
       </section>
+
+      {/* ADR-016 — Pacchetti lezioni prepagati. Un pacchetto emette token, e
+          un token è credito spendibile: si consegna solo dopo l'incasso. */}
+      {packages.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-display text-lg text-foreground">
+            Pacchetti lezioni
+          </h2>
+          <p className="text-sm text-muted">
+            Lezioni in vasca prepagate, da usare quando vuoi: i token dei
+            pacchetti <b>non scadono</b>. Li spendi dall&apos;Agenda al momento
+            della prenotazione.
+          </p>
+
+          {pkgPending && profile ? (
+            <BankTransferCard
+              title={`Pacchetto ${pkgPending.quantity} lezioni`}
+              headline="Bonifico per completare l'acquisto"
+              amountCents={pkgPending.amount_cents}
+              fullName={fullName(profile)}
+              profileId={profile.id}
+            />
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {packages.map((pk) => (
+                <Card key={pk.id} className="flex flex-col gap-2">
+                  <p className="font-display text-lg text-foreground">
+                    {pk.name}
+                  </p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {euro(packageTotalCents(pk))}
+                  </p>
+                  <p className="text-sm text-muted">
+                    {euro(packagePerLessonCents(pk))} a lezione
+                    {pk.stamp_duty_cents > 0 && " · bollo incluso"}
+                  </p>
+                  <form action={requestLessonPackage} className="mt-auto pt-1">
+                    <input type="hidden" name="package_id" value={pk.id} />
+                    <CtaButton label="Acquista" color={C.open} />
+                  </form>
+                </Card>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <p className="text-sm text-muted">
         Attivazione manuale (ADR-014): niente carta, il coach conferma

@@ -3,7 +3,6 @@ import type { Tier } from "@/lib/access";
 
 export type ServiceType = "coaching_1_1" | "open" | "both";
 export type SwimmerStatus = "attivo" | "in_pausa" | "scaduto";
-export type CertStatus = "valido" | "in_scadenza" | "assente";
 export type WorkoutKind = "personal" | "open_channel" | "template" | "self";
 export type WeekDay = "Lun" | "Mar" | "Mer" | "Gio" | "Ven" | "Sab" | "Dom";
 
@@ -29,12 +28,6 @@ export const STATUS_LABEL: Record<SwimmerStatus, string> = {
   scaduto: "Scaduto",
 };
 
-export const CERT_LABEL: Record<CertStatus, string> = {
-  valido: "Valido",
-  in_scadenza: "In scadenza",
-  assente: "Assente",
-};
-
 /** Riga profiles (nuotatore o coach). */
 export type SwimmerRow = {
   id: string;
@@ -48,8 +41,6 @@ export type SwimmerRow = {
   level: string | null;
   package: string | null;
   status: SwimmerStatus;
-  cert_status: CertStatus;
-  cert_expiry: string | null;
   member_since: string | null;
 };
 

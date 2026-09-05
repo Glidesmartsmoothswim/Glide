@@ -4,10 +4,11 @@ import { useState, useTransition } from "react";
 import { CircleDollarSign } from "lucide-react";
 import { Card, Pill } from "@/components/ui/card";
 import { markSwimmerPaid } from "./payment-actions";
-import type { GateState } from "@/lib/payment/gate";
+import type { PaymentGate } from "@/lib/payment/status";
 import {
   TIER_LABEL,
   TIER_PRICE_CENTS,
+  expiryFor,
   type SubTier,
 } from "@/lib/payment/pricing";
 
@@ -18,26 +19,50 @@ const TIER_OPTIONS: SubTier[] = [
   "one_to_one_season",
 ];
 
-const GATE_LABEL: Record<GateState, string> = {
-  ok: "In regola",
-  due: "Scade oggi",
+// ADR-016 — cinque stati, non più quattro. `due` è nuovo e non significa
+// "scade oggi" come nel vecchio contratto: significa "non risulta pagato".
+const GATE_LABEL: Record<PaymentGate, string> = {
+  not_applicable: "Base (nessun abbonamento)",
+  paid: "In regola",
   grace: "In grazia",
   overdue: "Scaduto",
+  due: "Non risulta pagato",
 };
-const GATE_TONE: Record<GateState, "ok" | "warn" | "bad"> = {
-  ok: "ok",
-  due: "warn",
+const GATE_TONE: Record<PaymentGate, "ok" | "warn" | "bad"> = {
+  not_applicable: "ok",
+  paid: "ok",
   grace: "warn",
   overdue: "bad",
+  due: "bad",
 };
 
 const euro = (cents: number) => `€${(cents / 100).toFixed(2).replace(".00", "")}`;
+
+/** yyyy-mm-dd in ora locale (`toISOString` sposterebbe il giorno per il fuso). */
+const isoDay = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/**
+ * Scadenza PROPOSTA dal form. Riusa `expiryFor` del listino invece di
+ * rifarne il calcolo: così lo stagionale mantiene la regola
+ * dell'iscrizione anticipata (luglio/agosto → 31/08 dell'anno successivo,
+ * TASK 5) che una "+N mesi" scritta qui avrebbe silenziosamente perso.
+ * Resta un default: il coach può sovrascriverla, ed è quel valore a vincere.
+ */
+function defaultExpiry(tier: SubTier | "", months: number): string {
+  const now = new Date();
+  if (!tier) return isoDay(now);
+  // 1:1 Elite fatturato a più mesi: stessa aritmetica di markPaid.
+  if (tier === "one_to_one_monthly" && months > 1)
+    return isoDay(new Date(now.getFullYear(), now.getMonth() + months, now.getDate()));
+  return isoDay(expiryFor(tier, now));
+}
 
 /** ADR-014 — pannello "Pagamenti" scheda nuotatore: stato + Segna pagato. */
 export function PaymentPanel({
   swimmerId,
   gate,
-  daysOverdue,
+  daysExpired,
   tierExpiresAt,
   requestedTier,
   requestedTierDetail,
@@ -47,8 +72,8 @@ export function PaymentPanel({
   paidAt,
 }: {
   swimmerId: string;
-  gate: GateState;
-  daysOverdue: number;
+  gate: PaymentGate;
+  daysExpired: number;
   tierExpiresAt: string | null;
   requestedTier: SubTier | null;
   requestedTierDetail: string | null;
@@ -66,8 +91,15 @@ export function PaymentPanel({
   const [receipt, setReceipt] = useState("");
   // 1:1 Elite: quanti mesi copre l'incasso (default 1 = mensile).
   const [periodMonths, setPeriodMonths] = useState(1);
+  // ADR-016 Task 3 — scadenza OBBLIGATORIA. Il form ne propone una dal
+  // listino (defaultExpiry) ma resta modificabile: le date reali sono
+  // negoziate via email e possono divergere da `requested_tier_detail`.
+  const [expiresAt, setExpiresAt] = useState(() =>
+    defaultExpiry(requestedTier ?? "", 1),
+  );
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
 
   return (
     <Card className="flex flex-col gap-3">
@@ -82,7 +114,7 @@ export function PaymentPanel({
         </p>
         <Pill tone={GATE_TONE[gate]}>
           {GATE_LABEL[gate]}
-          {(gate === "grace" || gate === "overdue") && ` · ${daysOverdue}gg`}
+          {(gate === "grace" || gate === "overdue") && ` · ${daysExpired}gg`}
         </Pill>
       </div>
 
@@ -110,7 +142,10 @@ export function PaymentPanel({
             onChange={(e) => {
               const t = e.target.value as SubTier | "";
               setTier(t);
-              if (t) setAmount(String(TIER_PRICE_CENTS[t] / 100));
+              if (t) {
+                setAmount(String(TIER_PRICE_CENTS[t] / 100));
+                setExpiresAt(defaultExpiry(t, periodMonths));
+              }
             }}
             className="rounded-lg border border-border bg-background px-2 py-2 text-sm"
           >
@@ -129,15 +164,18 @@ export function PaymentPanel({
             className="w-24 rounded-lg border border-border bg-background px-2 py-2 text-sm"
           />
           {/* 1:1 Elite fatturato mensile/bimestrale: quanti mesi copre
-              l'incasso. Non per one_to_one_season (TASK 5, 01/09/2026): il
-              coach non sceglie mesi/scadenza a mano — markPaid la calcola
-              da sola via expiryFor/seasonEnrollment (10 mesi fissi + 31/08
-              anno successivo se iscrizione anticipata luglio/agosto,
-              altrimenti i mesi restanti fino a fine giugno). */}
+              l'incasso. Non compare per one_to_one_season, che ha una
+              scadenza di calendario e non un numero di mesi. Da ADR-016 Task
+              3 questo select muove solo la data PROPOSTA nel campo qui
+              accanto: la scadenza scritta a DB è sempre quella del campo. */}
           {tier === "one_to_one_monthly" && (
             <select
               value={periodMonths}
-              onChange={(e) => setPeriodMonths(Number(e.target.value))}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                setPeriodMonths(n);
+                setExpiresAt(defaultExpiry(tier, n));
+              }}
               title="Quanti mesi copre l'incasso (1:1 Elite, fatturazione mensile/bimestrale)"
               className="rounded-lg border border-border bg-background px-2 py-2 text-sm"
             >
@@ -148,11 +186,21 @@ export function PaymentPanel({
               ))}
             </select>
           )}
-          {tier === "one_to_one_season" && (
-            <span className="self-center text-xs text-muted">
-              Stagione — mesi/scadenza calcolati in automatico
-            </span>
-          )}
+          {/* ADR-016 Task 3 — la scadenza è OBBLIGATORIA: senza, il gate cade
+              su `due` e il nuotatore resta bloccato pur avendo pagato. La
+              data proposta è solo un default, perché quelle vere sono
+              negoziate via email. */}
+          <label className="flex items-center gap-1.5 text-sm">
+            <span className="text-muted">Scade il</span>
+            <input
+              type="date"
+              value={expiresAt}
+              onChange={(e) => setExpiresAt(e.target.value)}
+              required
+              aria-label="Data di scadenza del piano (obbligatoria)"
+              className="rounded-lg border border-border bg-background px-2 py-2 text-sm"
+            />
+          </label>
           <input
             value={receipt}
             onChange={(e) => setReceipt(e.target.value)}
@@ -161,7 +209,7 @@ export function PaymentPanel({
           />
           <button
             type="button"
-            disabled={pending || !tier}
+            disabled={pending || !tier || !expiresAt}
             onClick={() =>
               start(async () => {
                 const res = await markSwimmerPaid(swimmerId, {
@@ -169,8 +217,10 @@ export function PaymentPanel({
                   amountEuro: amount,
                   receiptNumber: receipt,
                   periodMonths: tier === "one_to_one_monthly" ? periodMonths : undefined,
+                  expiresAt,
                 });
                 setMsg(res.info ?? res.error ?? null);
+                setFailed(Boolean(res.error));
                 if (res.info) setReceipt("");
               })
             }
@@ -179,7 +229,11 @@ export function PaymentPanel({
             <CircleDollarSign size={15} /> Segna pagato
           </button>
         </div>
-        {msg && <p className="text-sm text-teal">{msg}</p>}
+        {/* Task 4 — l'errore del database si vede, e si vede che è un errore:
+            prima ogni esito usciva in verde, indistinguibile da un successo. */}
+        {msg && (
+          <p className={`text-sm ${failed ? "text-[#DC2626]" : "text-teal"}`}>{msg}</p>
+        )}
       </div>
     </Card>
   );
