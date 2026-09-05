@@ -4,8 +4,8 @@ import type { NextConfig } from "next";
  * Security headers (S-2, ADR-006 A-7).
  * - Header "duri" ENFORCED: non rompono nulla (HSTS, nosniff, frame-options,
  *   referrer, permissions).
- * - CSP in REPORT-ONLY: raccoglie le violazioni senza bloccare (così non si
- *   rischiano i pagamenti Stripe). Da promuovere a enforcing dopo verifica.
+ * - CSP in REPORT-ONLY: raccoglie le violazioni senza bloccare. Da
+ *   promuovere a enforcing dopo verifica.
  */
 const csp = [
   "default-src 'self'",
@@ -17,9 +17,10 @@ const csp = [
   "font-src 'self' data:",
   // Next inietta stili/script inline: senza nonce serve 'unsafe-inline'.
   "style-src 'self' 'unsafe-inline'",
-  "script-src 'self' 'unsafe-inline' https://js.stripe.com",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com",
-  "frame-src https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com",
+  "script-src 'self' 'unsafe-inline'",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+  // Nessun frame-src: senza la direttiva vale default-src 'self'. I domini
+  // Stripe erano l'unico motivo per cui esisteva (ADR-014, ora rimossa).
   "form-action 'self'",
 ].join("; ");
 
