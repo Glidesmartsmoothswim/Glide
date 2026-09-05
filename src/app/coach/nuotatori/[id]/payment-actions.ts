@@ -23,6 +23,8 @@ export async function markSwimmerPaid(
     // il coach conferma quanti mesi copre l'incasso ricevuto — è la fonte di
     // verità, non un valore ricordato dalla richiesta originale.
     periodMonths?: number;
+    /** ADR-016 Task 3 — scadenza scelta dal coach (yyyy-mm-dd), obbligatoria. */
+    expiresAt?: string;
   },
 ) {
   await requireRole("coach");
@@ -33,11 +35,17 @@ export async function markSwimmerPaid(
   if (amountCents != null && (!Number.isFinite(amountCents) || amountCents <= 0))
     return { error: "Importo non valido." };
 
+  // ADR-016 Task 3 — senza scadenza il gate cade su `due` e si ricrea
+  // esattamente il bug dei tre profili bloccati: qui è obbligatoria.
+  if (!input.expiresAt)
+    return { error: "Indica la data di scadenza: senza, il piano resta bloccato." };
+
   const result = await markPaid(supabase, swimmerId, {
     tier: input.tier || undefined,
     amountCents,
     receiptNumber: input.receiptNumber,
     periodMonths: input.periodMonths,
+    expiresAt: input.expiresAt,
   });
   if (result.error) return { error: result.error };
   revalidatePath(`/coach/nuotatori/${swimmerId}`);

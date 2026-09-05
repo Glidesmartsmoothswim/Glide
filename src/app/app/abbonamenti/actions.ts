@@ -7,7 +7,10 @@ import {
   buildWithdrawalWaiver,
   withdrawalWaived,
 } from "@/lib/legal/withdrawal";
-import { requestActivation } from "@/lib/payment/request";
+import {
+  requestActivation,
+  type RequestResult,
+} from "@/lib/payment/request";
 import type { SubTier } from "@/lib/payment/pricing";
 import {
   eliteTotalPriceCents,
@@ -22,6 +25,20 @@ import {
   type CheckinCadence,
   type CheckinChannel,
 } from "@/lib/payment/elite-pricing";
+
+/**
+ * Task 4 — l'errore deve arrivare a video, ma NON come testo libero nella
+ * URL: un messaggio arbitrario in query string è testo che chiunque può far
+ * comparire dentro la pagina con un link costruito ad arte. Passiamo solo
+ * SQLSTATE e nome colonna, entrambi ricostruiti in una frase dalla pagina.
+ * Il messaggio completo del DB resta nei log del server
+ * (reportPaymentWriteError).
+ */
+function errorUrl(result: RequestResult): string {
+  const p = new URLSearchParams({ err: result.failure?.code ?? "1" });
+  if (result.failure?.column) p.set("col", result.failure.column);
+  return `/app/abbonamenti?${p}`;
+}
 
 /**
  * ADR-014 — "Richiedi attivazione" sostituisce il checkout Stripe: crea
@@ -44,11 +61,7 @@ export async function startActivation(fd: FormData) {
     tier,
     await buildWithdrawalWaiver(),
   );
-  redirect(
-    result.error
-      ? "/app/abbonamenti?err=1"
-      : "/app/abbonamenti?requested=1",
-  );
+  redirect(result.error ? errorUrl(result) : "/app/abbonamenti?requested=1");
 }
 
 /**
@@ -90,11 +103,7 @@ export async function startEliteActivation(fd: FormData) {
     await buildWithdrawalWaiver(),
     { amountCentsOverride: amountCents, detail },
   );
-  redirect(
-    result.error
-      ? "/app/abbonamenti?err=1"
-      : "/app/abbonamenti?requested=1",
-  );
+  redirect(result.error ? errorUrl(result) : "/app/abbonamenti?requested=1");
 }
 
 /**
@@ -141,9 +150,5 @@ export async function startEliteSeasonActivation(fd: FormData) {
     await buildWithdrawalWaiver(),
     { amountCentsOverride: quote.discountedCents, detail },
   );
-  redirect(
-    result.error
-      ? "/app/abbonamenti?err=1"
-      : "/app/abbonamenti?requested=1",
-  );
+  redirect(result.error ? errorUrl(result) : "/app/abbonamenti?requested=1");
 }

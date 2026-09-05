@@ -70,12 +70,33 @@ function CtaButton({
   );
 }
 
+
+/**
+ * Task 4 — l'errore mostrato è ricostruito da SQLSTATE + nome colonna, mai
+ * dal testo che arriva in query string: così l'utente vede la causa reale
+ * ("valore non ammesso: payment_method") senza che un link costruito ad arte
+ * possa far comparire una frase qualsiasi dentro la pagina. Il messaggio
+ * integrale del database resta nei log del server.
+ */
+function activationErrorText(code: string, col?: string): string {
+  // Solo un nome di colonna plausibile, altrimenti si ignora.
+  const column = col && /^[a-z][a-z0-9_]{0,39}$/.test(col) ? col : null;
+  if (code === "23514")
+    return column
+      ? `Il database non ammette il valore scritto in "${column}". La richiesta non è stata registrata: scrivi al coach.`
+      : "Il database ha rifiutato un valore non ammesso. La richiesta non è stata registrata: scrivi al coach.";
+  if (code === "42501")
+    return "Il database ha rifiutato la scrittura per permessi insufficienti. La richiesta non è stata registrata: scrivi al coach.";
+  return "Non è stato possibile inviare la richiesta. Riprova o scrivi al coach.";
+}
+
 export default async function Abbonamenti({
   searchParams,
 }: {
   searchParams: Promise<{
     requested?: string;
     err?: string;
+    col?: string;
     consent?: string;
   }>;
 }) {
@@ -132,9 +153,7 @@ export default async function Abbonamenti({
         </Card>
       )}
       {sp.err && (
-        <Card className="text-[#DC2626]">
-          Non è stato possibile inviare la richiesta. Riprova o scrivi al coach.
-        </Card>
+        <Card className="text-[#DC2626]">{activationErrorText(sp.err, sp.col)}</Card>
       )}
       {sp.consent && (
         <Card className="text-muted">
