@@ -48,7 +48,7 @@ export default async function NuotatoriPage() {
   const { data } = await supabase
     .from("profiles")
     .select(
-      "id, role, first_name, last_name, email, phone, service_type, level, package, status, cert_status, cert_expiry, member_since, tier, tier_expires_at, payment_status, requested_tier, requested_tier_detail, payment_amount_cents",
+      "id, role, first_name, last_name, email, phone, service_type, level, package, status, member_since, tier, tier_expires_at, payment_status, requested_tier, requested_tier_detail, payment_amount_cents",
     )
     .eq("role", "swimmer")
     .order("first_name", { ascending: true });

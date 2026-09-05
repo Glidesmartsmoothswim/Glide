@@ -74,7 +74,7 @@ export default async function SwimmerDetail({
   const { data: s } = await supabase
     .from("profiles")
     .select(
-      "id, role, first_name, last_name, email, phone, service_type, tier, level, package, status, cert_status, cert_expiry, member_since, athlete_type, anno_nascita, categoria, stili_abituali, distanze_abituali, tier_expires_at, requested_tier, requested_tier_detail, payment_status, payment_amount_cents, receipt_number, paid_at, group_lesson_affiliate, extra_lesson_price_override_cents",
+      "id, role, first_name, last_name, email, phone, service_type, tier, level, package, status, member_since, athlete_type, anno_nascita, categoria, stili_abituali, distanze_abituali, tier_expires_at, requested_tier, requested_tier_detail, payment_status, payment_amount_cents, receipt_number, paid_at, group_lesson_affiliate, extra_lesson_price_override_cents",
     )
     .eq("id", id)
     .single();
