@@ -159,6 +159,15 @@ export async function POST(req: Request) {
       ends_at: endsAt.toISOString(),
       block_until: blockUntil.toISOString(),
       mode: service.mode,
+      // PROMPT_CODE_VENDITE Step 2 chiede `status: 'confirmed'`, motivandolo
+      // con "il pagamento non è il gate". In GLIDE però `pending` non ha MAI
+      // riguardato il pagamento: è la conferma dello SLOT da parte del coach
+      // (confirmBooking in coach/agenda/actions.ts, e il nuotatore legge
+      // "in attesa di conferma del coach"). Il pagamento è già slegato — la
+      // prenotazione nasce comunque, con payment_status 'da_incassare', e
+      // l'incasso si registra dopo.
+      // Decisione di Alessio (05/09/2026): la conferma dello slot resta al
+      // coach. NON cambiare in 'confirmed' sulla scorta di quel documento.
       status: "pending",
       payment,
       payment_method: paymentMethod,
