@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { CircleDollarSign } from "lucide-react";
 import { Card, Pill } from "@/components/ui/card";
 import { markSwimmerPaid } from "./payment-actions";
-import type { GateState } from "@/lib/payment/gate";
+import type { PaymentGate } from "@/lib/payment/status";
 import {
   TIER_LABEL,
   TIER_PRICE_CENTS,
@@ -18,17 +18,21 @@ const TIER_OPTIONS: SubTier[] = [
   "one_to_one_season",
 ];
 
-const GATE_LABEL: Record<GateState, string> = {
-  ok: "In regola",
-  due: "Scade oggi",
+// ADR-016 — cinque stati, non più quattro. `due` è nuovo e non significa
+// "scade oggi" come nel vecchio contratto: significa "non risulta pagato".
+const GATE_LABEL: Record<PaymentGate, string> = {
+  not_applicable: "Base (nessun abbonamento)",
+  paid: "In regola",
   grace: "In grazia",
   overdue: "Scaduto",
+  due: "Non risulta pagato",
 };
-const GATE_TONE: Record<GateState, "ok" | "warn" | "bad"> = {
-  ok: "ok",
-  due: "warn",
+const GATE_TONE: Record<PaymentGate, "ok" | "warn" | "bad"> = {
+  not_applicable: "ok",
+  paid: "ok",
   grace: "warn",
   overdue: "bad",
+  due: "bad",
 };
 
 const euro = (cents: number) => `€${(cents / 100).toFixed(2).replace(".00", "")}`;
@@ -37,7 +41,7 @@ const euro = (cents: number) => `€${(cents / 100).toFixed(2).replace(".00", ""
 export function PaymentPanel({
   swimmerId,
   gate,
-  daysOverdue,
+  daysExpired,
   tierExpiresAt,
   requestedTier,
   requestedTierDetail,
@@ -47,8 +51,8 @@ export function PaymentPanel({
   paidAt,
 }: {
   swimmerId: string;
-  gate: GateState;
-  daysOverdue: number;
+  gate: PaymentGate;
+  daysExpired: number;
   tierExpiresAt: string | null;
   requestedTier: SubTier | null;
   requestedTierDetail: string | null;
@@ -82,7 +86,7 @@ export function PaymentPanel({
         </p>
         <Pill tone={GATE_TONE[gate]}>
           {GATE_LABEL[gate]}
-          {(gate === "grace" || gate === "overdue") && ` · ${daysOverdue}gg`}
+          {(gate === "grace" || gate === "overdue") && ` · ${daysExpired}gg`}
         </Pill>
       </div>
 

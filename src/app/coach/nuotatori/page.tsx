@@ -1,7 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { SERVICE_LABEL, STATUS_LABEL, fullName, initials, type SwimmerRow } from "@/lib/types";
 import { TIER_LABEL } from "@/lib/access";
-import { gateState, daysOverdue } from "@/lib/payment/gate";
+import {
+  derivePaymentGate,
+  daysExpired,
+  paymentGraceDays,
+  type PaymentGate,
+} from "@/lib/payment/status";
 import { TIER_LABEL as SUB_TIER_LABEL, type SubTier } from "@/lib/payment/pricing";
 import { availableCount, type LessonTokenRow } from "@/lib/tokens";
 import { NewSwimmer } from "./new-swimmer";
@@ -52,6 +57,7 @@ export default async function NuotatoriPage() {
     )
     .eq("role", "swimmer")
     .order("first_name", { ascending: true });
+  const graceDays = await paymentGraceDays(supabase);
 
   type FullRow = SwimmerRow & {
     tier_expires_at: string | null;
@@ -69,12 +75,27 @@ export default async function NuotatoriPage() {
   const openSw = swimmers.filter((s) => s.tier === "open" || s.tier === "open_plus");
   const freeSw = swimmers.filter((s) => s.tier === "free");
 
-  const paymentSubtitle = (s: FullRow): string | null => {
+  // ADR-016 — un solo calcolo del gate per nuotatore, dal contratto unico.
+  const gateOf = (s: FullRow) =>
+    derivePaymentGate(
+      {
+        tier: s.tier,
+        payment_status: s.payment_status,
+        paid_at: null,
+        tier_expires_at: s.tier_expires_at,
+      },
+      graceDays,
+    );
+
+  /** Riga di stato pagamento, o null se non c'è nulla da segnalare. */
+  const paymentSubtitle = (s: FullRow, g: PaymentGate): string | null => {
     if (s.payment_status === "pending_payment" && s.requested_tier)
       return `Richiesta ${s.requested_tier_detail || SUB_TIER_LABEL[s.requested_tier]} in attesa`;
-    const g = gateState(s.tier_expires_at);
-    if (g === "overdue") return `Rinnovo scaduto — ${daysOverdue(s.tier_expires_at)} giorni`;
-    if (g === "grace") return `In grazia — ${daysOverdue(s.tier_expires_at)} giorni`;
+    // `due` senza richiesta: piano pagante e nessun pagamento registrato.
+    // È il bug di ADR-016 e va detto esplicitamente, non nascosto.
+    if (g === "due") return "Nessun pagamento registrato — accesso ridotto";
+    if (g === "overdue") return `Rinnovo scaduto — ${daysExpired(s.tier_expires_at)} giorni`;
+    if (g === "grace") return `In grazia — ${daysExpired(s.tier_expires_at)} giorni`;
     return null;
   };
 
@@ -82,7 +103,11 @@ export default async function NuotatoriPage() {
     id: s.id,
     initials: initials(s),
     name: fullName(s),
-    sub: paymentSubtitle(s) ?? (s.member_since ? `Attivo dal ${fmtDate(s.member_since)}` : SERVICE_LABEL[s.service_type]),
+    sub:
+      paymentSubtitle(s, gateOf(s)) ??
+      (s.member_since
+        ? `Attivo dal ${fmtDate(s.member_since)}`
+        : SERVICE_LABEL[s.service_type]),
     tierLabel: TIER_LABEL[s.tier],
     statusLabel: STATUS_LABEL[s.status],
     statusTone: s.status === "attivo" ? "ok" : s.status === "in_pausa" ? "warn" : "neutral",
@@ -122,20 +147,22 @@ export default async function NuotatoriPage() {
     const sc = scoreByS.get(s.id) as { onda: number; dims: { aderenza?: number } } | undefined;
     const comp = compByS.get(s.id) as { completed_at: string } | undefined;
     const paused = s.status === "in_pausa";
+    const gate = gateOf(s);
     return {
       id: s.id,
       name: fullName(s),
       statusLabel: STATUS_LABEL[s.status],
       statusTone: s.status === "attivo" ? "ok" : s.status === "in_pausa" ? "warn" : "neutral",
-      paymentLabel:
-        paymentSubtitle(s) ??
-        (s.payment_status === "paid" || s.tier_expires_at ? "Pagato" : "—"),
+      // ADR-016 — "Pagato" solo se il gate lo dice. Prima bastava avere una
+      // scadenza valorizzata: un profilo con payment_status nullo veniva
+      // etichettato "Pagato" pur non risultando pagato da nessuna parte.
+      paymentLabel: paymentSubtitle(s, gate) ?? (gate === "paid" ? "Pagato" : "—"),
       paymentTone:
-        paymentSubtitle(s) != null
-          ? gateState(s.tier_expires_at) === "overdue"
+        paymentSubtitle(s, gate) == null
+          ? "ok"
+          : gate === "overdue" || gate === "due"
             ? "bad"
-            : "warn"
-          : "ok",
+            : "warn",
       fisica: paused ? null : (rd?.readiness_fisica ?? null),
       mentale: paused ? null : (rd?.readiness_mentale ?? null),
       onda: paused ? null : (sc?.onda ?? null),

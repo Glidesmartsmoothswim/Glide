@@ -13,10 +13,10 @@ export type BankTransferDetails = { iban: string; holder: string };
  * Opzionali: se assenti, l'email/il messaggio in-app chiede di contattare il
  * coach per le coordinate — nessun crash, stesso spirito di flags.ts.
  *
- * File a parte da ./config.ts (che resta senza "server-only"): questa
- * funzione richiede un SupabaseClient, config.ts no — tenerle insieme
- * trascinerebbe "server-only" anche in PAYMENT_GATE, importato pure da
- * bundle client (lib/access.ts → coach/libreria/library-form.tsx).
+ * File a parte da ./status.ts (che resta senza "server-only"): questa
+ * funzione richiede un SupabaseClient, il contratto del gate no — tenerli
+ * insieme trascinerebbe "server-only" anche in `derivePaymentGate`,
+ * importato pure da bundle client (payment-panel.tsx).
  */
 export async function bankTransferDetails(
   supabase: SupabaseClient,

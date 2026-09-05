@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { PricingCard, type Feature } from "@/components/pricing/pricing-card";
 import { CheckoutConsent } from "@/components/pricing/checkout-consent";
 import { TIER_LABEL } from "@/lib/access";
-import { gateState, daysOverdue } from "@/lib/payment/gate";
+import { daysExpired } from "@/lib/payment/status";
 import { TIER_PRICE_CENTS, type SubTier } from "@/lib/payment/pricing";
 import { PaymentRequestCard } from "@/components/payment/payment-request-card";
 import { fullName } from "@/lib/types";
@@ -93,7 +93,8 @@ export default async function Abbonamenti({
         .maybeSingle()
     : { data: null };
   const pending = pay?.payment_status === "pending_payment";
-  const gate = gateState(profile?.tier_expires_at ?? null);
+  // ADR-016: gate già calcolato da getCurrentProfile, non ricalcolato qui.
+  const gate = profile?.payment_gate ?? "not_applicable";
 
   const colorFor = (t: SubTier) =>
     t === "open"
@@ -154,16 +155,27 @@ export default async function Abbonamenti({
           profileId={profile.id}
         />
       )}
+      {/* ADR-016 — `due` senza richiesta in corso: il piano risulta attivo ma
+          nessun pagamento è registrato. Prima questa schermata non esisteva e
+          il nuotatore restava bloccato senza sapere perché né cosa fare. */}
+      {gate === "due" && !pending && (
+        <Card className="text-[#DC2626]">
+          Il tuo piano <b>{TIER_LABEL[tier]}</b> risulta attivo ma non abbiamo
+          un pagamento registrato, quindi per ora l&apos;accesso è ridotto alle
+          funzioni Base. Se hai già pagato, scrivi al coach: gli basta
+          registrare l&apos;incasso e riparte tutto subito.
+        </Card>
+      )}
       {gate === "grace" && (
         <Card className="text-muted">
-          Il tuo piano è scaduto da {daysOverdue(profile?.tier_expires_at)}{" "}
-          {daysOverdue(profile?.tier_expires_at) === 1 ? "giorno" : "giorni"}:
+          Il tuo piano è scaduto da {daysExpired(profile?.tier_expires_at)}{" "}
+          {daysExpired(profile?.tier_expires_at) === 1 ? "giorno" : "giorni"}:
           l&apos;accesso resta invariato, ma rinnova a breve.
         </Card>
       )}
       {gate === "overdue" && (
         <Card className="text-[#DC2626]">
-          Il tuo piano è scaduto da {daysOverdue(profile?.tier_expires_at)}{" "}
+          Il tuo piano è scaduto da {daysExpired(profile?.tier_expires_at)}{" "}
           giorni: niente nuovo programma finché non rinnovi. Storico e
           readiness restano visibili.
         </Card>

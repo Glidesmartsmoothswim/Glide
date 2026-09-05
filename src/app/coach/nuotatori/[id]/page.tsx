@@ -43,7 +43,11 @@ import { savePersonalWorkout } from "../../workout-actions";
 import { archiveSwimmer } from "../actions";
 import { EditSwimmerForm } from "./edit-form";
 import { PaymentPanel } from "./payment-panel";
-import { gateState, daysOverdue } from "@/lib/payment/gate";
+import {
+  derivePaymentGate,
+  daysExpired,
+  paymentGraceDays,
+} from "@/lib/payment/status";
 import type { SubTier } from "@/lib/payment/pricing";
 import { SwimmerTabs, type SwimmerTabKey } from "./swimmer-tabs";
 import { CommentForm } from "@/app/coach/video/comment-form";
@@ -97,7 +101,17 @@ export default async function SwimmerDetail({
     receipt_number: string | null;
     paid_at: string | null;
   };
-  const gate = gateState(pay.tier_expires_at);
+  // ADR-016 — gate dal contratto unico: vede anche il caso "tier pagante,
+  // payment_status nullo" che gateState non poteva vedere.
+  const gate = derivePaymentGate(
+    {
+      tier: s.tier,
+      payment_status: pay.payment_status,
+      paid_at: pay.paid_at,
+      tier_expires_at: pay.tier_expires_at,
+    },
+    await paymentGraceDays(supabase),
+  );
   const pricingFlags = s as {
     group_lesson_affiliate: boolean;
     extra_lesson_price_override_cents: number | null;
@@ -417,10 +431,17 @@ export default async function SwimmerDetail({
   const headerAlerts: { text: string; tone: "warn" | "bad" | "brand" }[] = [];
   if (pay.payment_status === "pending_payment")
     headerAlerts.push({ text: "Richiesta di attivazione in attesa", tone: "brand" });
+  else if (gate === "due")
+    // ADR-016: piano pagante senza pagamento registrato. Nessuna azione del
+    // nuotatore lo sblocca — deve intervenire il coach da questa scheda.
+    headerAlerts.push({
+      text: "Nessun pagamento registrato — accesso ridotto a Base",
+      tone: "bad",
+    });
   else if (gate === "overdue")
-    headerAlerts.push({ text: `Pagamento scaduto da ${daysOverdue(pay.tier_expires_at)}gg`, tone: "bad" });
+    headerAlerts.push({ text: `Pagamento scaduto da ${daysExpired(pay.tier_expires_at)}gg`, tone: "bad" });
   else if (gate === "grace")
-    headerAlerts.push({ text: `Pagamento in grazia — ${daysOverdue(pay.tier_expires_at)}gg`, tone: "warn" });
+    headerAlerts.push({ text: `Pagamento in grazia — ${daysExpired(pay.tier_expires_at)}gg`, tone: "warn" });
 
   const header = (
     <div className="pb-3 pt-4">
@@ -755,7 +776,7 @@ export default async function SwimmerDetail({
           <PaymentPanel
             swimmerId={id}
             gate={gate}
-            daysOverdue={daysOverdue(pay.tier_expires_at)}
+            daysExpired={daysExpired(pay.tier_expires_at)}
             tierExpiresAt={pay.tier_expires_at}
             requestedTier={pay.requested_tier}
             requestedTierDetail={pay.requested_tier_detail}

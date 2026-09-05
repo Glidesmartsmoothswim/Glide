@@ -3,7 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/card";
 import { RevenueChart, type RevPoint } from "@/components/business/revenue-chart";
 import { euro } from "@/lib/workout";
-import { gateState } from "@/lib/payment/gate";
+import {
+  derivePaymentGate,
+  hasFullAccess,
+  paymentGraceDays,
+} from "@/lib/payment/status";
 import { TIER_PRICE_CENTS } from "@/lib/payment/pricing";
 
 export const metadata = { title: "Business" };
@@ -38,9 +42,10 @@ export default async function BusinessPage() {
   // aggiuntivo).
   const { data: activeProfiles } = await supabase
     .from("profiles")
-    .select("tier, tier_expires_at")
+    .select("tier, payment_status, tier_expires_at")
     .eq("role", "swimmer")
     .neq("tier", "free");
+  const graceDays = await paymentGraceDays(supabase);
   // SSOT: stesso listino di /app/abbonamenti (lib/payment/pricing.ts) —
   // niente copia locale che possa disallinearsi (successo con Sprint C.6).
   const MONTHLY_EQUIV: Record<string, number> = {
@@ -48,8 +53,21 @@ export default async function BusinessPage() {
     open_plus: TIER_PRICE_CENTS.open_plus,
     one_to_one: TIER_PRICE_CENTS.one_to_one_monthly,
   };
-  const active = (activeProfiles ?? []).filter(
-    (p) => gateState(p.tier_expires_at) !== "overdue",
+  // ADR-016: "attivo" = il gate eroga (paid/grace). `due` esce dal conteggio
+  // insieme a `overdue` — un piano richiesto e mai incassato non è un
+  // abbonato attivo e non deve gonfiare l'MRR.
+  const active = (activeProfiles ?? []).filter((p) =>
+    hasFullAccess(
+      derivePaymentGate(
+        {
+          tier: p.tier,
+          payment_status: p.payment_status,
+          paid_at: null,
+          tier_expires_at: p.tier_expires_at,
+        },
+        graceDays,
+      ),
+    ),
   );
   const mrr = active.reduce((s, p) => s + (MONTHLY_EQUIV[p.tier] ?? 0), 0);
 

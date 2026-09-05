@@ -3,7 +3,6 @@ import { getCurrentProfile } from "@/lib/auth";
 import { fullName } from "@/lib/types";
 import { notifyCoaches, notifyCoachesEmail, notifyUser } from "@/lib/notify";
 import { logEvent } from "@/lib/ledger";
-import { gateState } from "@/lib/payment/gate";
 import {
   getCoachId,
   getServiceByCode,
@@ -33,10 +32,16 @@ export async function POST(req: Request) {
   const profile = await getCurrentProfile();
   if (!profile) return new Response("unauthorized", { status: 401 });
 
-  // ADR-014 — gate ad accesso: overdue blocca SOLO le nuove prenotazioni,
-  // mai lo storico/readiness (che non passano da qui). Chi non ha mai avuto
-  // una scadenza (free/Base, ADR-015) non è toccato: gateState torna 'ok'.
-  if (gateState(profile.tier_expires_at) === "overdue")
+  // ADR-016 — gate ad accesso: `overdue` blocca SOLO le nuove prenotazioni a
+  // valere sull'abbonamento, mai lo storico/readiness (che non passano da
+  // qui). Un free/Base (ADR-015) non è toccato: il gate torna
+  // `not_applicable`, e prenotare è una funzione Base.
+  //
+  // `due` NON blocca qui, a differenza di `overdue`: chi ha una richiesta di
+  // attivazione in corso deve poter comunque prenotare la singola lezione,
+  // che è funzione Base e si salda a parte (GATE_ACCESS: `due` → ridotto a
+  // Base, e prenotazioni ed eventi SONO Base).
+  if (profile.payment_gate === "overdue")
     return Response.json(
       {
         error:

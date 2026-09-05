@@ -5,7 +5,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { signOut } from "@/app/login/actions";
 import { Card } from "@/components/ui/card";
 import { TIER_LABEL as ACCESS_TIER_LABEL } from "@/lib/access";
-import { gateState, daysOverdue } from "@/lib/payment/gate";
+import { daysExpired } from "@/lib/payment/status";
 import type { SubTier } from "@/lib/payment/pricing";
 import { bankTransferDetails } from "@/lib/payment/bank";
 import { PaymentRequestCard } from "@/components/payment/payment-request-card";
@@ -80,7 +80,9 @@ export default async function SwimmerProfilo() {
     payment_status: "pending_payment" | "paid" | null;
     payment_amount_cents: number | null;
   } | null;
-  const gate = gateState(pay?.tier_expires_at ?? null);
+  // ADR-016: il gate arriva GIÀ calcolato da getCurrentProfile — una sola
+  // implementazione del contratto, mai una seconda qui.
+  const gate = profile?.payment_gate ?? "not_applicable";
   const objectives = (objRes.data ?? []) as ObjectiveRow[];
   const tokens = (tokRes.data ?? []) as LessonTokenRow[];
   const tokenAvail = availableCount(tokens);
@@ -120,16 +122,27 @@ export default async function SwimmerProfilo() {
         </Card>
       )}
 
+      {/* ADR-016 — `due` senza richiesta in corso: piano attivo, nessun
+          pagamento registrato. Il blocco "Pagamento" più sotto copre solo il
+          caso `pending_payment`, quindi senza questa riga il nuotatore non
+          vedeva nulla. */}
+      {gate === "due" && pay?.payment_status !== "pending_payment" && (
+        <p className="rounded-xl bg-red-500/5 p-3 text-sm text-[#DC2626]">
+          Il tuo piano risulta attivo ma non abbiamo un pagamento registrato:
+          per ora l&apos;accesso è ridotto alle funzioni Base. Se hai già
+          pagato, scrivi al coach — gli basta registrare l&apos;incasso.
+        </p>
+      )}
       {gate === "grace" && (
         <p className="rounded-xl bg-amber-500/5 p-3 text-sm text-muted">
-          Il tuo piano è scaduto da {daysOverdue(pay?.tier_expires_at)}{" "}
-          {daysOverdue(pay?.tier_expires_at) === 1 ? "giorno" : "giorni"}:
+          Il tuo piano è scaduto da {daysExpired(pay?.tier_expires_at)}{" "}
+          {daysExpired(pay?.tier_expires_at) === 1 ? "giorno" : "giorni"}:
           l&apos;accesso resta invariato, ma rinnova a breve.
         </p>
       )}
       {gate === "overdue" && (
         <p className="rounded-xl bg-red-500/5 p-3 text-sm text-[#DC2626]">
-          Il tuo piano è scaduto da {daysOverdue(pay?.tier_expires_at)} giorni:
+          Il tuo piano è scaduto da {daysExpired(pay?.tier_expires_at)} giorni:
           niente nuovo programma finché non rinnovi. Storico e readiness
           restano visibili.
         </p>

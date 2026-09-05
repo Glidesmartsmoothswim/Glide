@@ -2,7 +2,11 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fullName } from "@/lib/types";
 import { PHASE_LABEL, type PhaseType } from "@/lib/programs";
-import { gateState, daysOverdue } from "@/lib/payment/gate";
+import {
+  derivePaymentGate,
+  daysExpired,
+  paymentGraceDays,
+} from "@/lib/payment/status";
 import { TIER_LABEL as SUB_TIER_LABEL, type SubTier } from "@/lib/payment/pricing";
 
 /**
@@ -39,7 +43,7 @@ export async function computeDigest(
   const { data: sw } = await supabase
     .from("profiles")
     .select(
-      "id, first_name, last_name, email, tier_expires_at, payment_status, requested_tier, requested_tier_detail, payment_amount_cents",
+      "id, first_name, last_name, email, tier, tier_expires_at, payment_status, requested_tier, requested_tier_detail, payment_amount_cents",
     )
     .eq("role", "swimmer");
   const swimmers = sw ?? [];
@@ -142,10 +146,12 @@ export async function computeDigest(
 
   // Pagamenti (ADR-014/A.6): richieste in attesa + abbonamenti in grazia/
   // scaduti. Ordinati per gravità (overdue prima, poi giorni di ritardo).
+  const graceDays = await paymentGraceDays(supabase);
   const pagamenti: (DigestRow & { rank: number })[] = [];
   for (const s of swimmers) {
     const name = nameById.get(s.id) ?? "Atleta";
     const p = s as unknown as {
+      tier: string;
       tier_expires_at: string | null;
       payment_status: "pending_payment" | "paid" | null;
       requested_tier: SubTier | null;
@@ -163,14 +169,36 @@ export async function computeDigest(
       });
       continue;
     }
-    const state = gateState(p.tier_expires_at);
-    if (state === "grace" || state === "overdue") {
-      const days = daysOverdue(p.tier_expires_at);
+    const gate = derivePaymentGate(
+      {
+        tier: p.tier,
+        payment_status: p.payment_status,
+        paid_at: null,
+        tier_expires_at: p.tier_expires_at,
+      },
+      graceDays,
+    );
+    // ADR-016 — `due` senza richiesta pendente è il caso che il vecchio
+    // digest NON vedeva: tier pagante e nessun pagamento registrato. Ha la
+    // precedenza su tutto, perché è un cliente pagante bloccato in revisione
+    // che nessuna azione del nuotatore può sbloccare: deve intervenire il
+    // coach.
+    if (gate === "due") {
       pagamenti.push({
         swimmerId: s.id,
         href: `/coach/nuotatori/${s.id}`,
-        text: `${name} — ${state === "overdue" ? "scaduto" : "in grazia"} da ${days} ${days === 1 ? "giorno" : "giorni"}.`,
-        rank: state === "overdue" ? 1 : 2,
+        text: `${name} — piano ${p.tier} attivo ma nessun pagamento registrato: accesso ridotto finché non lo sistemi.`,
+        rank: 0,
+      });
+      continue;
+    }
+    if (gate === "grace" || gate === "overdue") {
+      const days = daysExpired(p.tier_expires_at);
+      pagamenti.push({
+        swimmerId: s.id,
+        href: `/coach/nuotatori/${s.id}`,
+        text: `${name} — ${gate === "overdue" ? "scaduto" : "in grazia"} da ${days} ${days === 1 ? "giorno" : "giorni"}.`,
+        rank: gate === "overdue" ? 1 : 2,
       });
     }
   }

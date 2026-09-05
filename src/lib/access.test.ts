@@ -62,20 +62,32 @@ test("upgradeTargetFor — invito al tier minimo che sblocca", () => {
   assert.equal(upgradeTargetFor("one_to_one"), "one_to_one");
 });
 
-test("accessTier (ADR-014) — nessuna scadenza o non ancora scaduta: tier reale invariato", () => {
-  assert.equal(accessTier({ tier: "open_plus", tier_expires_at: null }), "open_plus");
-  const future = new Date(Date.now() + 5 * 86_400_000).toISOString();
-  assert.equal(accessTier({ tier: "one_to_one", tier_expires_at: future }), "one_to_one");
+test("accessTier (ADR-016) — gate che eroga: tier reale invariato", () => {
+  assert.equal(accessTier({ tier: "open_plus", payment_gate: "paid" }), "open_plus");
+  // grace = accesso PIENO, solo col banner di rinnovo.
+  assert.equal(accessTier({ tier: "one_to_one", payment_gate: "grace" }), "one_to_one");
+  assert.equal(accessTier({ tier: "free", payment_gate: "not_applicable" }), "free");
 });
 
-test("accessTier (ADR-014) — overdue: si comporta da free per il gating su NUOVO contenuto", () => {
-  const longOverdue = new Date(Date.now() - 90 * 86_400_000).toISOString();
-  const p = { tier: "open_plus" as const, tier_expires_at: longOverdue };
+test("accessTier (ADR-016) — overdue: si comporta da free per il gating su NUOVO contenuto", () => {
+  const p = { tier: "open_plus" as const, payment_gate: "overdue" as const };
   assert.equal(accessTier(p), "free");
   assert.equal(canAccess(accessTier(p), "open:week"), false);
   assert.equal(canOpenLibraryItem(accessTier(p), "open"), false);
   // free resta sempre accessibile: nessun contenuto "free" viene tolto.
   assert.equal(canOpenLibraryItem(accessTier(p), "free"), true);
+});
+
+// ADR-016, il caso che il vecchio gate non vedeva: tier pagante ma nessun
+// pagamento registrato. Prima cadeva su "ok" (guardava solo la scadenza) e
+// dava accesso pieno a chi non risulta aver pagato.
+test("accessTier (ADR-016) — due: nessun pagamento registrato, ridotto a Base", () => {
+  const p = { tier: "open_plus" as const, payment_gate: "due" as const };
+  assert.equal(accessTier(p), "free");
+  assert.equal(canAccess(accessTier(p), "open:week"), false);
+  // ...ma prenotazioni ed eventi (funzioni Base) restano.
+  assert.equal(canAccess(accessTier(p), "events:book"), true);
+  assert.equal(canAccess(accessTier(p), "profile"), true);
 });
 
 test("matrice — nessuna risorsa vuota, tier validi", () => {

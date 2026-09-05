@@ -158,8 +158,18 @@ export async function paymentGraceDays(
     .select("value")
     .eq("key", "payment_grace_days")
     .maybeSingle();
-  const raw = data?.value as unknown;
+  return (
+    graceDaysOrNull(data?.value) ??
+    // Scaletta: app_config → env (via di fuga d'emergenza, ereditata dal
+    // vecchio PAYMENT_GATE) → 7.
+    graceDaysOrNull(process.env.PAYMENT_GRACE_DAYS) ??
+    DEFAULT_GRACE_DAYS
+  );
+}
+
+/** Giorni di grazia validi (intero ≥ 0) da un valore qualsiasi, o null. */
+function graceDaysOrNull(raw: unknown): number | null {
   const n =
     typeof raw === "string" ? Number(raw) : typeof raw === "number" ? raw : NaN;
-  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : DEFAULT_GRACE_DAYS;
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null;
 }
