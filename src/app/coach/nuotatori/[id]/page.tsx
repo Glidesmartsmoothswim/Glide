@@ -43,6 +43,7 @@ import { savePersonalWorkout } from "../../workout-actions";
 import { archiveSwimmer } from "../actions";
 import { EditSwimmerForm } from "./edit-form";
 import { PaymentPanel } from "./payment-panel";
+import { PackagePanel, type PurchaseRow } from "./package-panel";
 import {
   derivePaymentGate,
   daysExpired,
@@ -130,6 +131,7 @@ export default async function SwimmerDetail({
     scoreRowRes,
     videoRes,
     completionsRes,
+    purchasesRes,
   ] = await Promise.all([
     supabase
       .from("workouts")
@@ -199,7 +201,15 @@ export default async function SwimmerDetail({
       .select("id, week_start, blocks")
       .eq("swimmer_id", id)
       .order("week_start", { ascending: true }),
+    // ADR-016 — ordini pacchetto lezioni del nuotatore.
+    supabase
+      .from("package_purchases")
+      .select("id, quantity, amount_cents, status, requested_at, paid_at, receipt_number")
+      .eq("swimmer_id", id)
+      .order("requested_at", { ascending: false }),
   ]);
+
+  const purchases = (purchasesRes.data ?? []) as PurchaseRow[];
 
   const workouts = (wRes.data ?? []) as WorkoutRow[];
   const pbs = pbRes.data;
@@ -784,6 +794,20 @@ export default async function SwimmerDetail({
             paymentAmountCents={pay.payment_amount_cents}
             receiptNumber={pay.receipt_number}
             paidAt={pay.paid_at}
+          />
+        </section>
+
+        {/* ADR-016 — ordini pacchetto: richieste in attesa di incasso e
+            storico, col saldo token accanto per verificare a colpo d'occhio
+            che l'emissione sia avvenuta. */}
+        <section className="flex flex-col gap-3">
+          <h2 className="font-display text-lg text-foreground">
+            Pacchetti lezioni
+          </h2>
+          <PackagePanel
+            swimmerId={id}
+            purchases={purchases}
+            tokenBalance={tokenBalance}
           />
         </section>
 

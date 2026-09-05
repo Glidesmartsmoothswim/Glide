@@ -36,9 +36,39 @@ export async function PaymentRequestCard({
   fullName: string;
   profileId: string;
 }) {
+  return (
+    <BankTransferCard
+      title={requestedTierDetail || TIER_LABEL[requestedTier]}
+      headline={paymentRequestCopy(requestedTier).headline}
+      amountCents={amountCents}
+      fullName={fullName}
+      profileId={profileId}
+    />
+  );
+}
+
+/**
+ * ADR-016 (pacchetti) — stesso blocco IBAN/causale/QR, ma con titolo e
+ * sottotitolo liberi: serve identico per l'acquisto di un pacchetto lezioni,
+ * che non è un tier. Generalizzato invece di duplicato, come chiede il
+ * documento ("stessa resa già usata per l'attivazione abbonamento, da
+ * riusare senza duplicare").
+ */
+export async function BankTransferCard({
+  title,
+  headline,
+  amountCents,
+  fullName,
+  profileId,
+}: {
+  title: string;
+  headline: string;
+  amountCents: number;
+  fullName: string;
+  profileId: string;
+}) {
   const supabase = await createClient();
   const bank = await bankTransferDetails(supabase);
-  const { headline } = paymentRequestCopy(requestedTier);
   const causale = paymentCausale(fullName, profileId);
   const svg = bank
     ? await epcQrSvg({ iban: bank.iban, holder: bank.holder, amountCents, causale })
@@ -47,9 +77,7 @@ export async function PaymentRequestCard({
   return (
     <Card className="flex flex-col gap-3 text-sm text-blu">
       <div>
-        <p className="font-bold text-foreground">
-          {requestedTierDetail || TIER_LABEL[requestedTier]}
-        </p>
+        <p className="font-bold text-foreground">{title}</p>
         <p>
           {headline} · <span className="font-bold">{euro(amountCents)}</span>
         </p>

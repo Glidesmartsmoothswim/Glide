@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { requestPackage } from "@/lib/payment/packages";
 import {
   buildWithdrawalWaiver,
   withdrawalWaived,
@@ -151,4 +153,33 @@ export async function startEliteSeasonActivation(fd: FormData) {
     { amountCentsOverride: quote.discountedCents, detail },
   );
   redirect(result.error ? errorUrl(result) : "/app/abbonamenti?requested=1");
+}
+
+/**
+ * ADR-016 (pacchetti) — richiesta di acquisto di un pacchetto lezioni.
+ * Passa dal client RLS del nuotatore, non dall'admin: la RPC è
+ * SECURITY DEFINER e ricava `auth.uid()` da sola, quindi nessuno può
+ * ordinare per conto di un altro. L'importo lo snapshotta il server dal
+ * listino: qui non viaggia nessun prezzo.
+ */
+export async function requestLessonPackage(fd: FormData) {
+  const profile = await getCurrentProfile();
+  if (!profile) return;
+
+  const packageId = String(fd.get("package_id") ?? "");
+  if (!packageId) redirect("/app/abbonamenti?err=1");
+
+  const supabase = await createClient();
+  const { error } = await requestPackage(supabase, packageId);
+  if (!error) redirect("/app/abbonamenti?pkg=1");
+
+  // Come per l'attivazione: nella URL va un CODICE, mai il testo dell'errore.
+  // Un messaggio libero in query string è testo che chiunque può far
+  // comparire nella pagina con un link costruito ad arte.
+  const code = /richiesta in attesa/i.test(error)
+    ? "pending"
+    : /non disponibile/i.test(error)
+      ? "unavailable"
+      : "1";
+  redirect(`/app/abbonamenti?pkgerr=${code}`);
 }

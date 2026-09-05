@@ -6,9 +6,18 @@ import { CheckoutConsent } from "@/components/pricing/checkout-consent";
 import { TIER_LABEL } from "@/lib/access";
 import { daysExpired } from "@/lib/payment/status";
 import { TIER_PRICE_CENTS, type SubTier } from "@/lib/payment/pricing";
-import { PaymentRequestCard } from "@/components/payment/payment-request-card";
+import {
+  PaymentRequestCard,
+  BankTransferCard,
+} from "@/components/payment/payment-request-card";
 import { fullName } from "@/lib/types";
-import { startActivation } from "./actions";
+import { startActivation, requestLessonPackage } from "./actions";
+import {
+  activePackages,
+  pendingPurchase,
+  packageTotalCents,
+  packagePerLessonCents,
+} from "@/lib/payment/packages";
 import { EliteQuestionnaire } from "./elite-questionnaire";
 import { ELITE_ENTRY_PRICE_CENTS } from "@/lib/payment/elite-pricing";
 
@@ -90,6 +99,16 @@ function activationErrorText(code: string, col?: string): string {
   return "Non è stato possibile inviare la richiesta. Riprova o scrivi al coach.";
 }
 
+/** Esito della richiesta pacchetto, ricostruito da un codice — mai da testo
+ *  libero in query string (stesso motivo di activationErrorText). */
+function packageErrorText(code: string): string {
+  if (code === "pending")
+    return "Hai già una richiesta di pacchetto in attesa di pagamento: completa quella prima di farne un'altra.";
+  if (code === "unavailable")
+    return "Questo pacchetto non è più disponibile.";
+  return "Non è stato possibile registrare la richiesta. Riprova o scrivi al coach.";
+}
+
 export default async function Abbonamenti({
   searchParams,
 }: {
@@ -98,6 +117,8 @@ export default async function Abbonamenti({
     err?: string;
     col?: string;
     consent?: string;
+    pkg?: string;
+    pkgerr?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -114,6 +135,13 @@ export default async function Abbonamenti({
         .maybeSingle()
     : { data: null };
   const pending = pay?.payment_status === "pending_payment";
+  // ADR-016 (pacchetti): listino e richiesta in corso del nuotatore.
+  const [packages, pkgPending] = profile
+    ? await Promise.all([
+        activePackages(supabase),
+        pendingPurchase(supabase, profile.id),
+      ])
+    : [[], null];
   // ADR-016: gate già calcolato da getCurrentProfile, non ricalcolato qui.
   const gate = profile?.payment_gate ?? "not_applicable";
 
@@ -154,6 +182,16 @@ export default async function Abbonamenti({
       )}
       {sp.err && (
         <Card className="text-[#DC2626]">{activationErrorText(sp.err, sp.col)}</Card>
+      )}
+      {sp.pkg && (
+        <Card className="text-blu">
+          Richiesta di acquisto registrata: qui sotto trovi IBAN, causale e QR
+          per il bonifico. Appena il coach registra l&apos;incasso ricevi i
+          token.
+        </Card>
+      )}
+      {sp.pkgerr && (
+        <Card className="text-[#DC2626]">{packageErrorText(sp.pkgerr)}</Card>
       )}
       {sp.consent && (
         <Card className="text-muted">
@@ -282,6 +320,51 @@ export default async function Abbonamenti({
           corso, non un impegno permanente sulle stagioni successive.
         </p>
       </section>
+
+      {/* ADR-016 — Pacchetti lezioni prepagati. Un pacchetto emette token, e
+          un token è credito spendibile: si consegna solo dopo l'incasso. */}
+      {packages.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-display text-lg text-foreground">
+            Pacchetti lezioni
+          </h2>
+          <p className="text-sm text-muted">
+            Lezioni in vasca prepagate, da usare quando vuoi: i token dei
+            pacchetti <b>non scadono</b>. Li spendi dall&apos;Agenda al momento
+            della prenotazione.
+          </p>
+
+          {pkgPending && profile ? (
+            <BankTransferCard
+              title={`Pacchetto ${pkgPending.quantity} lezioni`}
+              headline="Bonifico per completare l'acquisto"
+              amountCents={pkgPending.amount_cents}
+              fullName={fullName(profile)}
+              profileId={profile.id}
+            />
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {packages.map((pk) => (
+                <Card key={pk.id} className="flex flex-col gap-2">
+                  <p className="font-display text-lg text-foreground">
+                    {pk.name}
+                  </p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {euro(packageTotalCents(pk))}
+                  </p>
+                  <p className="text-sm text-muted">
+                    {euro(packagePerLessonCents(pk))} a lezione
+                  </p>
+                  <form action={requestLessonPackage} className="mt-auto pt-1">
+                    <input type="hidden" name="package_id" value={pk.id} />
+                    <CtaButton label="Acquista" color={C.open} />
+                  </form>
+                </Card>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <p className="text-sm text-muted">
         Attivazione manuale (ADR-014): niente carta, il coach conferma
