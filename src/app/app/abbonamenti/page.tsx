@@ -354,6 +354,7 @@ export default async function Abbonamenti({
                   </p>
                   <p className="text-sm text-muted">
                     {euro(packagePerLessonCents(pk))} a lezione
+                    {pk.stamp_duty_cents > 0 && " · bollo incluso"}
                   </p>
                   <form action={requestLessonPackage} className="mt-auto pt-1">
                     <input type="hidden" name="package_id" value={pk.id} />
