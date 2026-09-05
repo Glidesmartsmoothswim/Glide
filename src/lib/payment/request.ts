@@ -61,7 +61,9 @@ export async function requestActivation(
       requested_tier_detail: opts?.detail ?? null,
       payment_status: "pending_payment",
       payment_amount_cents: amountCents,
-      payment_method: "cash",
+      // ADR-016 Task 3 — il metodo reale è il bonifico. Finché il CHECK
+      // ammetteva solo 'cash' si scriveva un dato falso; ora non più.
+      payment_method: "bank_transfer",
       withdrawal_waived_at: waiver.waivedAt,
       withdrawal_waiver_ip_hash: waiver.ipHash,
     })
@@ -230,7 +232,7 @@ export async function markPaid(
       // n'è una.
       payment_status: "paid",
       payment_amount_cents: amountCents,
-      payment_method: "cash",
+      payment_method: "bank_transfer",
       receipt_number: input.receiptNumber?.trim() || null,
       paid_at: now.toISOString(),
     })

@@ -6,7 +6,7 @@ export type BankTransferDetails = { iban: string; holder: string };
 /**
  * Coordinate di bonifico (GLIDE_HANDOFF_PREZZI_FATTURAZIONE.md §Canali e
  * regole di richiesta pagamento; PROMPT_CODE_PAGAMENTI TASK 1/2, 01/09/2026)
- * — vivono in `app_config` (chiave-valore, come `test_mode`), inserite da
+ * — vivono in `app_config` (chiave-valore), inserite da
  * Alessio via SQL diretto, mai in env né nel repo. Lettura pubblica per RLS
  * ("app_config: lettura"), qualunque client autenticato/anon può leggerle —
  * è un secondo punto di verifica indipendente dall'email, non un segreto.

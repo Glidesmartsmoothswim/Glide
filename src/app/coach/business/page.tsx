@@ -42,7 +42,7 @@ export default async function BusinessPage() {
   // aggiuntivo).
   const { data: activeProfiles } = await supabase
     .from("profiles")
-    .select("tier, payment_status, tier_expires_at")
+    .select("tier, payment_status, payment_amount_cents, tier_expires_at")
     .eq("role", "swimmer")
     .neq("tier", "free");
   const graceDays = await paymentGraceDays(supabase);
@@ -69,7 +69,16 @@ export default async function BusinessPage() {
       ),
     ),
   );
-  const mrr = active.reduce((s, p) => s + (MONTHLY_EQUIV[p.tier] ?? 0), 0);
+  // Abbonamenti OMAGGIO (importo incassato pari a 0): contano come abbonati
+  // attivi — il servizio lo ricevono davvero — ma NON come ricavo ricorrente.
+  // Senza questa riga l'MRR includerebbe denaro che non entra mai, e la
+  // stima diventerebbe inutile proprio dove serve: la soglia forfettario.
+  const isGift = (p: { payment_amount_cents: number | null }) =>
+    p.payment_amount_cents === 0;
+  const gifted = active.filter(isGift);
+  const mrr = active
+    .filter((p) => !isGift(p))
+    .reduce((s, p) => s + (MONTHLY_EQUIV[p.tier] ?? 0), 0);
 
   const { data: rev } = await supabase
     .from("v_monthly_revenue")
@@ -110,6 +119,16 @@ export default async function BusinessPage() {
       <p className="-mt-2 text-sm text-muted">
         MRR stimato dal piano attivo (ADR-014, incasso manuale): un 1:1
         stagionale conta come mensile, per approssimazione onesta.
+        {gifted.length > 0 && (
+          <>
+            {" "}
+            {gifted.length === 1
+              ? "1 abbonamento omaggio è escluso"
+              : `${gifted.length} abbonamenti omaggio sono esclusi`}{" "}
+            dall&apos;MRR: {gifted.length === 1 ? "conta" : "contano"} fra gli
+            attivi, ma non {gifted.length === 1 ? "genera" : "generano"} ricavo.
+          </>
+        )}
       </p>
 
       <Card>
