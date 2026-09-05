@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   canAccess,
+  canBookRemote,
   canOpenLibraryItem,
   upgradeTargetFor,
   accessTier,
@@ -95,4 +96,31 @@ test("matrice — nessuna risorsa vuota, tier validi", () => {
     assert.ok(tiers.length > 0, `${res} non deve essere vuota`);
     for (const t of tiers) assert.ok(TIERS.includes(t), `${t} tier valido`);
   }
+});
+
+// Le call sono una prestazione INCLUSA nel coaching, non un prodotto a sé
+// (Alessio, 05/09/2026): prenotabili solo con il percorso 1:1 davvero attivo.
+test("canBookRemote — serve il percorso 1:1 attivo, non basta remote_allowed", () => {
+  const oneToOne = { tier: "one_to_one" as const, payment_gate: "paid" as const };
+  assert.equal(canBookRemote(oneToOne, true), true);
+  // grace = ancora in regola.
+  assert.equal(
+    canBookRemote({ tier: "one_to_one", payment_gate: "grace" }, true),
+    true,
+  );
+
+  // Il buco che questo gate chiude: un Base a cui il coach ha messo il
+  // service_type 1:1 eredita remote_allowed=true da plan_entitlements, ma
+  // non ha comprato nulla.
+  assert.equal(canBookRemote({ tier: "free", payment_gate: "not_applicable" }, true), false);
+
+  // Nemmeno un Open/Open+ , che pure paga.
+  assert.equal(canBookRemote({ tier: "open_plus", payment_gate: "paid" }, true), false);
+
+  // 1:1 non in regola: decade a free e perde le call finché non rientra.
+  assert.equal(canBookRemote({ tier: "one_to_one", payment_gate: "overdue" }, true), false);
+  assert.equal(canBookRemote({ tier: "one_to_one", payment_gate: "due" }, true), false);
+
+  // E se il piano non prevede il remoto, il tier non basta.
+  assert.equal(canBookRemote(oneToOne, false), false);
 });

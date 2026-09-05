@@ -84,6 +84,27 @@ export function accessTier(profile: {
   return effectiveTierFor(profile.tier, profile.payment_gate, "free");
 }
 
+/**
+ * Check-in da remoto (call): prenotabile SOLO da chi ha davvero il percorso
+ * 1:1 attivo (Alessio, 05/09/2026 — "solo se si ha la spec di Coaching
+ * specifica"). La call non è più un prodotto vendibile a sé: è una
+ * prestazione inclusa nel coaching.
+ *
+ * `remoteAllowed` da solo non basta: viene da `plan_entitlements`, che è
+ * indicizzata su `service_type` (l'etichetta che il coach mette sul profilo)
+ * e vale `true` anche per un Base a cui è stato assegnato il tipo di
+ * servizio 1:1 senza pagare nulla — oggi due profili sono in quel caso.
+ * Il tier EFFETTIVO ci mette d'accordo: passa da `accessTier`, quindi
+ * rispetta anche il gate di pagamento (chi è `due`/`overdue` decade a free
+ * e perde le call finché non rientra).
+ */
+export function canBookRemote(
+  profile: { tier: Tier; payment_gate: PaymentGate },
+  remoteAllowed: boolean,
+): boolean {
+  return remoteAllowed && accessTier(profile) === "one_to_one";
+}
+
 /** Risorsa libreria corrispondente a una visibilità. */
 export function libraryResource(visibility: Visibility): Resource {
   return `library:${visibility}` as Resource;

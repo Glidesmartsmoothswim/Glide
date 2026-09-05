@@ -53,9 +53,11 @@ const OPEN_PLUS: Feature[] = OPEN.map((f) => ({ ...f, included: true }));
 const ONE_TO_ONE: Feature[] = [
   { label: "Programmazione dedicata", included: true },
   { label: "Allenamento personalizzato sulle tue esigenze ed obiettivi", included: true },
-  // Le call sono fuori listino (Alessio, 05/09/2026): promettere "o remoto"
-  // sarebbe una promessa non mantenibile, i servizi call_* sono disattivati.
-  { label: "1 lezione/mese inclusa in vasca", included: true },
+  // Il remoto resta incluso nel percorso 1:1 (Alessio, 05/09/2026): il
+  // check-in da remoto ha senso DENTRO il coaching, ed è prenotabile solo da
+  // chi ha questo piano attivo (canBookRemote). Fuori dal coaching la call
+  // non si vende: non è un prodotto a sé.
+  { label: "1 lezione/mese inclusa (vasca o call)", included: true },
   { label: "Video gara: caricamento e analisi del coach inclusi", included: true },
   { label: "Contatto diretto col coach", included: true },
 ];

@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/lib/auth";
+import { canBookRemote } from "@/lib/access";
 import { fullName } from "@/lib/types";
 import { notifyCoaches, notifyCoachesEmail, notifyUser } from "@/lib/notify";
 import { logEvent } from "@/lib/ledger";
@@ -84,7 +85,9 @@ export async function POST(req: Request) {
   const cashPriceCents = effectiveCashPriceCents(service, p ?? {});
 
   const credit = await getCreditStatus(admin, profile.id, serviceType);
-  if (service.mode === "remote" && !credit.remoteAllowed)
+  // ADR: la call è una prestazione INCLUSA nel coaching, non un prodotto a
+  // sé — prenotabile solo da chi ha il percorso 1:1 davvero attivo.
+  if (service.mode === "remote" && !canBookRemote(profile, credit.remoteAllowed))
     return Response.json(
       { error: "Le call non sono incluse nel tuo piano." },
       { status: 403 },
