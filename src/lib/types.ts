@@ -57,6 +57,13 @@ export type WorkoutRow = {
   week_start: string | null;
   blocks: Block[];
   total_meters: number | null;
+  /**
+   * Indicazioni SCRITTE dal coach per alleggerire/appesantire la seduta
+   * (PROMPT_CODE_ALLENAMENTI_OPEN TASK 4). Testo libero: non modificano mai
+   * i blocchi, sostituiscono la vecchia scalatura automatica a percentuale.
+   */
+  scale_down: string | null;
+  scale_up: string | null;
   published_at: string | null;
   created_at: string;
   updated_at: string | null;

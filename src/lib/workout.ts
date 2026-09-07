@@ -141,7 +141,20 @@ export const fmtTime = (s: number | null): string =>
         ? `${s / 60}'`
         : `${Math.floor(s / 60)}'${(s % 60).toString().padStart(2, "0")}"`;
 
-export type Block = { z: ZoneId; name: string; rounds: number; lines: string[] };
+/**
+ * Blocco di allenamento. `note` (PROMPT_CODE_ALLENAMENTI_OPEN TASK 2) è la
+ * prosa del coach: opzionale, multiriga, TENUTA FUORI da `lines` — le righe
+ * restano il registro "sigla" (8x50 SL @1'20" Z3), la nota il registro
+ * discorsivo. I blocchi storici non ce l'hanno: assente o vuota = niente da
+ * renderizzare, nessuno spazio riservato.
+ */
+export type Block = {
+  z: ZoneId;
+  name: string;
+  rounds: number;
+  lines: string[];
+  note?: string;
+};
 
 export const blockMeters = (b: Block): number =>
   b.rounds *

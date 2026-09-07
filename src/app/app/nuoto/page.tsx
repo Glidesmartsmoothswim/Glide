@@ -9,6 +9,7 @@ import { UpgradeHint } from "@/components/access/upgrade-hint";
 import { Archive } from "lucide-react";
 import { canAccess, accessTier } from "@/lib/access";
 import { SelfWorkoutManager } from "@/components/workout/self-editor";
+import { OpenChannelRefresh } from "@/components/pwa/open-refresh";
 import { mainZone } from "@/lib/workout";
 import { currentMonday, formatWeek } from "@/lib/week";
 import type { WorkoutRow } from "@/lib/types";
@@ -115,6 +116,10 @@ export default async function SwimmerNuoto() {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* TASK 7 — chi ha la PWA installata entra qui con una versione cachata:
+          se c'è un service worker in attesa lo attiviamo e ricarichiamo una
+          volta sola. Non renderizza nulla. */}
+      <OpenChannelRefresh />
       <header>
         <h1 className="font-display text-2xl text-foreground">Nuoto</h1>
         <p className="text-sm text-muted">Le tue schede e il Canale Open.</p>

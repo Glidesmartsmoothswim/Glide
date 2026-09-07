@@ -11,7 +11,6 @@ import {
   type Block,
   type ZoneId,
 } from "@/lib/workout";
-import { WEEK_DAYS } from "@/lib/types";
 import { currentMonday } from "@/lib/week";
 
 export type WorkoutFormState = {
@@ -37,9 +36,10 @@ export type WorkoutInitial = {
   title?: string;
   focus?: string | null;
   pool?: number;
-  week_day?: string;
   week_start?: string | null;
   blocks?: Block[];
+  scale_down?: string | null;
+  scale_up?: string | null;
 };
 
 type EditorProps = {
@@ -114,11 +114,17 @@ function EditorForm({
   const patch = (i: number, p: Partial<Block>) =>
     setBlocks((bs) => bs.map((b, j) => (j === i ? { ...b, ...p } : b)));
 
+  // TASK 2 — una nota aperta ma lasciata vuota non deve finire nel JSONB:
+  // il blocco torna alla forma storica a 4 campi.
+  const cleanBlocks = blocks.map(({ note, ...b }) =>
+    note && note.trim() ? { ...b, note } : b,
+  );
+
   return (
     <form action={formAction} className="flex flex-col gap-4">
       {swimmerId && <input type="hidden" name="swimmer_id" value={swimmerId} />}
       {workoutId && <input type="hidden" name="workout_id" value={workoutId} />}
-      <input type="hidden" name="blocks" value={JSON.stringify(blocks)} />
+      <input type="hidden" name="blocks" value={JSON.stringify(cleanBlocks)} />
       <input type="hidden" name="total_meters" value={total} />
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -143,19 +149,6 @@ function EditorForm({
           <option value="25">Vasca 25 m</option>
           <option value="50">Vasca 50 m</option>
         </select>
-        {context === "open" && (
-          <select
-            name="week_day"
-            defaultValue={initial?.week_day ?? "Lun"}
-            className="rounded-xl border border-border bg-background px-3 py-2.5 outline-none focus:border-blu"
-          >
-            {WEEK_DAYS.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-        )}
         {context === "open" && (
           <label className="flex flex-col gap-1 text-xs text-muted">
             Settimana (lunedì)
@@ -247,8 +240,69 @@ function EditorForm({
                   );
                 })}
             </ul>
+
+            {/* TASK 2 — Note del blocco: prosa del coach, FUORI dalle righe.
+                Collassata di default se vuota. È una <textarea> vera, non un
+                contenteditable: il dettato vocale nativo della tastiera iOS
+                funziona solo lì (niente Web Speech API, inaffidabile su
+                Safari). Nessun limite di caratteri. */}
+            {b.note == null ? (
+              <button
+                type="button"
+                onClick={() => patch(i, { note: "" })}
+                className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-blu"
+              >
+                <Plus size={14} /> Note
+              </button>
+            ) : (
+              <label className="mt-3 flex flex-col gap-1 text-sm text-muted">
+                <span className="flex items-center justify-between">
+                  Note
+                  <button
+                    type="button"
+                    onClick={() => patch(i, { note: undefined })}
+                    className="text-sm text-muted hover:text-[#DC2626]"
+                  >
+                    Rimuovi
+                  </button>
+                </span>
+                <textarea
+                  value={b.note}
+                  onChange={(e) => patch(i, { note: e.target.value })}
+                  rows={4}
+                  placeholder="Spiegazione, focus tecnico, cosa curare — a capo liberi."
+                  className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm leading-relaxed text-foreground outline-none focus:border-blu"
+                />
+              </label>
+            )}
           </div>
         ))}
+      </div>
+
+      {/* TASK 4 — scalatura SUGGERITA: testo libero, non tocca mai i blocchi.
+          Sostituisce la vecchia riduzione/aumento a percentuale (rimossa in
+          Onda 29.4), che spezzava il pattern delle serie. */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="flex flex-col gap-1 text-sm text-muted">
+          Più leggero
+          <textarea
+            name="scale_down"
+            defaultValue={initial?.scale_down ?? ""}
+            rows={3}
+            placeholder="Come alleggerirlo (es. Blocco virate: 2 round invece di 4)."
+            className="w-full resize-y rounded-xl border border-border bg-background px-3 py-2.5 text-sm leading-relaxed text-foreground outline-none focus:border-blu"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm text-muted">
+          Più impegnativo
+          <textarea
+            name="scale_up"
+            defaultValue={initial?.scale_up ?? ""}
+            rows={3}
+            placeholder="Come renderlo più duro (es. Blocco virate: 5 round invece di 4)."
+            className="w-full resize-y rounded-xl border border-border bg-background px-3 py-2.5 text-sm leading-relaxed text-foreground outline-none focus:border-blu"
+          />
+        </label>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">

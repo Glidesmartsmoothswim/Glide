@@ -41,7 +41,21 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // PROMPT_CODE_ALLENAMENTI_OPEN TASK 7 — il service worker non va mai
+      // servito dalla cache HTTP: se il browser tiene il vecchio /sw.js, la
+      // PWA installata non scopre mai una nuova versione.
+      {
+        source: "/sw.js",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-cache, no-store, must-revalidate",
+          },
+        ],
+      },
+    ];
   },
 };
 
