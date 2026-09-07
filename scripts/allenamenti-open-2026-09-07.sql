@@ -1,14 +1,21 @@
 -- =====================================================================
--- PROMPT_CODE_ALLENAMENTI_OPEN — SQL DA ESEGUIRE A MANO (SQL Editor).
+-- PROMPT_CODE_ALLENAMENTI_OPEN — storico di cosa è stato eseguito.
 --
--- 🛑 GATE: nessuna di queste istruzioni è stata applicata da Claude Code.
---    Questo NON è un file in supabase/migrations/: è uno script manuale,
---    come scripts/rls-audit.sql. Esegue Alessio, in quest'ordine.
+-- ✅ GIÀ ESEGUITO INTERAMENTE il 07/09/2026, sul progetto live, con GO
+--    esplicito di Alessio in sessione ("fai tutto tu"). Ordine effettivo:
+--    PARTE 1 (migration) → PARTE 2 (seed) → merge PR #58 → deploy.
 --
--- ⚠️ ORDINE OBBLIGATORIO: la PARTE 1 va eseguita PRIMA del deploy del
---    codice. Le server action (saveOpenWorkout / savePersonalWorkout /
---    updateWorkout) scrivono scale_down/scale_up a ogni salvataggio:
---    senza le colonne, l'insert fallisce.
+-- 🚫 NON RILANCIARE questo file. La PARTE 1 è idempotente
+--    (add column if not exists), la PARTE 2 NON lo è: duplicherebbe i due
+--    allenamenti del Canale Open.
+--
+-- Questo NON è un file in supabase/migrations/: è uno script manuale,
+-- come scripts/rls-audit.sql. La migration è registrata su Supabase come
+-- `workouts_scale_down_up`.
+--
+-- Perché l'ordine contava: le server action (saveOpenWorkout /
+-- savePersonalWorkout / updateWorkout) scrivono scale_down/scale_up a ogni
+-- salvataggio — senza le colonne, l'insert sarebbe fallito.
 -- =====================================================================
 
 
@@ -39,13 +46,22 @@ comment on column public.workouts.scale_up is
 -- Entrambi pubblicati subito (published_at = now()): visibili agli atleti
 -- all'istante. week_day = null (TASK 5). pool = 25 per compatibilità col
 -- renderer, ma i testi sono deliberatamente vasca-agnostici.
+--
+-- 🚫 GIÀ ESEGUITA il 07/09/2026 — NON rilanciarla. Non è idempotente:
+--    duplicherebbe i due allenamenti. Resta qui come traccia.
+--
+-- Il coach_id è un placeholder (:'coach_id'): il repo è pubblico. Per
+-- rieseguire questo blocco su un altro ambiente, impostalo prima —
+--    \set coach_id '00000000-0000-0000-0000-000000000000'
+-- oppure sostituisci a mano le due occorrenze. Per ritrovarlo:
+--    select id, email from public.profiles where role = 'coach';
 -- ---------------------------------------------------------------------
 
 insert into public.workouts
   (coach_id, kind, title, focus, pool, week_day, week_start, total_meters, blocks, scale_down, scale_up, published_at)
 values
 (
-  '62b723c3-2178-4d7c-9553-a3812109f319',
+  :'coach_id',
   'open_channel',
   'Velocità — Virate aperte',
   'NM',
@@ -89,7 +105,7 @@ values
   now()
 ),
 (
-  '62b723c3-2178-4d7c-9553-a3812109f319',
+  :'coach_id',
   'open_channel',
   'Recupero — Piramide decrescente',
   'Z2',
