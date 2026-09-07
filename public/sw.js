@@ -19,6 +19,13 @@ self.addEventListener("install", (event) => {
   self.skipWaiting();
 });
 
+// PROMPT_CODE_ALLENAMENTI_OPEN TASK 7 — attivazione su richiesta della pagina:
+// se una nuova versione resta "waiting" (l'utente ha ancora aperta la vecchia
+// PWA), il Canale Open manda SKIP_WAITING all'ingresso e ricarica una volta.
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") self.skipWaiting();
+});
+
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches

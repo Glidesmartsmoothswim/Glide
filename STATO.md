@@ -5,6 +5,100 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
+## 🏊 Canale Open leggibile — note di coaching, scalatura scritta, via il giorno (7 set, PROMPT_CODE_ALLENAMENTI_OPEN.md, modalità supervised)
+
+Obiettivo: separare la **prosa del coach** dalle **sigle delle serie**, sostituire la
+scalatura automatica a percentuale con indicazioni scritte, togliere il giorno della
+settimana dal Canale Open.
+
+### TASK 1 — migration 🛑 NON applicata (gate)
+`scale_down` / `scale_up` (text, nullable) su `public.workouts`: verificato live che **oggi
+non esistono**. Il prompt riserva l'esecuzione ad Alessio in SQL Editor — nessuna
+migration applicata da MCP, nessun file in `supabase/migrations/`. SQL pronto nella PR.
+**RLS verificata leggendo `pg_policies`, non assunta**: le 5 policy su `workouts` sono
+tutte a livello di riga (`is_coach()`, `swimmer_id = auth.uid()`, `kind='open_channel' AND
+my_tier()…`), nessuna colonna elencata → le colonne nuove ereditano l'accesso esistente.
+⚠️ **Ordine obbligatorio: prima la migration, poi il deploy** — le server action scrivono
+`scale_down`/`scale_up` a ogni salvataggio, senza colonne l'insert fallisce.
+
+### TASK 2 — `note` opzionale a livello di blocco (nessuna migration, è JSONB)
+- `lib/workout.ts`: `Block` esteso con `note?: string`. Retrocompatibile per costruzione —
+  i 51 blocchi storici senza `note` renderizzano identici, nessuno spazio riservato.
+- **Editor coach** (`components/workout/editor.tsx`): `<textarea>` "Note" per blocco, sotto
+  le righe, collassata di default se vuota ("＋ Note" → si apre). È una textarea **vera**
+  (niente contenteditable, niente Web Speech API): il dettato vocale nativo iOS funziona lì.
+  Nessun limite di caratteri. Una nota aperta e lasciata vuota non finisce nel JSONB.
+- **Rendering atleta** (`BlockList`): box distinto sotto le `lines`, sfondo `surface`, bordo
+  sinistro tenue, corpo testo normale (**mai monospace**), `whitespace-pre-line` per gli a
+  capo. Non è un tooltip e non è collassata: si legge a bordo vasca senza tap.
+
+### TASK 3 — scalatura automatica ±% → 🛑 GIÀ RIMOSSA, ma il dato persiste
+La funzione era già stata smontata in **Onda 29.4** (`workout-adjust.tsx`,
+`adjust-actions.ts`, `AdjustDirection`/`ADJUST_FACTOR`/`scaleBlocks`) e sostituita da
+"Chiedi una modifica". Ricognizione ripetuta su `%`/`scale`/`riduci`/`aumenta`/`percent`:
+**nessun punto di ingresso residuo nella UI**.
+**🛑 FERMATO come richiesto dal prompt — dato persistito trovato, nulla droppato:**
+- `activity_events` contiene **18 righe** `type='workout.adjusted'` (31 lug → 14 ago 2026),
+  con `payload.direction` = `riduci`/`aumenta`. Sono lo storico delle scelte degli atleti.
+- `lib/ledger.ts` tiene ancora `"workout.adjusted"` nell'union `EventType` (solo il tipo:
+  nessuno lo scrive più).
+- `/coach/open` legge quelle righe e mostra la card **"Personalizzazione volume"** (visibile
+  solo se ci sono conteggi > 0).
+Lasciati intatti tutti e tre: decisione di Alessio se archiviarli o rimuoverli.
+
+### TASK 4 — scalatura suggerita (il sostituto)
+- `WorkoutRow` esteso con `scale_down` / `scale_up`.
+- **Editor coach**: due `<textarea>` a livello di allenamento, "Più leggero" e "Più
+  impegnativo", entrambe opzionali (vuote → `null`, mai stringa vuota).
+- **Rendering atleta**: sezione **collassata** in fondo all'allenamento, dopo il
+  defaticamento, etichetta **"Troppo o troppo poco?"**. `<details>` nativo — niente JS,
+  affidabile su Safari/iOS. Mostra solo i campi valorizzati; se nessuno lo è, **non compare
+  affatto**. Nessun bottone che applica alcunché: è testo, l'atleta decide e poi registra
+  nel completion editor quello che ha davvero fatto.
+
+### TASK 5 — niente `week_day` sul Canale Open
+- `saveOpenWorkout` scrive `week_day: null` (nuovi insert); `updateWorkout` non lo tocca più.
+- L'editor non ha più il selettore giorno (esisteva solo per `context='open'`).
+- Non si mostra più: `WorkoutCard` (pill), dropdown "Quale allenamento hai fatto?" del
+  check-in. Entrambi gated su `kind !== 'open_channel'`.
+- **La colonna resta** — la usa `kind='self'` (e `personal`, via `weekDayOf()`): nessun drop,
+  **nessun backfill** sui record esistenti.
+
+### TASK 6 — seed dei 2 allenamenti 🛑 NON eseguito (gate)
+`Velocità — Virate aperte` (2200 m, NM) e `Recupero — Piramide decrescente` (3200 m, Z2),
+`week_start = 2026-09-07`, `week_day = null`, `published_at = now()`. SQL pronto nella PR,
+da eseguire in SQL Editor **dopo** la migration del TASK 1.
+
+### TASK 7 — refresh forzato all'ingresso sul Canale Open
+- `components/pwa/open-refresh.tsx`, montato su `/app/nuoto`: al mount, se
+  `registration.waiting` esiste → `SKIP_WAITING` + un solo reload; altrimenti `reg.update()`
+  (su iOS la PWA da home screen controlla gli aggiornamenti solo tornando in foreground) e
+  il reload arriva da `controllerchange`.
+- **Guardia anti-loop**: flag `glide:open-refresh` in `sessionStorage`, **un solo reload per
+  sessione**. Se `sessionStorage` non è accessibile (Safari privato) **non si ricarica
+  affatto** — meglio una versione vecchia che un loop.
+- Non ricarica sulla **prima** acquisizione del controller (`clients.claim()` di una
+  registrazione appena fatta): non è un aggiornamento.
+- `public/sw.js`: nuovo listener `message` → `SKIP_WAITING`.
+- `next.config.ts`: `Cache-Control: no-cache, no-store, must-revalidate` su `/sw.js` — se il
+  browser tiene il vecchio worker, la PWA non scopre mai una versione nuova.
+- Se non c'è nulla in attesa non fa e non mostra nulla: l'avviso esplicito resta di
+  `UpdateBanner`.
+
+### Debito annotato (non risolto, come richiesto dal prompt)
+- **`workouts.focus` ha valori storicamente incoerenti**: `Z-3`, `Z4`, `NM - Neuromuscolare`,
+  `Z-2 - Resistenza`, `Easy Speed to All Out`, `Neuromuscolare`, `Z-2/3`. Convivono
+  formato-zona e prosa nella stessa colonna, e `/coach/open` ci fa sopra il ranking "Focus
+  più scelti" — che quindi conta come distinti valori che sono la stessa cosa. **Non
+  normalizzato ora**, per scelta esplicita.
+- Motore di raccomandazione basato su storico: fuori scope, resta in backlog.
+
+### Verifica
+`tsc --noEmit` pulito, `next build` completo, **92/92 test passati** (10 skip, quelli che
+richiedono il DB live). `eslint`: 3 errori + 2 warning **preesistenti** (`home-greeting.tsx`,
+`assistant-widget.tsx`, `app/app/page.tsx`, `coach/agenda/actions.ts`), nessuno nei file
+toccati.
+
 ## 🔧 Hotfix post-lancio — slot fantasma lezioni di gruppo + Distribuzione carico vuota (30 ago notte, migration_052)
 
 Due bug reali segnalati subito dopo il merge di PR #52 (live in produzione). Gate 🛑

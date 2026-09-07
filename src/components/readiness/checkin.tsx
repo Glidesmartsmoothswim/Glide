@@ -158,7 +158,12 @@ function PostForm({ workouts }: { workouts: WorkoutOpt[] }) {
                   : w.kind === "self"
                     ? "Tuo"
                     : "Scheda"}
-                {w.week_day ? ` ${w.week_day}` : ""} · {w.title}
+                {/* TASK 5 — il Canale Open non ha più un giorno assegnato:
+                    l'etichetta resta per 'self'/'personal'. */}
+                {w.kind !== "open_channel" && w.week_day
+                  ? ` ${w.week_day}`
+                  : ""}{" "}
+                · {w.title}
               </option>
             ))}
           </select>

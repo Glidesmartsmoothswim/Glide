@@ -32,8 +32,9 @@ export function CoachWorkoutCard({
     title: w.title,
     focus: w.focus,
     pool: w.pool ?? 25,
-    week_day: w.week_day ?? "Lun",
     blocks: w.blocks,
+    scale_down: w.scale_down,
+    scale_up: w.scale_up,
   };
 
   return (

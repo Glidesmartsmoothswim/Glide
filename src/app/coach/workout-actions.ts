@@ -17,6 +17,10 @@ function parseBlocks(raw: string): Block[] {
   }
 }
 
+/** Testo libero opzionale (note di scalatura): vuoto → null, mai stringa vuota. */
+const optText = (v: FormDataEntryValue | null): string | null =>
+  String(v ?? "").trim() || null;
+
 /** Scheda personale 1:1 → workouts(kind='personal', swimmer_id). */
 export async function savePersonalWorkout(
   _prev: WorkoutFormState,
@@ -48,6 +52,8 @@ export async function savePersonalWorkout(
       week_day: weekDayOf(),
       blocks,
       total_meters: woMeters(blocks),
+      scale_down: optText(formData.get("scale_down")),
+      scale_up: optText(formData.get("scale_up")),
       published_at: new Date().toISOString(),
     })
     .select("id")
@@ -58,7 +64,7 @@ export async function savePersonalWorkout(
   return { info: "Salvato in scheda.", workoutId: data?.id as string };
 }
 
-/** Canale Open → workouts(kind='open_channel', week_day, visibile a tutti). */
+/** Canale Open → workouts(kind='open_channel', visibile a tutti gli Open). */
 export async function saveOpenWorkout(
   _prev: WorkoutFormState,
   formData: FormData,
@@ -78,13 +84,19 @@ export async function saveOpenWorkout(
       title,
       focus: String(formData.get("focus") ?? "").trim() || null,
       pool: Number(formData.get("pool") ?? 25),
-      week_day: String(formData.get("week_day") ?? "Lun"),
+      // PROMPT_CODE_ALLENAMENTI_OPEN TASK 5: nel Canale Open il giorno non si
+      // assegna più — l'atleta sceglie quando svolgere la seduta in base alla
+      // propria disponibilità in vasca. La colonna resta (la usa kind='self'),
+      // ma qui non si popola: nuovi insert → null.
+      week_day: null,
       // Onda 12.3: settimana di pubblicazione (default: settimana corrente).
       week_start:
         normalizeToMonday(String(formData.get("week_start") ?? "")) ??
         currentMonday(),
       blocks,
       total_meters: woMeters(blocks),
+      scale_down: optText(formData.get("scale_down")),
+      scale_up: optText(formData.get("scale_up")),
       published_at: new Date().toISOString(),
     })
     .select("id")
@@ -130,10 +142,13 @@ export async function updateWorkout(
     pool: Number(formData.get("pool") ?? 25),
     blocks,
     total_meters: woMeters(blocks),
+    scale_down: optText(formData.get("scale_down")),
+    scale_up: optText(formData.get("scale_up")),
     updated_at: new Date().toISOString(),
   };
-  if (existing.kind === "open_channel" && formData.get("week_day"))
-    patch.week_day = String(formData.get("week_day"));
+  // TASK 5 — niente week_day sul Canale Open: l'editor non lo manda più e la
+  // modifica non lo tocca. Sui record storici il valore resta com'è (nessun
+  // backfill), semplicemente non viene più mostrato.
   if (existing.kind === "open_channel" && formData.get("week_start"))
     patch.week_start = normalizeToMonday(String(formData.get("week_start")));
 
