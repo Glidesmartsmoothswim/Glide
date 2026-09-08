@@ -97,8 +97,17 @@ quando il database rifiutava l'alternativa.
 - **Nuotatore** — quando la lezione non è coperta da credito o token, sceglie fra **Bonifico**
   (default, è il metodo principale per ADR-014/016) e **Contanti in vasca**. Appena conferma,
   in pagina: intestatario, IBAN e causale. Le coordinate vengono dal server (`app_config`,
-  stessa fonte del flusso abbonamenti, mai in env né nel repo); se non sono configurate il
-  messaggio rimanda al coach — nessun crash, stesso spirito di `flags.ts`.
+  stessa fonte del flusso abbonamenti, mai in env né nel repo).
+- **Mail automatica** (`lib/payment/booking-transfer.ts`) — le coordinate a schermo si perdono
+  al primo cambio pagina, e chi prenota dalla vasca paga stasera: parte anche una mail con
+  IBAN, causale e **QR EPC069-12**, la stessa struttura già collaudata sugli abbonamenti
+  (`request.ts`), non una seconda implementazione. Non lancia mai: una prenotazione valida non
+  deve fallire perché l'email non parte.
+  **Le due strade non si escludono, si coprono.** Se la mail non può partire — IBAN non
+  configurato, nuotatore senza email, `RESEND_API_KEY` assente, Resend che rifiuta — il coach
+  riceve una notifica `pay` **con dentro il motivo**, e il messaggio a video non promette una
+  mail che non arriverà: dice di segnarsi le coordinate ora, o che sarà Alessio a scrivere.
+  L'unica alternativa accettabile a una mail che non parte è una persona che se ne accorge.
 - **Causale** — `bookingCausale` estende quella fissa con la data della lezione
   (`GLIDE - Nome Cognome - c6bc13 - lezione 13/09`). Senza, l'incasso di una lezione e la rata
   dell'abbonamento arrivano in banca con la stessa identica causale. La data è in fuso Roma,

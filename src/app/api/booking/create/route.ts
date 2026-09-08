@@ -21,7 +21,7 @@ import {
   PAYMENT_METHOD_LABEL,
   type ManualPaymentMethod,
 } from "@/lib/payment/methods";
-import { bankTransferDetails } from "@/lib/payment/bank";
+import { sendBookingTransferEmail } from "@/lib/payment/booking-transfer";
 import { bookingCausale } from "@/lib/payment/message";
 
 export const runtime = "nodejs";
@@ -270,22 +270,37 @@ export async function POST(req: Request) {
     `${service.name} · ${whenLabel} — in attesa di conferma dal coach.`,
   );
 
-  // Bonifico: le coordinate servono ADESSO, non in una mail che forse
-  // arriva. Stessa fonte del flusso abbonamenti (`app_config`, mai in env né
-  // nel repo): se non sono configurate si torna `null` e la UI dice di
-  // chiedere al coach, come già fa l'email di attivazione — nessun crash.
-  const bankTransfer =
-    paymentMethod === "bank_transfer"
-      ? await (async () => {
-          const bank = await bankTransferDetails(admin);
-          return bank
-            ? {
-                ...bank,
-                causale: bookingCausale(swimmerName, profile.id, startsAt),
-              }
-            : null;
-        })()
+  // Bonifico: le coordinate servono a schermo SUBITO (chi prenota vuole
+  // vederle) e per email (chi paga stasera le ha perse cambiando pagina).
+  // Se la mail non parte non resta il vuoto: se ne accorge il coach, che le
+  // manda a mano. Le due strade non si escludono, si coprono.
+  let bankTransfer: {
+    iban: string;
+    holder: string;
+    causale: string;
+    emailSent: boolean;
+  } | null = null;
+
+  if (paymentMethod === "bank_transfer" && manualMethod) {
+    const causale = bookingCausale(swimmerName, profile.id, startsAt);
+    const mail = await sendBookingTransferEmail(admin, {
+      to: profile.email ?? null,
+      firstName: profile.first_name ?? null,
+      serviceName: service.name,
+      whenLabel,
+      amountCents: cashPriceCents,
+      causale,
+    });
+    bankTransfer = mail.bank
+      ? { ...mail.bank, causale, emailSent: mail.sent }
       : null;
+    if (!mail.sent)
+      await notifyCoaches(
+        "pay",
+        "Coordinate bonifico da mandare a mano",
+        `${swimmerName} — ${service.name} · ${whenLabel} · €${(cashPriceCents / 100).toFixed(0)}. Email non partita (${mail.failure}): le coordinate non gli sono arrivate.`,
+      );
+  }
 
   return Response.json({
     ok: true,

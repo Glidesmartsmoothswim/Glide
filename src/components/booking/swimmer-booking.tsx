@@ -22,8 +22,16 @@ type Svc = {
   duration_min: number;
   price_cents: number;
 };
-/** Coordinate restituite dalla route dopo una prenotazione a bonifico. */
-type BankTransfer = { iban: string; holder: string; causale: string };
+/** Coordinate restituite dalla route dopo una prenotazione a bonifico.
+ *  `emailSent` dice se ne è partita anche la copia via email: se no, il
+ *  messaggio non promette una mail che non arriverà (il coach è già stato
+ *  avvisato lato server di mandarle a mano). */
+type BankTransfer = {
+  iban: string;
+  holder: string;
+  causale: string;
+  emailSent: boolean;
+};
 type Credit = {
   remoteAllowed: boolean;
   canBookExtra: boolean;
@@ -149,12 +157,15 @@ export function SwimmerBooking({
         j.amountCents != null ? `€${Math.round(j.amountCents / 100)}` : null;
       // Le coordinate arrivano dal server (app_config), mai scritte qui: se
       // non sono configurate resta null e il messaggio rimanda al coach.
-      setBank((j.bankTransfer as BankTransfer | null) ?? null);
+      const bt = (j.bankTransfer as BankTransfer | null) ?? null;
+      setBank(bt);
       setMsg(
         j.paymentMethod === "bank_transfer" && importo
-          ? j.bankTransfer
-            ? `Richiesta inviata: in attesa di conferma del coach. Qui sotto le coordinate per il bonifico da ${importo}.`
-            : `Richiesta inviata: in attesa di conferma del coach. Per il bonifico da ${importo} scrivi ad Alessio: ti manda le coordinate.`
+          ? bt
+            ? bt.emailSent
+              ? `Richiesta inviata: in attesa di conferma del coach. Le coordinate per il bonifico da ${importo} sono qui sotto e te le abbiamo mandate anche per email.`
+              : `Richiesta inviata: in attesa di conferma del coach. Qui sotto le coordinate per il bonifico da ${importo} — segnatele ora, l'email non è partita e te le manda Alessio.`
+            : `Richiesta inviata: in attesa di conferma del coach. Per il bonifico da ${importo} ti scrive Alessio con le coordinate: è già stato avvisato.`
           : j.paymentMethod === "cash" && importo
             ? `Richiesta inviata: in attesa di conferma del coach. Il pagamento (${importo}) lo sistemi direttamente con Alessio in vasca.`
             : "Richiesta inviata: in attesa di conferma del coach. La trovi qui sopra fra le tue lezioni.",
