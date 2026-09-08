@@ -31,3 +31,25 @@ export function paymentRequestCopy(
 export function paymentCausale(fullName: string, profileId: string): string {
   return `GLIDE - ${fullName} - ${profileId.slice(-6)}`;
 }
+
+/**
+ * Causale del bonifico per una SINGOLA lezione (ADR-017).
+ *
+ * Stessa intestazione di `paymentCausale` più la data della lezione: senza
+ * quella, l'incasso di una lezione e la rata dell'abbonamento arrivano in
+ * banca con la stessa identica causale, e riconciliarli a mano diventa
+ * indovinare. La data è quella della lezione, non del bonifico: è il dato
+ * che il coach ha davanti in agenda.
+ */
+export function bookingCausale(
+  fullName: string,
+  profileId: string,
+  startsAt: Date,
+): string {
+  const giorno = new Intl.DateTimeFormat("it-IT", {
+    timeZone: "Europe/Rome",
+    day: "2-digit",
+    month: "2-digit",
+  }).format(startsAt);
+  return `${paymentCausale(fullName, profileId)} - lezione ${giorno}`;
+}

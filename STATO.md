@@ -83,6 +83,38 @@ senso, si fa. Si aggiungerà quando servirà un avviso automatico a ridosso dell
 le call tecniche e i check-in Elite avranno un flusso definito: solo allora si saprà se la
 tabella cambia significato (solo call), viene archiviata a favore dei token, o resta com'è.
 
+### Bonifico prenotabile — la parte di codice che M3 sbloccava
+Il vincolo corretto non serve a nulla se poi nessuno può scegliere il bonifico: la UI di
+prenotazione proponeva il solo contante, e non per una scelta di prodotto — `swimmer-booking.tsx`
+aveva `const method = "cash" as const` con un commento che diceva "unico metodo", scritto
+quando il database rifiutava l'alternativa.
+
+- **`lib/payment/methods.ts` (nuovo)** — elenco dei metodi incassati fuori piattaforma,
+  etichette e copy di scelta. È dichiaratamente **il gemello applicativo del vincolo**
+  `payment_status_coherent`: la regola resta scritta due volte (database e codice), ma almeno
+  le due copie si nominano a vicenda e un test lo ricorda. La deriva fra le due è esattamente
+  ciò che ha prodotto M3. Niente `server-only`: lo legge anche la UI del nuotatore.
+- **Nuotatore** — quando la lezione non è coperta da credito o token, sceglie fra **Bonifico**
+  (default, è il metodo principale per ADR-014/016) e **Contanti in vasca**. Appena conferma,
+  in pagina: intestatario, IBAN e causale. Le coordinate vengono dal server (`app_config`,
+  stessa fonte del flusso abbonamenti, mai in env né nel repo); se non sono configurate il
+  messaggio rimanda al coach — nessun crash, stesso spirito di `flags.ts`.
+- **Causale** — `bookingCausale` estende quella fissa con la data della lezione
+  (`GLIDE - Nome Cognome - c6bc13 - lezione 13/09`). Senza, l'incasso di una lezione e la rata
+  dell'abbonamento arrivano in banca con la stessa identica causale. La data è in fuso Roma,
+  con test sul caso che sposta il giorno (23:30 UTC = giorno dopo a Roma).
+- **Coach** — registro di cassa, digest degli incassi in sospeso e "Segna incassato" ora
+  valgono su entrambi i metodi (prima filtravano `payment_method = 'cash'`, cioè avrebbero
+  tenuto fuori dal registro proprio il metodo principale). Badge e righe del registro dicono
+  **quale** metodo: un bonifico si controlla in banca, i contanti si chiedono in vasca.
+- **Ledger** — `payment.collected` registra il metodo reale, non più la costante `"cash"`.
+- **Route** — un `method` ignoto non diventa più contante di nascosto: resta `null` e la
+  richiesta torna indietro con `needsMethod`, invece di prenotare una lezione con un saldo che
+  nessuno ha scelto.
+
+Verificato con `npm run build` (il primo tentativo era fallito per env pubbliche mancanti in
+sandbox, non per il codice: rifatto con env fittizie, build completo).
+
 ### Regressione
 Due file nuovi, stesso pattern `do $$ … raise exception … $$` già in uso nel repo, **eseguiti
 sul DB live dopo l'apply, entrambi passano**:

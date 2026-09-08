@@ -1,6 +1,10 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import {
+  isManualPaymentMethod,
+  PAYMENT_METHOD_LABEL,
+} from "@/lib/payment/methods";
 import { Card, Pill } from "@/components/ui/card";
 import {
   addRule,
@@ -77,6 +81,7 @@ type CashRow = {
   swimmer: string;
   service: string;
   starts_at: string;
+  payment_method: string;
   payment_status: string | null;
   amount_cents: number | null;
   receipt_number: string | null;
@@ -128,13 +133,16 @@ function ModeBadge({ m }: { m: string }) {
   );
 }
 function PayBadge({ b }: { b: Booking }) {
-  // Cash: navy, non rosso — è un promemoria, non un errore (ADR-010).
-  if (b.payment_method === "cash") {
+  // Incasso manuale: navy, non rosso — è un promemoria, non un errore
+  // (ADR-010). Da ADR-017 vale anche per il bonifico, e il badge dice QUALE
+  // dei due: si controlla in due posti diversi, la banca o la tasca.
+  if (isManualPaymentMethod(b.payment_method)) {
     return b.payment_status === "incassato" ? (
-      <Pill tone="ok">Incassato</Pill>
+      <Pill tone="ok">Incassato · {PAYMENT_METHOD_LABEL[b.payment_method]}</Pill>
     ) : (
       <span className="inline-flex items-center rounded-full border border-navy/40 bg-navy/10 px-2.5 py-0.5 text-xs font-semibold text-navy">
-        Da incassare{b.amount_cents != null ? ` · ${euroCents(b.amount_cents)}` : ""}
+        Da incassare · {PAYMENT_METHOD_LABEL[b.payment_method]}
+        {b.amount_cents != null ? ` · ${euroCents(b.amount_cents)}` : ""}
       </span>
     );
   }
@@ -537,26 +545,39 @@ function BookingsTab({ bookings }: { bookings: Booking[] }) {
               </div>
             </form>
           )}
-          {b.payment_method === "cash" && b.payment_status === "da_incassare" && (
-            <form action={markCollected} className="mt-2 flex flex-wrap items-center gap-2">
-              <input type="hidden" name="id" value={b.id} />
-              <input
-                name="receipt_number"
-                placeholder="N° ricevuta (facoltativo)"
-                className="w-44 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              />
-              <button className="rounded-lg bg-navy px-3 py-2 text-sm font-semibold text-white">
-                Segna incassato
-              </button>
-            </form>
-          )}
+          {isManualPaymentMethod(b.payment_method) &&
+            b.payment_status === "da_incassare" && (
+              <form action={markCollected} className="mt-2 flex flex-wrap items-center gap-2">
+                <input type="hidden" name="id" value={b.id} />
+                <input
+                  name="receipt_number"
+                  placeholder="N° ricevuta (facoltativo)"
+                  className="w-44 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+                <button className="rounded-lg bg-navy px-3 py-2 text-sm font-semibold text-white">
+                  Segna incassato
+                </button>
+              </form>
+            )}
         </Card>
       ))}
     </div>
   );
 }
 
-// ---------------- Cassa (ADR-010/011) ----------------
+/** Con che metodo arriva l'incasso: bonifico da controllare in banca o
+ *  contanti da chiedere in vasca. Senza, il registro elenca importi senza
+ *  dire dove andarli a cercare (ADR-017). */
+function MethodTag({ method }: { method: string }) {
+  if (!isManualPaymentMethod(method)) return null;
+  return (
+    <span className="rounded-md border border-border px-1.5 py-0.5 text-xs font-semibold text-muted">
+      {PAYMENT_METHOD_LABEL[method]}
+    </span>
+  );
+}
+
+// ---------------- Cassa (ADR-010/011, esteso da ADR-017) ----------------
 function CassaTab({ cassa }: { cassa: CashRow[] }) {
   const [period, setPeriod] = useState<"tutto" | "mese">("tutto");
   const monthStart = new Date();
@@ -609,6 +630,7 @@ function CassaTab({ cassa }: { cassa: CashRow[] }) {
                 <span className="font-semibold">{r.swimmer}</span>
                 <span className="text-muted">{r.service}</span>
                 <span className="t-small text-muted">{dt(r.starts_at)}</span>
+                <MethodTag method={r.payment_method} />
                 <span className="ml-auto t-data text-navy">
                   {r.amount_cents != null ? euroCents(r.amount_cents) : "—"}
                 </span>
@@ -646,6 +668,7 @@ function CassaTab({ cassa }: { cassa: CashRow[] }) {
                 <span className="font-semibold">{r.swimmer}</span>
                 <span className="text-muted">{r.service}</span>
                 <span className="t-small text-muted">{dt(r.starts_at)}</span>
+                <MethodTag method={r.payment_method} />
                 {r.receipt_number && (
                   <span className="t-small text-muted">ric. {r.receipt_number}</span>
                 )}
