@@ -531,3 +531,61 @@ Il confine sanitario (ADR-004, router L1/L2) resta attivo indipendentemente dal 
 
 **Link**
 Estende ADR-010/ADR-014 (pagamento singolo), ADR-007 (eventi), ADR-008 (booking solo via API server-side). Schema riusato: `lesson_tokens`, `migration_024_token_redeem_fns`, `bookings`, `events`/`event_signups`. Schema da estendere (in attesa di GO): `redeemable_for` su `lesson_tokens`. Riferimento UI: `GLIDE_mockup_nuotatori_segmenti.html`, implementato in `src/app/coach/nuotatori/nuotatori-segments.tsx`.
+
+---
+
+## ADR-016 — Stato di pagamento derivato, pacchetti lezioni prepagati
+
+**Stato:** ACCETTATO — 05/09/2026 (schema e bonifica dati applicati in produzione lo stesso giorno; formalizzato qui l'08/09/2026, il documento era rimasto indietro rispetto al codice — `lib/payment/status.ts` e `lib/payment/packages.ts` si dichiarano ADR-016 da giorni)
+
+**Contesto**
+Il gate di ADR-014 guardava la sola `tier_expires_at`. Non poteva vedere il caso "tier pagante con `payment_status` nullo" — tre profili si erano bloccati esattamente lì. In parallelo serviva un modo di vendere lezioni in blocco senza reintrodurre un incasso automatico.
+
+**Alternative considerate**
+
+1. **Persistere lo stato del gate in colonna**, aggiornato da un cron.
+   Pro: lettura banale, una colonna da leggere.
+   Contro: due fonti di verità che divergono (la scadenza c'è già), e un cron che declassa l'accesso da solo — esattamente ciò che ADR-014 aveva escluso.
+2. **Derivare lo stato da una funzione pura** a ogni lettura — scelta.
+   Pro: nessuna colonna che può contraddire sé stessa, la scadenza resta l'unica fonte, nessun cron.
+   Contro: il rischio è avere due implementazioni parallele che divergono — mitigato facendo di `lib/payment/status.ts` la sorgente unica del contratto.
+
+**Decisione**
+
+Lo stato di pagamento **è derivato, non persistito**. `profiles.payment_status` resta binario e fattuale (ha pagato / non ha pagato); il gate progressivo (`not_applicable` / `due` / `paid` / `grace` / `overdue`) è una funzione pura di `tier`, `payment_status` e `tier_expires_at`, calcolata una volta per richiesta in `getCurrentProfile`. Ogni lettura che decide **cosa l'utente può fare** passa da lì; le letture che registrano il fatto contabile (importo, ricevuta, data incasso) restano dove sono.
+
+**Pacchetti lezioni prepagati.** Un pacchetto emette token, e un token è credito: non si consegna prima dell'incasso. L'ordine non nasce da un insert del client ma dalla RPC `request_package` (SECURITY DEFINER), che congela l'importo dal listino lato server — così il client non propone il proprio prezzo e un ritocco di listino non altera gli ordini pendenti (ADR-008). L'emissione dei token è un trigger idempotente su `tokens_issued_at`: una seconda marcatura "pagato" non raddoppia il credito. Origine token dedicata: `purchase`.
+
+**Conseguenze**
+- Supera il contratto di `lib/payment/gate.ts` (ADR-014).
+- Scadenza obbligatoria in "Segna pagato" e guardia sul form nuotatore: erano le due strade da cui nascevano i profili bloccati.
+- Gli errori di scrittura sui pagamenti sono visibili e loggati, mai silenziosi (`lib/payment/errors.ts`).
+- Le call tecniche sono prenotabili solo col percorso 1:1 attivo, non vendibili a sé.
+
+**Link**
+Supera il gate di ADR-014, che resta valido per l'incasso manuale. Riusa `lesson_tokens` (ADR-015) come contenitore del credito. Schema: `lesson_packages`, `package_purchases`, `request_package`, `issue_package_tokens`.
+
+---
+
+## ADR-017 — La capienza sta nel database, il credito non matura da solo
+
+**Stato:** ACCETTATO — 08/09/2026 (lotto `GLIDE_DB_CHANGES_001`, blocchi M1/M3/M4/M5 applicati sul progetto live; M2 e M6 decisi senza toccare lo schema)
+
+**Contesto**
+Allineamento prototipo ↔ sistema. Tre divergenze di dato e un bug vivo: il vincolo `cash_needs_status` (migration_011) parlava del solo contante, mentre `payment_method` era stato esteso a `bank_transfer` — il database **rifiutava** una prenotazione saldata per bonifico con stato `da_incassare`. Con l'incasso manuale (ADR-014/016) il bonifico è il metodo principale: senza stato, un incasso non è tracciabile.
+
+**Decisione**
+
+1. **La coerenza del pagamento è una regola sul metodo, non sul contante.** `payment_status_coherent` sostituisce `cash_needs_status`: ogni metodo che si incassa fuori piattaforma — contante **e** bonifico — deve portare uno stato di cassa; `credit`/`token`/`free` no. Il nome del vincolo dice la regola, non il caso particolare che l'ha generata.
+2. **La capienza vive in `services.capacity`, non nel codice.** Lezioni di gruppo a 5 (erano 6, valore provvisorio del seed). La regola si scrive su `mode = 'group'`, così un futuro servizio di gruppo la eredita invece di sfuggirle. Il tetto è fatto rispettare dal trigger `bookings_check_capacity` (migration_048), non da un controllo applicativo.
+3. **Il credito lezione non matura con l'abbonamento.** Un token si compra (pacchetti, ADR-016) o lo regala il coach (ADR-015), e vale anche col piano Base gratuito. `grant_monthly_tokens()` droppata, e con lei il suo gemello applicativo `lib/entitlements.ts`: **una decisione di questo tipo non è chiusa finché esiste un secondo percorso che fa la stessa cosa**. I token `mensile` non riscattati sono stati cancellati; quello già riscattato resta, è storia legata a una prenotazione.
+4. **Una soglia che vive nel giudizio non si mette a schema** (M2). Il minimo di 3 iscritti per una lezione di gruppo resta una regola operativa: nessuna colonna `min_capacity`. Da sola non farebbe nulla — nessun trigger la leggerebbe — e irrigidirebbe una scelta che oggi si prende caso per caso. Si aggiungerà quando servirà un avviso automatico, non prima.
+5. **`lesson_credits` resta com'è** (M6). 10 crediti concessi, 2 usati, origine `plan`. Non urgente e non bloccante: si decide se cambia significato (solo call tecniche e check-in Elite), se viene archiviata a favore dei token, o se si accettano due meccanismi paralleli, quando quel flusso avrà una forma.
+
+**Conseguenze**
+- Il bonifico è tracciabile a livello di singola prenotazione. La UI di prenotazione oggi propone ancora il solo contante come metodo alternativo al credito (`api/booking/create`): il database non è più il collo di bottiglia, l'aggiunta della voce "bonifico" è una scelta di prodotto rimasta aperta.
+- Abbassare una capienza non cancella prenotazioni: quelle esistenti restano valide, si blocca solo l'ingresso di nuove. Con una sessione già oltre il nuovo tetto il risultato sarebbe una sessione congelata sopra capienza — per questo la verifica delle sessioni future è parte della procedura, non un optional.
+- `mensile` resta un valore ammesso da `lesson_tokens_source_check`: toglierlo renderebbe non aggiornabile la riga storica che lo usa ancora.
+
+**Link**
+Chiude il lotto `GLIDE_DB_CHANGES_001` (M1/M3/M4/M5 applicati, M2/M6 decisi senza modifiche). Corregge il vincolo di ADR-010/migration_011. Estende ADR-014/ADR-016 (incasso manuale) al livello della singola prenotazione. Tocca ADR-015 (token regalati) e migration_046/048 (capienza di gruppo). Migration: `054_payment_status_coherent`, `055_group_capacity_5`, `056_deprecate_monthly_tokens`. Regressione: `test/db/payment-status-coherent.sql`, `test/db/monthly-tokens-deprecated.sql`.

@@ -19,6 +19,9 @@ declare
 begin
   -- C-7: grant_monthly_tokens non più eseguibile da anon/authenticated
   -- (pensata per il solo cron, service_role/postgres non sono nel revoke).
+  -- Dal 08/09/2026 la funzione non esiste più (migration_056: i token non
+  -- maturano con l'abbonamento) e il check passa a vuoto — resta qui perché
+  -- vale anche come guardia se qualcuno la ricreasse coi vecchi grant.
   select exists (
     select 1 from information_schema.routine_privileges
     where routine_schema = 'public' and routine_name = 'grant_monthly_tokens'

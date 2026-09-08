@@ -5,6 +5,102 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
+## 🗄️ Lotto DB 001 — vincolo pagamenti, capienza gruppo 5, fine dei token mensili (8 set, GLIDE_DB_CHANGES_001.md, modalità supervised)
+
+Quattro blocchi su sei del lotto, **applicati sul progetto live** nell'ordine consigliato
+(M3 → M1 → M4 → M5), con verifica dopo ognuno. M2 e M6 erano decisioni aperte: decise
+entrambe in sessione, **nessuna delle due tocca il database**. Le migration sono anche in
+repo (054/055/056), perché `supabase/migrations/` resta il racconto dello schema anche
+quando l'esecuzione passa da MCP.
+
+### M3 — il vincolo sui pagamenti rifiutava il bonifico ✅ APPLICATA (`054_payment_status_coherent`)
+**Era un bug vivo, non un allineamento.** `bookings.payment_method` era stato esteso a
+`token` e `bank_transfer`, ma `cash_needs_status` (migration_011) parlava ancora del solo
+contante: una prenotazione con metodo bonifico e stato `da_incassare` veniva **rifiutata dal
+database** (23514). Con l'incasso manuale (ADR-014/016) il bonifico è il metodo principale,
+e senza stato non c'è modo di sapere se è stato incassato.
+Vincolo sostituito da `payment_status_coherent`: contante **e** bonifico devono avere uno
+stato di cassa, gli altri metodi no. Nome cambiato perché la regola non parla più solo di
+contanti; aggiunto un `comment on constraint` che dice perché.
+**Dati:** 2 cash/`da_incassare`, 3 credit/NULL, 1 token/NULL — tutte già coerenti, nessuna
+riga bonificata.
+**Prova pratica eseguita dopo l'apply**, su una copia temporanea di `bookings`
+(`create temp table … like … including constraints`, `on commit drop`): stessi CHECK,
+nessuna riga viva toccata, nessun trigger di mezzo. 5 casi su 5 come atteso —
+`bank_transfer`+`da_incassare` **ACCETTATA** (era il bug), `bank_transfer`+NULL rifiutata,
+`cash`+`incassato` accettata, `credit`+NULL accettata, `credit`+`da_incassare` rifiutata.
+
+### M1 — capienza lezioni di gruppo 6 → 5 ✅ APPLICATA (`055_group_capacity_5`)
+`group_30`/`group_45`/`group_60` erano a 6 (valore provvisorio del seed di migration_046).
+Ora 5. Filtro su `mode = 'group'`, non su un elenco di codici: un futuro servizio di gruppo
+eredita la regola invece di sfuggirle. `pool_*` e `call_*` restano a 1, verificato dopo.
+**Pre-verifica rieseguita subito prima dell'apply** (nessuna sessione di gruppo futura oltre
+i 5 iscritti → 0 righe): abbassare il tetto non cancella nulla, ma con una sessione già a 6
+avrebbe congelato quelle prenotazioni in uno stato oltre capienza.
+
+### M4 — via la maturazione automatica dei token ✅ APPLICATA (`056_deprecate_monthly_tokens`)
+Decisione: un token si compra (pacchetti, ADR-016) o lo regala il coach (ADR-015), e vale
+anche col piano Base gratuito. Non matura per il fatto di avere un abbonamento attivo.
+`grant_monthly_tokens()` **droppata**, non solo deprecata — ricognizione dei chiamanti prima,
+tutti esclusi: pg_cron non installato (lo `cron.schedule` in coda a migration_024 non è mai
+stato eseguito qui), EXECUTE ai soli `postgres`/`service_role` (fix C-7, migration_039),
+nessun workflow GitHub Actions (`.github/` ha solo dependabot.yml), i due cron di Vercel sono
+`/api/cron/digest` e `/api/cron/video-purge` e non la chiamano, l'unica Edge Function attiva
+(`send-payment-email`) non la nomina, e `grep -rn grant_monthly_tokens` nel repo trova solo
+migration passate, documentazione e test.
+**Il gemello applicativo se n'è andato con lo stesso commit**, ed è la parte che il lotto non
+poteva vedere: `lib/entitlements.ts` (`grantMonthlyTokenIfMissing`, chiamata da
+`coach/nuotatori/actions.ts` e `lib/coach/create-swimmer.ts`) accreditava un token `mensile`
+via client admin all'assegnazione del servizio 1:1 — stessa maturazione automatica, percorso
+diverso. Droppare solo la funzione avrebbe lasciato il comportamento vivo nell'app.
+File rimosso per intero: `hasOneToOne` esisteva solo per fare da guardia a quella chiamata.
+**Nota sull'apply:** il primo tentativo è fallito (42P01) sul blocco di guardia che
+disinnesca il job pg_cron — PL/pgSQL pianifica l'espressione intera, quindi `cron.job`
+inesistente rompe anche il ramo che non viene mai eseguito. Riscritto in SQL dinamico
+(`execute`), come già faceva il test.
+
+### M5 — token residui della fase di test ✅ APPLICATA (stessa migration)
+6 token `mensile` non riscattati cancellati. **Cinque erano già scaduti** (`expires_at`
+luglio/agosto): il rischio reale era **un** token vivo (emesso l'1 settembre, valido fino al
+30) su un nuotatore che oggi non ne avrebbe diritto. Cancellati tutti e sei comunque:
+l'origine non esiste più, tenerli sarebbe stato tenere credito senza una regola che lo
+giustifichi.
+Il settimo, **già riscattato, non toccato**: è storia legata a una prenotazione
+(`redeemed_booking_id`), se ne va con la pulizia dei dati dei tester già in programma. Per
+questo il filtro è su `redeemed_at is null` e non sulla sola origine.
+`mensile` resta un valore ammesso da `lesson_tokens_source_check` proprio per quella riga:
+toglierlo dal CHECK la renderebbe non aggiornabile.
+**Verifica finale:** funzione assente, `mensile` con 0 non usati e 1 totale.
+
+### M2 — minimo 3 iscritti · decisa: **opzione A, nessuna modifica al database**
+La soglia resta una regola operativa (copy dell'app + decisione del coach caso per caso). La
+colonna `min_capacity` da sola non farebbe nulla — nessun trigger la leggerebbe — e
+irrigidirebbe una scelta che oggi vive bene nel giudizio: se sono in due e la sessione ha
+senso, si fa. Si aggiungerà quando servirà un avviso automatico a ridosso della sessione.
+
+### M6 — `lesson_credits` · decisa: **lasciare com'è**
+10 crediti concessi, 2 usati, origine `plan`. Non urgente, non blocca nulla. Si decide quando
+le call tecniche e i check-in Elite avranno un flusso definito: solo allora si saprà se la
+tabella cambia significato (solo call), viene archiviata a favore dei token, o resta com'è.
+
+### Regressione
+Due file nuovi, stesso pattern `do $$ … raise exception … $$` già in uso nel repo, **eseguiti
+sul DB live dopo l'apply, entrambi passano**:
+- `test/db/payment-status-coherent.sql` — `cash_needs_status` sparito,
+  `payment_status_coherent` presente e comprensivo di entrambi i metodi, **e la regola vera
+  sui dati** (un vincolo aggiunto `NOT VALID` passerebbe il solo check strutturale).
+- `test/db/monthly-tokens-deprecated.sql` — funzione assente, nessun job pg_cron residuo
+  (in SQL dinamico, così il file gira anche dove pg_cron non c'è), nessun token `mensile`
+  spendibile.
+Annotato anche in `test/security/rpc-ownership-lesson-tokens.sql`: il check C-7 ora passa a
+vuoto (la funzione non esiste più) e resta come guardia se qualcuno la ricreasse coi vecchi
+grant.
+
+### Fuori lotto, trovato strada facendo
+`lib/tokens.ts` dichiarava `TokenSource = "mensile" | "coach"`, ma il CHECK del database
+ammette anche `purchase` (i token dei pacchetti, ADR-016): un token comprato veniva letto con
+un tipo che diceva il falso. Tipo allineato al database, con `mensile` marcato legacy.
+
 ## 🏊 Canale Open leggibile — note di coaching, scalatura scritta, via il giorno (7 set, PROMPT_CODE_ALLENAMENTI_OPEN.md, modalità supervised)
 
 Obiettivo: separare la **prosa del coach** dalle **sigle delle serie**, sostituire la

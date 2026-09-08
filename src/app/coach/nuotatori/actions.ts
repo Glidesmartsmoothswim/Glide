@@ -5,8 +5,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/auth";
 import { createSwimmerAccount } from "@/lib/coach/create-swimmer";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { hasOneToOne, grantMonthlyTokenIfMissing } from "@/lib/entitlements";
 import { TIERS, type Tier } from "@/lib/access";
 import { titleCaseName } from "@/lib/profile/name";
 import type { ServiceType, SwimmerStatus } from "@/lib/types";
@@ -69,14 +67,6 @@ export async function updateSwimmer(
 
   const { error } = await supabase.from("profiles").update(patch).eq("id", id);
   if (error) return { error: error.message };
-
-  // Onda 19: chi ha il servizio 1:1 ha diritto al token "lezione inclusa" del
-  // mese. Lo accreditiamo subito all'assegnazione (se non già presente): il
-  // rinnovo mensile lo fa poi il cron.
-  if (hasOneToOne(patch.service_type)) {
-    const admin = createAdminClient();
-    if (admin) await grantMonthlyTokenIfMissing(admin, id);
-  }
 
   revalidatePath(`/coach/nuotatori/${id}`);
   revalidatePath("/coach/nuotatori");
