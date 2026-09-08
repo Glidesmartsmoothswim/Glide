@@ -22,16 +22,6 @@ type Svc = {
   duration_min: number;
   price_cents: number;
 };
-/** Coordinate restituite dalla route dopo una prenotazione a bonifico.
- *  `emailSent` dice se ne è partita anche la copia via email: se no, il
- *  messaggio non promette una mail che non arriverà (il coach è già stato
- *  avvisato lato server di mandarle a mano). */
-type BankTransfer = {
-  iban: string;
-  holder: string;
-  causale: string;
-  emailSent: boolean;
-};
 type Credit = {
   remoteAllowed: boolean;
   canBookExtra: boolean;
@@ -96,7 +86,6 @@ export function SwimmerBooking({
   // qui. Prima questa costante era 'cash' e basta — non per una scelta di
   // prodotto, ma perché il vincolo del database rifiutava il bonifico.
   const [method, setMethod] = useState<ManualPaymentMethod>("bank_transfer");
-  const [bank, setBank] = useState<BankTransfer | null>(null);
   const [useToken, setUseToken] = useState(true);
   const tokensAvailable = svc ? tokensByType[tokenTypeForService(svc.code)] : 0;
   const [msg, setMsg] = useState<string | null>(null);
@@ -109,7 +98,6 @@ export function SwimmerBooking({
     setSlot(null);
     setMsg(null);
     setOk(false);
-    setBank(null);
     const init: Record<string, string[] | null> = {};
     days.forEach((d) => (init[d] = null));
     setSlotsByDay(init);
@@ -155,16 +143,12 @@ export function SwimmerBooking({
       setOk(true);
       const importo =
         j.amountCents != null ? `€${Math.round(j.amountCents / 100)}` : null;
-      // Le coordinate arrivano dal server (app_config), mai scritte qui: se
-      // non sono configurate resta null e il messaggio rimanda al coach.
-      const bt = (j.bankTransfer as BankTransfer | null) ?? null;
-      setBank(bt);
+      // ADR-018 — le coordinate non passano di qui: dal server torna solo se
+      // la mail è partita. L'IBAN del coach non entra in una pagina.
       setMsg(
         j.paymentMethod === "bank_transfer" && importo
-          ? bt
-            ? bt.emailSent
-              ? `Richiesta inviata: in attesa di conferma del coach. Le coordinate per il bonifico da ${importo} sono qui sotto e te le abbiamo mandate anche per email.`
-              : `Richiesta inviata: in attesa di conferma del coach. Qui sotto le coordinate per il bonifico da ${importo} — segnatele ora, l'email non è partita e te le manda Alessio.`
+          ? j.transferMailSent
+            ? `Richiesta inviata: in attesa di conferma del coach. Ti abbiamo mandato per email le coordinate per il bonifico da ${importo}.`
             : `Richiesta inviata: in attesa di conferma del coach. Per il bonifico da ${importo} ti scrive Alessio con le coordinate: è già stato avvisato.`
           : j.paymentMethod === "cash" && importo
             ? `Richiesta inviata: in attesa di conferma del coach. Il pagamento (${importo}) lo sistemi direttamente con Alessio in vasca.`
@@ -192,29 +176,6 @@ export function SwimmerBooking({
     <div className="flex flex-col gap-4">
       {ok && msg && (
         <p className="rounded-lg bg-blu/10 px-3 py-2 t-small text-blu">{msg}</p>
-      )}
-      {ok && bank && (
-        <Card className="border-navy/40">
-          <p className="t-label text-muted">Coordinate per il bonifico</p>
-          <dl className="mt-2 flex flex-col gap-2">
-            {[
-              ["Intestatario", bank.holder],
-              ["IBAN", bank.iban],
-              ["Causale", bank.causale],
-            ].map(([voce, valore]) => (
-              <div key={voce}>
-                <dt className="t-small text-muted">{voce}</dt>
-                {/* break-all: un IBAN non deve uscire dallo schermo del
-                    telefono, si copia a mano dalla vasca. */}
-                <dd className="break-all font-bold">{valore}</dd>
-              </div>
-            ))}
-          </dl>
-          <p className="t-small mt-2 text-muted">
-            Scrivi la causale così com&apos;è: è quella che fa riconoscere il
-            tuo bonifico senza doverlo chiedere.
-          </p>
-        </Card>
       )}
 
       {/* 1 · servizio */}

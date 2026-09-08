@@ -55,6 +55,15 @@ export function buildEpcPayload({
 }
 
 /** SVG del QR, per embed diretto in una pagina server-rendered (nessun round-trip immagine). */
+/**
+ * ⚠️ ADR-018 — NON renderizzare questo QR dentro una pagina dell'app: il
+ * payload EPC contiene l'IBAN **in chiaro**, quindi mostrarlo equivale a
+ * scrivere l'IBAN a schermo. Era esattamente ciò che faceva
+ * `payment-request-card.tsx` prima di ADR-018. Il QR va solo nelle email
+ * (lì si usa la variante PNG, `epcQrPngBuffer`), a un destinatario noto.
+ * Questa versione SVG resta per un uso lato coach o per un export, non per
+ * la UI del nuotatore.
+ */
 export async function epcQrSvg(info: EpcPaymentInfo): Promise<string> {
   return QRCode.toString(buildEpcPayload(info), {
     type: "svg",

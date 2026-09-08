@@ -4,7 +4,11 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { requestPackage } from "@/lib/payment/packages";
+import { requestPackage, pendingPurchase } from "@/lib/payment/packages";
+import { sendTransferCoordinates } from "@/lib/payment/transfer-email";
+import { paymentCausale } from "@/lib/payment/message";
+import { notifyCoaches } from "@/lib/notify";
+import { fullName } from "@/lib/types";
 import {
   buildWithdrawalWaiver,
   withdrawalWaived,
@@ -171,7 +175,32 @@ export async function requestLessonPackage(fd: FormData) {
 
   const supabase = await createClient();
   const { error } = await requestPackage(supabase, packageId);
-  if (!error) redirect("/app/abbonamenti?pkg=1");
+  if (!error) {
+    // ADR-018 — le coordinate non compaiono più nella pagina: se non parte
+    // questa mail, chi ha ordinato non sa dove pagare. Il pacchetto è già
+    // ordinato e resta valido comunque (l'invio non lancia mai), ma se
+    // fallisce il coach lo deve sapere subito, con nome e importo davanti.
+    const admin = createAdminClient();
+    const ordine = admin ? await pendingPurchase(admin, profile.id) : null;
+    if (admin && ordine) {
+      const nome = fullName(profile);
+      const mail = await sendTransferCoordinates(admin, {
+        to: profile.email ?? null,
+        firstName: profile.first_name ?? null,
+        subject: `Pacchetto ${ordine.quantity} lezioni — coordinate per il bonifico`,
+        intro: `Hai richiesto il pacchetto da ${ordine.quantity} lezioni. I token arrivano appena il coach registra l'incasso.`,
+        amountCents: ordine.amount_cents,
+        causale: paymentCausale(nome, profile.id),
+      });
+      if (!mail.sent)
+        await notifyCoaches(
+          "pay",
+          "Coordinate bonifico da mandare a mano",
+          `${nome} — pacchetto ${ordine.quantity} lezioni · €${(ordine.amount_cents / 100).toFixed(0)}. Email non partita (${mail.failure}): le coordinate non gli sono arrivate.`,
+        );
+    }
+    redirect("/app/abbonamenti?pkg=1");
+  }
 
   // Come per l'attivazione: nella URL va un CODICE, mai il testo dell'errore.
   // Un messaggio libero in query string è testo che chiunque può far

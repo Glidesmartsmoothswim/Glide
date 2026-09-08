@@ -39,7 +39,8 @@ export const PAYMENT_METHOD_CHOICE: Record<
 > = {
   bank_transfer: {
     title: "Bonifico",
-    hint: "Ti do IBAN e causale appena confermi.",
+    // ADR-018: le coordinate arrivano per email, non compaiono nell'app.
+    hint: "Ti arrivano IBAN e causale per email.",
   },
   cash: {
     title: "Contanti in vasca",

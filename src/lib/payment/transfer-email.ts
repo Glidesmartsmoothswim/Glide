@@ -6,24 +6,31 @@ import { bankTransferDetails, type BankTransferDetails } from "./bank";
 import { epcQrPngBuffer } from "./epc-qr";
 
 /**
- * ADR-017 — Coordinate del bonifico per una SINGOLA lezione, via email.
+ * ADR-018 — Le coordinate di incasso viaggiano SOLO per email, a una persona
+ * sola, mai a schermo dentro l'app.
  *
- * Le coordinate mostrate a schermo dopo la prenotazione si perdono al primo
- * cambio pagina: chi prenota dalla vasca paga stasera, non adesso. L'email è
- * la copia che resta, con lo stesso QR EPC069-12 già in uso per gli
- * abbonamenti (`request.ts`) — stessa struttura, stessa fonte per IBAN e
- * intestatario (`app_config`, mai in env né nel repo).
+ * L'IBAN del coach è un suo dato personale: dentro l'app sarebbe esposto a
+ * chiunque entri con un account (o, prima di ADR-018, a chiunque avesse la
+ * chiave anon — cioè al mondo). Un'email è una comunicazione privata a un
+ * destinatario noto, con la responsabilità sul canale di posta. Nessun
+ * componente client riceve più IBAN/intestatario: passano da qui, con il
+ * client ADMIN (service_role), e finiscono solo nel corpo del messaggio.
  *
- * Non lancia mai: una prenotazione valida non deve fallire perché l'email
- * non parte. L'esito torna al chiamante, che decide cosa dire al nuotatore e
- * se avvisare il coach — l'unica alternativa accettabile a una mail che non
+ * Vale per tutti i flussi che prima mostravano il riquadro a video:
+ * prenotazione di una lezione a bonifico e acquisto di un pacchetto. Il
+ * QR EPC069-12 contiene l'IBAN in chiaro, quindi segue la stessa regola:
+ * solo nell'email, mai nella pagina.
+ *
+ * Non lancia mai: una prenotazione o un ordine validi non devono fallire
+ * perché l'email non parte. L'esito torna al chiamante, che decide cosa dire
+ * e se avvisare il coach — l'unica alternativa accettabile a una mail che non
  * parte è una persona che se ne accorge.
  */
 
 export type TransferMailFailure =
   /** IBAN/intestatario non ancora in `app_config`: non c'è cosa mandare. */
   | "no_bank"
-  /** Il nuotatore non ha un'email a cui scrivere. */
+  /** Il destinatario non ha un'email a cui scrivere. */
   | "no_email"
   /** RESEND_API_KEY assente: modalità simulata, come il resto dell'app. */
   | "no_resend"
@@ -32,30 +39,33 @@ export type TransferMailFailure =
 
 export type TransferMailOutcome = {
   sent: boolean;
-  /** Presenti se configurate: servono anche alla UI, che le mostra a schermo. */
-  bank: BankTransferDetails | null;
   /** Perché non è partita. `null` quando è partita. */
   failure: TransferMailFailure | null;
 };
 
-export async function sendBookingTransferEmail(
+/**
+ * NB: il valore di ritorno NON contiene le coordinate, di proposito. Prima le
+ * restituiva, e da lì finivano nella risposta JSON della route e poi a video:
+ * è esattamente la strada che ADR-018 chiude.
+ */
+export async function sendTransferCoordinates(
   admin: SupabaseClient,
   input: {
     to: string | null;
     firstName: string | null;
-    serviceName: string;
-    whenLabel: string;
+    subject: string;
+    /** Che cosa si sta pagando, già scritto in italiano ("la lezione …"). */
+    intro: string;
     amountCents: number;
     causale: string;
   },
 ): Promise<TransferMailOutcome> {
-  const bank = await bankTransferDetails(admin);
-  if (!bank) return { sent: false, bank: null, failure: "no_bank" };
-  if (!input.to) return { sent: false, bank, failure: "no_email" };
-  if (!serverFeatures().resend)
-    return { sent: false, bank, failure: "no_resend" };
+  const bank: BankTransferDetails | null = await bankTransferDetails(admin);
+  if (!bank) return { sent: false, failure: "no_bank" };
+  if (!input.to) return { sent: false, failure: "no_email" };
+  if (!serverFeatures().resend) return { sent: false, failure: "no_resend" };
   const resend = getResend();
-  if (!resend) return { sent: false, bank, failure: "no_resend" };
+  if (!resend) return { sent: false, failure: "no_resend" };
 
   const importo = `€${(input.amountCents / 100).toFixed(2)}`;
   // Nessun QR se la generazione fallisce: l'email parte comunque con IBAN e
@@ -71,7 +81,7 @@ export async function sendBookingTransferEmail(
     .send({
       from: emailFrom(),
       to: input.to,
-      subject: `Prenotazione ricevuta — coordinate per il bonifico`,
+      subject: input.subject,
       attachments: qrPng
         ? [
             {
@@ -85,8 +95,8 @@ export async function sendBookingTransferEmail(
       html: `
       <div style="font-family:Arial,sans-serif;color:#0B1220;line-height:1.5">
         <h2 style="color:#0E5EAB">Ciao ${esc(input.firstName || "nuotatore")},</h2>
-        <p>Abbiamo ricevuto la tua richiesta per <b>${esc(input.serviceName)}</b> — ${esc(input.whenLabel)}.</p>
-        <p>È in attesa di conferma del coach. Per il saldo, bonifico di <b>${importo}</b>:</p>
+        <p>${esc(input.intro)}</p>
+        <p>Per il saldo, bonifico di <b>${importo}</b>:</p>
         <p><b>IBAN:</b> ${esc(bank.iban)}<br/><b>Intestatario:</b> ${esc(bank.holder)}<br/><b>Causale:</b> ${esc(input.causale)}</p>
         ${qrPng ? `<p><img src="cid:epc-qr" alt="QR bonifico SEPA" width="220" height="220" /><br/><span style="color:#5b6b7b;font-size:12px">Inquadra con l'app della tua banca: importo e causale sono già precompilati.</span></p>` : ""}
         <p style="color:#5b6b7b;font-size:13px">Scrivi la causale così com'è: è quella che fa riconoscere il tuo bonifico senza doverlo chiedere.</p>
@@ -96,8 +106,8 @@ export async function sendBookingTransferEmail(
     .catch(() => ({ error: { message: "invio fallito" } }))) ?? { error: null };
 
   return error
-    ? { sent: false, bank, failure: "send_failed" }
-    : { sent: true, bank, failure: null };
+    ? { sent: false, failure: "send_failed" }
+    : { sent: true, failure: null };
 }
 
 const esc = (s: string) =>

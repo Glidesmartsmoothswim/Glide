@@ -21,7 +21,7 @@ import {
   PAYMENT_METHOD_LABEL,
   type ManualPaymentMethod,
 } from "@/lib/payment/methods";
-import { sendBookingTransferEmail } from "@/lib/payment/booking-transfer";
+import { sendTransferCoordinates } from "@/lib/payment/transfer-email";
 import { bookingCausale } from "@/lib/payment/message";
 
 export const runtime = "nodejs";
@@ -270,30 +270,23 @@ export async function POST(req: Request) {
     `${service.name} · ${whenLabel} — in attesa di conferma dal coach.`,
   );
 
-  // Bonifico: le coordinate servono a schermo SUBITO (chi prenota vuole
-  // vederle) e per email (chi paga stasera le ha perse cambiando pagina).
-  // Se la mail non parte non resta il vuoto: se ne accorge il coach, che le
-  // manda a mano. Le due strade non si escludono, si coprono.
-  let bankTransfer: {
-    iban: string;
-    holder: string;
-    causale: string;
-    emailSent: boolean;
-  } | null = null;
+  // ADR-018 — Bonifico: le coordinate vanno SOLO per email. Non tornano in
+  // questa risposta e non compaiono a schermo: l'IBAN del coach è un suo dato
+  // personale, e una risposta JSON è leggibile da chiunque apra gli strumenti
+  // del browser. Al client basta sapere se la mail è partita.
+  // Se non parte non resta il vuoto: se ne accorge il coach, che scrive lui.
+  let transferMailSent: boolean | null = null;
 
   if (paymentMethod === "bank_transfer" && manualMethod) {
-    const causale = bookingCausale(swimmerName, profile.id, startsAt);
-    const mail = await sendBookingTransferEmail(admin, {
+    const mail = await sendTransferCoordinates(admin, {
       to: profile.email ?? null,
       firstName: profile.first_name ?? null,
-      serviceName: service.name,
-      whenLabel,
+      subject: "Prenotazione ricevuta — coordinate per il bonifico",
+      intro: `Abbiamo ricevuto la tua richiesta per ${service.name} — ${whenLabel}. È in attesa di conferma del coach.`,
       amountCents: cashPriceCents,
-      causale,
+      causale: bookingCausale(swimmerName, profile.id, startsAt),
     });
-    bankTransfer = mail.bank
-      ? { ...mail.bank, causale, emailSent: mail.sent }
-      : null;
+    transferMailSent = mail.sent;
     if (!mail.sent)
       await notifyCoaches(
         "pay",
@@ -308,6 +301,6 @@ export async function POST(req: Request) {
     payment,
     paymentMethod,
     amountCents: manualMethod ? cashPriceCents : null,
-    bankTransfer,
+    transferMailSent,
   });
 }

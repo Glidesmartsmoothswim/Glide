@@ -5,6 +5,62 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
+## 🔐 L'IBAN esce dall'app — coordinate solo per email (8 set, ADR-018, modalità supervised)
+
+Decisione di Alessio, netta: l'IBAN non deve stare dentro l'app. La mail a una persona sola è
+un'altra cosa e resta.
+
+### Quanto era esposto davvero
+Più di quanto sembrasse. La policy era `"app_config: lettura" SELECT to public using (true)`, e
+`public` **include `anon`**: con la chiave anon — pubblica nel bundle del browser — chiunque
+poteva leggere IBAN e intestatario **senza nemmeno registrarsi**. Non era una svista: il
+commento in `bank.ts` la motivava come "secondo punto di verifica indipendente dall'email"
+(anti-phishing). Motivo sensato, prezzo troppo alto.
+
+### Cosa è stato tolto
+Quattro punti, non tre — il QR era il quarto travestito da immagine (**il payload EPC069-12
+contiene l'IBAN in chiaro**: mostrarlo equivale a scriverlo):
+- `payment-request-card.tsx` (attivazione abbonamento **e** acquisto pacchetti): via IBAN,
+  intestatario e QR. Restano importo e causale — dati della transazione del nuotatore, non del
+  conto del coach.
+- `app/profilo/page.tsx`: via la sezione "Pagamento" con IBAN e intestatario.
+- `swimmer-booking.tsx`: via il riquadro coordinate aggiunto poche ore prima con ADR-017.
+- `api/booking/create`: le coordinate **non tornano più nella risposta JSON** — una risposta
+  JSON la legge chiunque apra gli strumenti del browser. Al client torna solo `transferMailSent`.
+
+### Cosa impedisce che rientri
+`migration_057`: `payment_iban`/`payment_intestatario` leggibili **solo** dal coach (sono i suoi
+dati, e /coach/stato dice se sono configurate senza mostrarne il valore) e dal `service_role`.
+Le altre chiavi restano com'erano — `payment_grace_days` la legge `derivePaymentGate` a ogni
+richiesta dal client RLS del nuotatore, e restringere tutta la tabella avrebbe **rotto il gate ad
+accesso in silenzio**, cadendo sul default senza che nessun errore lo dicesse.
+
+Verificato sul DB live con impersonazione vera, non leggendo il testo della policy:
+- `anon` → vede solo `payment_grace_days`;
+- nuotatore autenticato reale → solo `payment_grace_days`;
+- coach → tutte e tre.
+
+Il test di regressione (`test/db/app-config-iban-private.sql`) fa la stessa cosa, e controlla
+anche che il nuotatore continui a leggere `payment_grace_days`. Un check sul solo testo della
+policy non intercetterebbe una seconda policy permissiva aggiunta accanto: in RLS le policy si
+sommano in **OR**.
+
+### La trappola trovata strada facendo
+L'acquisto di un pacchetto mostrava le coordinate **solo** a schermo e non mandava nessuna
+email (a differenza dell'attivazione abbonamento, che la manda dal 1° settembre). Togliere il
+riquadro e basta avrebbe lasciato chi compra un pacchetto **senza alcun modo di sapere dove
+pagare**. Ora `requestLessonPackage` manda la mail, con lo stesso avviso al coach se non parte.
+
+`lib/payment/booking-transfer.ts` è diventato `transfer-email.ts` e serve due flussi invece di
+uno. Non restituisce più le coordinate al chiamante: era da lì che finivano nel JSON e poi a
+video. L'email di attivazione (`request.ts`) era già conforme e non è stata toccata.
+
+`epcQrSvg` resta, con un avviso in testa: non va renderizzata in una pagina del nuotatore.
+
+**Il prezzo, dichiarato:** si perde la verifica anti-phishing in-app. Chi vuole controllare le
+coordinate lo fa sull'email o chiede al coach. E se la mail non parte il nuotatore non ha altra
+fonte — per questo il coach riceve la notifica col motivo, su entrambi i flussi.
+
 ## 🗄️ Lotto DB 001 — vincolo pagamenti, capienza gruppo 5, fine dei token mensili (8 set, GLIDE_DB_CHANGES_001.md, modalità supervised)
 
 Quattro blocchi su sei del lotto, **applicati sul progetto live** nell'ordine consigliato
