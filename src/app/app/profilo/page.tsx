@@ -7,7 +7,6 @@ import { Card } from "@/components/ui/card";
 import { TIER_LABEL as ACCESS_TIER_LABEL } from "@/lib/access";
 import { daysExpired } from "@/lib/payment/status";
 import type { SubTier } from "@/lib/payment/pricing";
-import { bankTransferDetails } from "@/lib/payment/bank";
 import { PaymentRequestCard } from "@/components/payment/payment-request-card";
 import { ObjectivesManager } from "./objectives-manager";
 import { MfaSettings } from "@/components/account/mfa-settings";
@@ -35,7 +34,7 @@ export default async function SwimmerProfilo() {
   // Onda 14.2: un solo read profili (full+ath erano la stessa riga) e tutte le
   // query indipendenti in parallelo (Promise.all), non a cascata.
   const sid = profile?.id ?? "";
-  const [profRes, objRes, tokRes, pbRes, bank] = await Promise.all([
+  const [profRes, objRes, tokRes, pbRes] = await Promise.all([
     supabase
       .from("profiles")
       .select(
@@ -61,9 +60,6 @@ export default async function SwimmerProfilo() {
       .eq("swimmer_id", sid)
       .order("stile", { ascending: true })
       .order("distanza_m", { ascending: true }),
-    // PROMPT_CODE_PAGAMENTI TASK 2 (01/09/2026): IBAN/intestatario da
-    // app_config, secondo punto di verifica indipendente dall'email.
-    bankTransferDetails(supabase),
   ]);
 
   const me = profRes.data as SwimmerRow | null;
@@ -163,17 +159,7 @@ export default async function SwimmerProfilo() {
             profileId={me.id}
           />
         </section>
-      ) : (
-        bank && (
-          <section className="flex flex-col gap-3">
-            <h2 className="font-display text-lg text-foreground">Pagamento</h2>
-            <Card className="flex flex-col gap-2 text-sm">
-              <Row label="IBAN" value={bank.iban} />
-              <Row label="Intestatario" value={bank.holder} />
-            </Card>
-          </section>
-        )
-      )}
+      ) : null}
 
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">

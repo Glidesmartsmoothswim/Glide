@@ -593,3 +593,42 @@ Allineamento prototipo ↔ sistema. Tre divergenze di dato e un bug vivo: il vin
 
 **Link**
 Chiude il lotto `GLIDE_DB_CHANGES_001` (M1/M3/M4/M5 applicati, M2/M6 decisi senza modifiche). Corregge il vincolo di ADR-010/migration_011. Estende ADR-014/ADR-016 (incasso manuale) al livello della singola prenotazione. Tocca ADR-015 (token regalati) e migration_046/048 (capienza di gruppo). Migration: `054_payment_status_coherent`, `055_group_capacity_5`, `056_deprecate_monthly_tokens`. Regressione: `test/db/payment-status-coherent.sql`, `test/db/monthly-tokens-deprecated.sql`.
+
+---
+
+## ADR-018 — L'IBAN del coach non sta nell'app: esce solo per email
+
+**Stato:** ACCETTATO — 08/09/2026 (decisione esplicita di Alessio, ribadita: "non voglio assolutamente che il mio IBAN sia pubblicato all'interno della app")
+
+**Contesto**
+Le coordinate di incasso (`payment_iban`, `payment_intestatario` in `app_config`) comparivano in tre punti dell'app — riquadro di attivazione/pacchetti (`payment-request-card`), sezione Pagamento del profilo nuotatore, e conferma di prenotazione a bonifico (ADR-017) — più il QR EPC069-12, che **contiene l'IBAN in chiaro** ed era quindi un quarto punto travestito da immagine.
+
+Sotto, la policy RLS `"app_config: lettura" SELECT to public using (true)` rendeva quelle chiavi leggibili da **anon**: la chiave anon è pubblica nel bundle del browser, quindi l'IBAN era di fatto leggibile da chiunque, senza nemmeno registrarsi. La motivazione originale (`bank.ts`: "secondo punto di verifica indipendente dall'email", anti-phishing) era sensata ma pagata troppo cara.
+
+Il rischio non è il prelievo — un addebito SEPA richiede un mandato ed è contestabile — ma l'esposizione di un dato personale del titolare, e la sua concentrazione con gli altri dati dell'app in caso di accesso non autorizzato.
+
+**Alternative considerate**
+
+1. **Solo il QR, senza la riga di testo.** Scartata: il payload EPC contiene l'IBAN in chiaro, qualunque scanner lo legge. Nasconderebbe il dato al titolare, non a un attaccante — e in cambio peggiora la mail (immagini bloccate di default, niente copia-incolla da desktop). Teatro, non sicurezza.
+2. **Restringere solo la RLS**, lasciando i riquadri in pagina. Scartata: le pagine leggono lato server e continuerebbero a stampare l'IBAN nell'HTML servito a ogni nuotatore.
+3. **Coordinate solo per email** — scelta. Un'email è una comunicazione privata verso un destinatario noto, non un dato pubblicato in un'applicazione. Difesa a due livelli: il dato non entra più nella UI *e* non è più leggibile dai client.
+
+**Decisione**
+
+L'IBAN e l'intestatario **non compaiono in nessuna pagina, in nessuna risposta JSON e in nessun QR renderizzato nell'app**. Escono dal sistema per una strada sola: l'email, con il QR in allegato.
+
+- RLS (`migration_057`): `payment_iban`/`payment_intestatario` leggibili solo dal coach (sono i suoi dati) e dal `service_role`. Le altre chiavi restano leggibili come prima — `payment_grace_days` serve a `derivePaymentGate` a ogni richiesta, e restringere tutta la tabella avrebbe rotto il gate ad accesso in silenzio.
+- `bankTransferDetails()` va chiamata **solo** con il client admin: con il client RLS di un nuotatore ora torna `null`, e non è un errore, è la regola.
+- Le pagine perdono il riquadro coordinate; restano importo e causale, che sono dati della transazione del nuotatore, non del conto del coach.
+- L'acquisto di un pacchetto, che prima mostrava le coordinate **solo** a schermo e non mandava alcuna email, ora ne manda una: togliere il riquadro senza aggiungere l'invio avrebbe lasciato chi compra senza modo di pagare.
+- La route di prenotazione non restituisce più le coordinate nel JSON — al client basta sapere se la mail è partita.
+
+**Conseguenze**
+- Si perde la verifica anti-phishing in-app. È il prezzo accettato: chi vuole controllare le coordinate lo fa sull'email, oppure chiede al coach.
+- Se l'email non parte (IBAN non configurato, destinatario senza indirizzo, Resend assente o che rifiuta) **il nuotatore non ha altra fonte**: per questo il coach riceve una notifica `pay` con il motivo, e la copy non promette mai una mail che non è partita. Vale ora per due flussi, prenotazione e pacchetti.
+- `epcQrSvg` resta ma con un avviso esplicito: non va renderizzata in una pagina del nuotatore.
+- L'email di attivazione (`request.ts`) era già conforme — mandava le coordinate solo per email — e non è stata toccata.
+- Test di regressione con **impersonazione vera** (`test/db/app-config-iban-private.sql`): assume i ruoli `anon` e `authenticated` e legge davvero la tabella. Un controllo sul testo della policy non intercetterebbe una seconda policy permissiva aggiunta accanto, dato che in RLS le policy si sommano in OR.
+
+**Link**
+Restringe ADR-016/ADR-017 (incasso manuale) sul canale di comunicazione delle coordinate. Supera la scelta di `PROMPT_CODE_PAGAMENTI` TASK 2 (IBAN in `app_config` a lettura pubblica come secondo punto di verifica). Migration: `057_app_config_iban_private`. Codice: `lib/payment/transfer-email.ts` (ex `booking-transfer.ts`, generalizzato a due flussi), `lib/payment/bank.ts`, `components/payment/payment-request-card.tsx`, `components/booking/swimmer-booking.tsx`, `app/app/profilo/page.tsx`, `app/app/abbonamenti/actions.ts`, `api/booking/create/route.ts`.
