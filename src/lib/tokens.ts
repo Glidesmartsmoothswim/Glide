@@ -2,7 +2,15 @@
  *  Sprint C.1 (ADR-015) — esteso a group_lesson: redeemable_for distingue
  *  su cosa il token è spendibile (lezione privata o di gruppo). */
 
-export type TokenSource = "mensile" | "coach";
+/**
+ * Origine del token, come da `lesson_tokens_source_check`.
+ * - `coach`   — regalo del coach (ADR-015).
+ * - `purchase` — pacchetto prepagato, emesso dal trigger (ADR-016).
+ * - `mensile` — LEGACY: maturazione automatica con l'abbonamento, rimossa
+ *   con migration_056 (GLIDE_DB_CHANGES_001 M4/M5). Nessuna riga nuova
+ *   nasce così; il valore resta ammesso solo per lo storico già riscattato.
+ */
+export type TokenSource = "coach" | "purchase" | "mensile";
 export type TokenRedeemableFor = "private_lesson" | "group_lesson";
 
 export type LessonTokenRow = {

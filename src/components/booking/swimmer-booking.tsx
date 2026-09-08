@@ -4,6 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import type { TokenRedeemableFor } from "@/lib/tokens";
+import {
+  MANUAL_PAYMENT_METHODS,
+  PAYMENT_METHOD_CHOICE,
+  type ManualPaymentMethod,
+} from "@/lib/payment/methods";
 
 /** Tipo di token spendibile per un dato servizio (ADR-015 Sprint C.1):
  *  i codici "group_*" sono lezioni di gruppo, il resto è lezione privata. */
@@ -16,6 +21,16 @@ type Svc = {
   mode: string;
   duration_min: number;
   price_cents: number;
+};
+/** Coordinate restituite dalla route dopo una prenotazione a bonifico.
+ *  `emailSent` dice se ne è partita anche la copia via email: se no, il
+ *  messaggio non promette una mail che non arriverà (il coach è già stato
+ *  avvisato lato server di mandarle a mano). */
+type BankTransfer = {
+  iban: string;
+  holder: string;
+  causale: string;
+  emailSent: boolean;
 };
 type Credit = {
   remoteAllowed: boolean;
@@ -77,9 +92,11 @@ export function SwimmerBooking({
   );
   const [day, setDay] = useState<string | null>(null);
   const [slot, setSlot] = useState<string | null>(null);
-  // ADR-014: Stripe rimosso — 'cash' resta l'unico metodo (bonifico/contanti,
-  // saldato col coach fuori piattaforma).
-  const method = "cash" as const;
+  // ADR-017: il bonifico è il metodo principale (ADR-014/016) ed è il default
+  // qui. Prima questa costante era 'cash' e basta — non per una scelta di
+  // prodotto, ma perché il vincolo del database rifiutava il bonifico.
+  const [method, setMethod] = useState<ManualPaymentMethod>("bank_transfer");
+  const [bank, setBank] = useState<BankTransfer | null>(null);
   const [useToken, setUseToken] = useState(true);
   const tokensAvailable = svc ? tokensByType[tokenTypeForService(svc.code)] : 0;
   const [msg, setMsg] = useState<string | null>(null);
@@ -92,6 +109,7 @@ export function SwimmerBooking({
     setSlot(null);
     setMsg(null);
     setOk(false);
+    setBank(null);
     const init: Record<string, string[] | null> = {};
     days.forEach((d) => (init[d] = null));
     setSlotsByDay(init);
@@ -135,10 +153,22 @@ export function SwimmerBooking({
     setBusy(false);
     if (r.ok) {
       setOk(true);
+      const importo =
+        j.amountCents != null ? `€${Math.round(j.amountCents / 100)}` : null;
+      // Le coordinate arrivano dal server (app_config), mai scritte qui: se
+      // non sono configurate resta null e il messaggio rimanda al coach.
+      const bt = (j.bankTransfer as BankTransfer | null) ?? null;
+      setBank(bt);
       setMsg(
-        j.paymentMethod === "cash" && j.amountCents != null
-          ? `Richiesta inviata: in attesa di conferma del coach. Il pagamento (€${Math.round(j.amountCents / 100)}) lo sistemi direttamente con Alessio in vasca.`
-          : "Richiesta inviata: in attesa di conferma del coach. La trovi qui sopra fra le tue lezioni.",
+        j.paymentMethod === "bank_transfer" && importo
+          ? bt
+            ? bt.emailSent
+              ? `Richiesta inviata: in attesa di conferma del coach. Le coordinate per il bonifico da ${importo} sono qui sotto e te le abbiamo mandate anche per email.`
+              : `Richiesta inviata: in attesa di conferma del coach. Qui sotto le coordinate per il bonifico da ${importo} — segnatele ora, l'email non è partita e te le manda Alessio.`
+            : `Richiesta inviata: in attesa di conferma del coach. Per il bonifico da ${importo} ti scrive Alessio con le coordinate: è già stato avvisato.`
+          : j.paymentMethod === "cash" && importo
+            ? `Richiesta inviata: in attesa di conferma del coach. Il pagamento (${importo}) lo sistemi direttamente con Alessio in vasca.`
+            : "Richiesta inviata: in attesa di conferma del coach. La trovi qui sopra fra le tue lezioni.",
       );
       setSlot(null);
       setSvc(null);
@@ -162,6 +192,29 @@ export function SwimmerBooking({
     <div className="flex flex-col gap-4">
       {ok && msg && (
         <p className="rounded-lg bg-blu/10 px-3 py-2 t-small text-blu">{msg}</p>
+      )}
+      {ok && bank && (
+        <Card className="border-navy/40">
+          <p className="t-label text-muted">Coordinate per il bonifico</p>
+          <dl className="mt-2 flex flex-col gap-2">
+            {[
+              ["Intestatario", bank.holder],
+              ["IBAN", bank.iban],
+              ["Causale", bank.causale],
+            ].map(([voce, valore]) => (
+              <div key={voce}>
+                <dt className="t-small text-muted">{voce}</dt>
+                {/* break-all: un IBAN non deve uscire dallo schermo del
+                    telefono, si copia a mano dalla vasca. */}
+                <dd className="break-all font-bold">{valore}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="t-small mt-2 text-muted">
+            Scrivi la causale così com&apos;è: è quella che fa riconoscere il
+            tuo bonifico senza doverlo chiedere.
+          </p>
+        </Card>
       )}
 
       {/* 1 · servizio */}
@@ -284,13 +337,24 @@ export function SwimmerBooking({
           {!willUseCredit && !willUseToken && (
             <div className="mt-3 flex flex-col gap-2">
               <p className="t-label text-muted">Come paghi</p>
-              <div className="rounded-lg border border-navy bg-navy/10 px-3 py-2 text-left text-sm font-bold">
-                Paga in vasca col coach
-                <span className="block t-small font-normal text-muted">
-                  Il pagamento (€{Math.round(svc.price_cents / 100)}) lo sistemi
-                  direttamente con Alessio.
-                </span>
-              </div>
+              {MANUAL_PAYMENT_METHODS.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  aria-pressed={method === m}
+                  onClick={() => setMethod(m)}
+                  className={`rounded-lg border px-3 py-2 text-left text-sm font-bold ${
+                    method === m
+                      ? "border-navy bg-navy/10"
+                      : "border-border bg-surface hover:border-navy/40"
+                  }`}
+                >
+                  {PAYMENT_METHOD_CHOICE[m].title}
+                  <span className="block t-small font-normal text-muted">
+                    {PAYMENT_METHOD_CHOICE[m].hint}
+                  </span>
+                </button>
+              ))}
             </div>
           )}
           {msg && !ok && <p className="t-small mt-2 text-[#DC2626]">{msg}</p>}

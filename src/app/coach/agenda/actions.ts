@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { isManualPaymentMethod } from "@/lib/payment/methods";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile, type Profile } from "@/lib/auth";
@@ -401,7 +402,14 @@ export async function markCollected(fd: FormData): Promise<void> {
     .select("id, swimmer_id, amount_cents, payment_method, payment_status")
     .eq("id", id)
     .maybeSingle();
-  if (!b || b.payment_method !== "cash" || b.payment_status !== "da_incassare")
+  // ADR-017: si incassa a mano il contante e il bonifico. Il controllo resta
+  // stretto — un booking a credito/token non ha nulla da incassare e il
+  // vincolo del database rifiuterebbe comunque lo stato di cassa.
+  if (
+    !b ||
+    !isManualPaymentMethod(b.payment_method) ||
+    b.payment_status !== "da_incassare"
+  )
     return;
 
   const { error } = await supabase
@@ -427,7 +435,9 @@ export async function markCollected(fd: FormData): Promise<void> {
   await logEvent(supabase, b.swimmer_id, "payment.collected", {
     booking_id: b.id,
     amount_cents: b.amount_cents,
-    method: "cash",
+    // Il metodo vero, non "cash" fisso: il ledger è la storia contabile, e
+    // un bonifico registrato come contante è una riga falsa.
+    method: b.payment_method,
   });
   revalidatePath("/coach/agenda");
 }

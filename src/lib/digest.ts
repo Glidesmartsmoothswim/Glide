@@ -1,4 +1,5 @@
 import "server-only";
+import { MANUAL_PAYMENT_METHODS } from "@/lib/payment/methods";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fullName } from "@/lib/types";
 import { PHASE_LABEL, type PhaseType } from "@/lib/programs";
@@ -121,12 +122,13 @@ export async function computeDigest(
     }
   }
 
-  // I numeri — incassi in sospeso (ADR-011): il contante si dimentica.
+  // I numeri — incassi in sospeso (ADR-011): il contante si dimentica, e un
+  // bonifico che non arriva ancora di più (ADR-017 — nessuno lo vede mancare).
   const numeri: DigestRow[] = [];
   const { data: pend } = await supabase
     .from("bookings")
     .select("amount_cents, starts_at")
-    .eq("payment_method", "cash")
+    .in("payment_method", [...MANUAL_PAYMENT_METHODS])
     .eq("payment_status", "da_incassare")
     .neq("status", "cancelled")
     .order("starts_at", { ascending: true });

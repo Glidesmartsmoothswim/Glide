@@ -1,4 +1,5 @@
 import { CalendarClock } from "lucide-react";
+import { MANUAL_PAYMENT_METHODS } from "@/lib/payment/methods";
 import { createClient } from "@/lib/supabase/server";
 import { fullName } from "@/lib/types";
 import { romeDateStr } from "@/lib/booking/credits";
@@ -51,13 +52,16 @@ export default async function AgendaPage({
 
   const bookings = bookRes.data ?? [];
 
-  // Registro di cassa (ADR-010/011): tutte le lezioni cash, senza limite di data.
+  // Registro di cassa (ADR-010/011, esteso da ADR-017): tutte le lezioni
+  // incassate fuori piattaforma — contanti E bonifici — senza limite di data.
+  // Prima filtrava il solo contante: con il bonifico ammesso, quel filtro
+  // avrebbe tenuto fuori dal registro proprio il metodo principale.
   const { data: cashData } = await supabase
     .from("bookings")
     .select(
-      "id, swimmer_id, service_id, starts_at, payment_status, amount_cents, receipt_number, paid_at",
+      "id, swimmer_id, service_id, starts_at, payment_method, payment_status, amount_cents, receipt_number, paid_at",
     )
-    .eq("payment_method", "cash")
+    .in("payment_method", [...MANUAL_PAYMENT_METHODS])
     .neq("status", "cancelled")
     .order("starts_at", { ascending: true });
   const cassa = cashData ?? [];
@@ -117,6 +121,7 @@ export default async function AgendaPage({
           swimmer: nameById[c.swimmer_id] ?? "Nuotatore",
           service: svcById[c.service_id]?.name ?? "Lezione",
           starts_at: c.starts_at,
+          payment_method: c.payment_method,
           payment_status: c.payment_status,
           amount_cents: c.amount_cents,
           receipt_number: c.receipt_number,

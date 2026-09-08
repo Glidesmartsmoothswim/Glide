@@ -16,6 +16,13 @@ import {
   romeDateStr,
 } from "@/lib/booking/credits";
 import { effectiveCashPriceCents } from "@/lib/booking/pricing";
+import {
+  isManualPaymentMethod,
+  PAYMENT_METHOD_LABEL,
+  type ManualPaymentMethod,
+} from "@/lib/payment/methods";
+import { sendBookingTransferEmail } from "@/lib/payment/booking-transfer";
+import { bookingCausale } from "@/lib/payment/message";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,8 +33,10 @@ export const dynamic = "force-dynamic";
  * L'EXCLUDE constraint su bookings è la rete anti doppio-click: se il DB
  * rifiuta → 409.
  * Saldo (ADR-010): credito se disponibile; altrimenti il nuotatore sceglie
- * il metodo — `cash` = saldo diretto col coach, booking `da_incassare` con
- * l'importo dal listino. Lo stato di cassa lo scrive SOLO il server.
+ * il metodo fra quelli incassati fuori piattaforma (`lib/payment/methods`):
+ * `bank_transfer` (principale, ADR-014/016) o `cash` — in entrambi i casi il
+ * booking nasce `da_incassare` con l'importo effettivo per quel nuotatore.
+ * Lo stato di cassa lo scrive SOLO il server.
  */
 export async function POST(req: Request) {
   const profile = await getCurrentProfile();
@@ -54,7 +63,13 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const code = String(body.service ?? "");
   const startsAtIso = String(body.startsAt ?? "");
-  const method = body.method === "cash" ? "cash" : null;
+  // ADR-017: il client può proporre solo un metodo incassato a mano. Un
+  // valore ignoto non diventa 'cash' di nascosto — resta null, e più sotto
+  // la richiesta torna indietro con needsMethod invece di prenotare una
+  // lezione con un saldo che nessuno ha scelto.
+  const method: ManualPaymentMethod | null = isManualPaymentMethod(body.method)
+    ? body.method
+    : null;
   const useToken = body.useToken === true;
   const note = String(body.note ?? "").trim().slice(0, 500) || null;
   if (!code || !startsAtIso)
@@ -104,7 +119,7 @@ export async function POST(req: Request) {
 
   // Ordine di consumo: token 1:1 (se richiesto) → credito → metodo scelto.
   let payment: "credit" | "pending" | "token";
-  let paymentMethod: "credit" | "cash" | "token";
+  let paymentMethod: "credit" | "token" | ManualPaymentMethod;
   let consumed = false;
   let tokenId: string | null = null;
 
@@ -132,15 +147,15 @@ export async function POST(req: Request) {
     if (consumed) {
       payment = "credit";
       paymentMethod = "credit";
-    } else if (credit.canBookExtra && method === "cash") {
+    } else if (credit.canBookExtra && method) {
       payment = "pending";
-      paymentMethod = "cash";
+      paymentMethod = method;
     } else {
       return Response.json({ error: "Credito esaurito." }, { status: 402 });
     }
-  } else if (credit.canBookExtra && method === "cash") {
+  } else if (credit.canBookExtra && method) {
     payment = "pending";
-    paymentMethod = "cash";
+    paymentMethod = method;
   } else if (credit.canBookExtra) {
     // Nessun credito e nessun metodo indicato: la UI deve proporre la scelta.
     return Response.json(
@@ -151,7 +166,15 @@ export async function POST(req: Request) {
     return Response.json({ error: "Nessun credito disponibile." }, { status: 402 });
   }
 
-  const isCash = paymentMethod === "cash";
+  // Il vincolo `payment_status_coherent` (migration_054) pretende lo stato di
+  // cassa su contante E bonifico, e lo vieta agli altri: la riga qui sotto è
+  // la stessa regola vista dal lato applicativo. Non un booleano ma il metodo
+  // stesso, così anche l'etichetta più sotto esce da qui senza cast.
+  const manualMethod: ManualPaymentMethod | null = isManualPaymentMethod(
+    paymentMethod,
+  )
+    ? paymentMethod
+    : null;
   const { data: booking, error } = await admin
     .from("bookings")
     .insert({
@@ -174,8 +197,8 @@ export async function POST(req: Request) {
       status: "pending",
       payment,
       payment_method: paymentMethod,
-      payment_status: isCash ? "da_incassare" : null,
-      amount_cents: isCash ? cashPriceCents : null,
+      payment_status: manualMethod ? "da_incassare" : null,
+      amount_cents: manualMethod ? cashPriceCents : null,
       swimmer_note: note,
     })
     .select("id")
@@ -215,8 +238,10 @@ export async function POST(req: Request) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(startsAt);
-  const cashNote = isCash
-    ? ` · da incassare €${(cashPriceCents / 100).toFixed(0)}`
+  // Il coach deve sapere SUBITO con che metodo arriverà: un bonifico si
+  // controlla in banca, i contanti si chiedono in vasca. Due gesti diversi.
+  const cashNote = manualMethod
+    ? ` · da incassare €${(cashPriceCents / 100).toFixed(0)} (${PAYMENT_METHOD_LABEL[manualMethod].toLowerCase()})`
     : "";
 
   // TASK 4 (feedback 29/08): il coach oggi deve controllare a mano in
@@ -232,7 +257,7 @@ export async function POST(req: Request) {
       <h2 style="color:#0E5EAB">Nuova richiesta di prenotazione</h2>
       <p><b>${esc(swimmerName)}</b> ha prenotato <b>${esc(service.name)}</b>.</p>
       <p><b>Quando:</b> ${whenLabel}</p>
-      ${cashNote ? `<p><b>Da incassare:</b> €${(cashPriceCents / 100).toFixed(0)}</p>` : ""}
+      ${manualMethod ? `<p><b>Da incassare:</b> €${(cashPriceCents / 100).toFixed(0)} — ${esc(PAYMENT_METHOD_LABEL[manualMethod].toLowerCase())}</p>` : ""}
       ${note ? `<p><b>Nota del nuotatore:</b> ${esc(note)}</p>` : ""}
       <p style="color:#5b6b7b;font-size:13px">Conferma dall'agenda quando puoi.</p>
     </div>`,
@@ -245,11 +270,44 @@ export async function POST(req: Request) {
     `${service.name} · ${whenLabel} — in attesa di conferma dal coach.`,
   );
 
+  // Bonifico: le coordinate servono a schermo SUBITO (chi prenota vuole
+  // vederle) e per email (chi paga stasera le ha perse cambiando pagina).
+  // Se la mail non parte non resta il vuoto: se ne accorge il coach, che le
+  // manda a mano. Le due strade non si escludono, si coprono.
+  let bankTransfer: {
+    iban: string;
+    holder: string;
+    causale: string;
+    emailSent: boolean;
+  } | null = null;
+
+  if (paymentMethod === "bank_transfer" && manualMethod) {
+    const causale = bookingCausale(swimmerName, profile.id, startsAt);
+    const mail = await sendBookingTransferEmail(admin, {
+      to: profile.email ?? null,
+      firstName: profile.first_name ?? null,
+      serviceName: service.name,
+      whenLabel,
+      amountCents: cashPriceCents,
+      causale,
+    });
+    bankTransfer = mail.bank
+      ? { ...mail.bank, causale, emailSent: mail.sent }
+      : null;
+    if (!mail.sent)
+      await notifyCoaches(
+        "pay",
+        "Coordinate bonifico da mandare a mano",
+        `${swimmerName} — ${service.name} · ${whenLabel} · €${(cashPriceCents / 100).toFixed(0)}. Email non partita (${mail.failure}): le coordinate non gli sono arrivate.`,
+      );
+  }
+
   return Response.json({
     ok: true,
     bookingId: booking!.id,
     payment,
     paymentMethod,
-    amountCents: isCash ? cashPriceCents : null,
+    amountCents: manualMethod ? cashPriceCents : null,
+    bankTransfer,
   });
 }
