@@ -76,7 +76,7 @@ values
       "lines": [
         "12x25 — tre per stile: 2 a bracciate minime + 1 easy speed · NM"
       ],
-      "note": "Tutto il blocco è neuromuscolare: conta la qualità del singolo 25, non il passo. Recuperi personali, si riparte quando si è pronti.\n\nI primi nove si fanno con le pinne — delfino, dorso, stile. Per gli ultimi tre, a rana, le pinne si tolgono.\n\nSui due a bracciate minime cerca il numero più basso possibile senza spegnere la nuotata. Sull''easy speed la velocità sale, ma resta facile: nessuna forzatura."
+      "note": "Pinne sui primi nove: delfino, dorso, stile. Sugli ultimi tre, a rana, si tolgono."
     },
     {
       "z": "Z2",
