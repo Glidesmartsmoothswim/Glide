@@ -1,5 +1,5 @@
 -- =====================================================================
--- Scheda personale 1:1 — "Simmetria — dorso e stile"
+-- Scheda personale 1:1 — "Alternato — stile e dorso"
 -- Seconda seduta della settimana del 07/09/2026.
 --
 -- ⏳ NON ANCORA ESEGUITO. Serve il GO esplicito di Alessio: l'insert
@@ -24,23 +24,26 @@
 
 
 -- ---------------------------------------------------------------------
--- L'IMPIANTO — perché è fatto così.
+-- L'IMPIANTO — dettato da Alessio, 09/09/2026.
 --
--- È il gemello della seduta di lunedì ("Simmetria — delfino e rana",
--- 2500 m, svolta martedì sera, RPE 6, umore 4, nessuna modifica ai blocchi):
--- stesso scheletro, stesso volume, stessi due blocchi da 2 giri, stessa
--- meccanica del "1° giro / 2° giro". Cambiano solo i due stili al centro:
--- lì delfino e rana, qui dorso e stile.
+-- Lavoro ALTERNATO stile/dorso, gemello della seduta di lunedì
+-- ("Simmetria — delfino e rana", 2500 m, svolta martedì sera, RPE 6,
+-- blocchi non modificati): stessa meccanica del "1° giro / 2° giro", qui
+-- applicata a stile libero e dorso.
 --
---   Blocco 1 (Z1, 2 giri × 500 m) — riscaldamento, la riga dei 4x50 si
---   sdoppia: 1° giro tutto dorso, 2° giro tutto stile.
---   Blocco 2 (Z2, 2 giri × 750 m) — braccia costante, i 6x25 si sdoppiano
---   (dorso / stile), 4x100 di recupero a chiudere.
+--   Blocco 1 (Z1, 1 giro)   riscaldamento              500 m
+--   Blocco 2 (Z1, 2 giri)   esercitazione 6x50/giro    600 m
+--   Blocco 3 (Z2, 2 giri)   alternato 450 m/giro       900 m
+--                                                    -------
+--                                                     2000 m
 --
--- Il volume resta 2500 m di proposito: la seduta di lunedì è stata
--- assorbita bene (RPE 6 su una Z2), quindi il carico non si muove — si
--- muove lo stimolo tecnico. Le due sedute insieme coprono i quattro stili
--- nell'arco della settimana.
+-- Il filo tecnico è uno solo, ripetuto nei tre blocchi: la rotazione delle
+-- spalle non si perde quando entra il braccio, e la mano resta in appoggio
+-- il più a lungo possibile. Prima si isola (blocco 2, un braccio alla
+-- volta), poi si nuota completo sotto attrezzo (blocco 3).
+--
+-- 2000 m contro i 2500 di lunedì: la seduta è più corta perché è più densa
+-- di tecnica: 1100 m su 2000 sono esercizi a velocità controllata.
 --
 -- week_day resta null come nella seduta di lunedì: l'atleta sceglie il
 -- giorno. week_start = '2026-09-07' (stessa settimana).
@@ -54,46 +57,54 @@ values
   :'coach_id',
   :'swimmer_id',
   'personal',
-  'Simmetria — dorso e stile',
+  'Alternato — stile e dorso',
   'Z2',
   25,
   null,
   '2026-09-07',
-  2500,
+  2000,
   '[
     {
       "z": "Z1",
       "name": "Riscaldamento",
+      "rounds": 1,
+      "lines": [
+        "2x150 — 100 SL completo + 50 DS doppio",
+        "4x50 MX cambio 12,5"
+      ],
+      "note": "Il 50 di dorso doppio chiude ogni 150: braccia simultanee, senza fretta, serve solo ad aprire le spalle prima del misto."
+    },
+    {
+      "z": "Z1",
+      "name": "Esercitazione — rotazione e appoggio",
       "rounds": 2,
       "lines": [
-        "200 SL pinne",
-        "100 MX cambio 25",
-        "4x50 — 1° giro pinne: 25 gambe DS braccia lungo i fianchi + 25 DS a un braccio solo / 2° giro: 25 gambe SL sul fianco + 25 SL completo"
+        "6x50 pinne — 1° giro SL + boccaglio / 2° giro DS · sequenza ×2: 50 solo gambe con rotazione spalle + 50 solo braccio destro + 50 solo braccio sinistro"
       ],
-      "note": "GIRO 1 — sulle gambe dorso tieni le braccia lungo i fianchi e ruota le spalle: la rotazione parte dal tronco, non dal collo. La testa resta ferma, gli occhi al soffitto. Sul 25 a un braccio solo usa la prima volta il destro, la seconda il sinistro: il braccio fermo resta disteso sopra la testa e non si muove finché l''altro non ha chiuso.\n\nGIRO 2 — sulle gambe stile sul fianco stai lungo, spalla bassa dentro l''acqua, una linea sola dalla mano al piede. Cambia lato a metà vasca. Sul 25 di stile completo cerca la bracciata più lunga possibile: conta le bracciate e tienile uguali su tutte e quattro le ripetute."
+      "note": "GIRO 1, stile — la rotazione delle spalle non si perde quando entra il braccio. La mano entra, prima si allunga in avanti, poi passa sotto a spingere: più tempo resta in appoggio, meglio è. Non anticipare la spinta.\n\nGIRO 2, dorso — stesso schema, stesso principio, due cose in più: i fianchi restano alti e in linea, e la mano resta in acqua il più a lungo possibile. Sul 50 di sole gambe le braccia stanno lungo i fianchi e la rotazione parte dal tronco, non dal collo."
     },
     {
       "z": "Z2",
-      "name": "Braccia, dorso e recupero",
+      "name": "Alternato — stile e dorso",
       "rounds": 2,
       "lines": [
-        "4x50 braccia pull — 25 remate sul dorso + 25 DS a braccia opposte",
-        "6x25 pinne — 1° giro DS gambe continue (1 volta 15 m subacquei, 1 volta 25 m) / 2° giro SL a bracciate minime",
-        "4x100 recupero r.15-20\" — 1° giro 50 DS + 50 SL / 2° giro SL"
+        "4x50 pull + palette — 1° giro SL a braccia + boccaglio / 2° giro DS: 25 dorso completo + 25 dorso doppio",
+        "6x25 pinne — 1° giro SL in apnea totale / 2° giro DS · progressione 1→3, poi si ripete",
+        "100 sciolti senza attrezzi"
       ],
-      "note": "Sulle remate sul dorso avambraccio alto e mano che spinge verso i piedi, corpo sempre in streamline. Sul 25 di dorso a braccia opposte non fermarti nel punto di passaggio: le braccia restano una all''opposto dell''altra, gambe continue.\n\nSui 6x25 il dorso è piano, morbido, ben nuotato: senza fretta, fatto bene. Nel secondo giro sono tutti a stile, con meno bracciate possibili su ogni 25.\n\nSui 4x100 pensa solo a nuotare bene: bello disteso, gambe continue e braccia lente. Nel primo giro i 50 di dorso servono a scaricare le spalle dopo il pull, non a fare passo."
+      "note": "GIRO 1, stile — i 4x50 si nuotano meglio che si può: entrambe le braccia, il boccaglio aiuta a tenere la testa ferma e a pensare solo alla bracciata. Sui 6x25 in apnea totale la progressione è dal primo al terzo, con il terzo a buona intensità — easy speed — ma senza mai respirare. Poi la terna si ripete. I 100 finali sono sciolti, senza attrezzi.\n\nGIRO 2, dorso — sui 4x50 con pull e palette: 25 di dorso completo, 25 di ritorno a dorso doppio. Sui 6x25 con le pinne stessa progressione dal primo al terzo: gambata costante e rotazione delle spalle morbida, mai forzata. Si chiude di nuovo con 100 sciolti."
     }
   ]'::jsonb,
-  'Blocco 2: un solo giro invece di due (1750 m totali).',
-  'Blocco 2: 6x100 invece di 4x100 nel secondo giro (2700 m totali).',
+  'Blocco 3: un solo giro invece di due (1550 m totali).',
+  'Blocco 3: aggiungi un 100 sciolti e porta i 6x25 a 8x25 in ogni giro (2200 m totali).',
   now()
 );
 
 
 -- ---------------------------------------------------------------------
 -- VERIFICA — attese due schede personali sulla settimana del 07/09/2026:
--- "Simmetria — delfino e rana" e "Simmetria — dorso e stile", 2500 m
--- ciascuna. Se total_meters non torna 2500, il parser (src/lib/workout.ts,
+-- "Simmetria — delfino e rana" (2500 m) e "Alternato — stile e dorso"
+-- (2000 m). Se total_meters non torna, il parser (src/lib/workout.ts,
 -- parseLine) sta leggendo una riga diversa da come è stata contata qui.
 -- ---------------------------------------------------------------------
 
