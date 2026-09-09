@@ -5,6 +5,12 @@
 -- ✅ GIÀ ESEGUITO il 09/09/2026 sul progetto live, con GO esplicito di
 --    Alessio in sessione. Riga creata: pubblicata subito, 3000 m,
 --    week_start 2026-09-07.
+--    Nota: l'insert originale scriveva anche scale_down/scale_up. Sono
+--    stati azzerati sul live il 09/09 con un update, perché la scalatura
+--    scritta non si applica alle schede 1:1 (vedi SCALATURA più sotto):
+--       update public.workouts set scale_down = null, scale_up = null
+--       where kind = 'personal' and swimmer_id = :'swimmer_id';
+--    Il file qui sotto è già allineato: entrambe null.
 --
 -- 🚫 NON RILANCIARLO. NON È IDEMPOTENTE: una seconda esecuzione duplica
 --    la scheda. Resta qui come traccia di cosa è stato scritto.
@@ -39,6 +45,12 @@
 -- Le due sedute precedenti della settimana hanno lavorato sulla rotazione
 -- delle spalle e sulla mano che resta in appoggio: il defaticamento a
 -- esercizi liberi chiude richiamando quel focus.
+----
+-- SCALATURA — le colonne scale_down/scale_up NON si usano sulle schede 1:1
+-- (kind='personal'): la scalatura scritta è una funzione del Canale Open,
+-- dove l'allenamento è uno per tutti e ognuno lo adatta a sé. In 1:1 il
+-- carico è già scritto per questo atleta, quindi entrambe restano null.
+-- La stessa logica di scalatura resta valida quando si scrive per l'Open.
 --
 -- week_day resta null come nelle altre due sedute: l'atleta sceglie il
 -- giorno. week_start = '2026-09-07' (stessa settimana).
@@ -98,8 +110,8 @@ values
       "note": "Esercizi liberi, li scegli tu. Tieni il focus della settimana: rotazione delle spalle e mano che resta in appoggio il più a lungo possibile."
     }
   ]'::jsonb,
-  'Blocco aerobico: 4x100 invece di 6x100 e 8x50 invece di 12x50 (2600 m totali).',
-  'Blocco aerobico: 8x100 invece di 6x100 (3200 m totali).',
+  null,
+  null,
   now()
 );
 

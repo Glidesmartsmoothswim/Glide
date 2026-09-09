@@ -5,6 +5,12 @@
 -- ✅ GIÀ ESEGUITO il 09/09/2026 sul progetto live, con GO esplicito di
 --    Alessio in sessione. Riga creata: pubblicata subito, 2000 m,
 --    week_start 2026-09-07.
+--    Nota: l'insert originale scriveva anche scale_down/scale_up. Sono
+--    stati azzerati sul live il 09/09 con un update, perché la scalatura
+--    scritta non si applica alle schede 1:1 (vedi SCALATURA più sotto):
+--       update public.workouts set scale_down = null, scale_up = null
+--       where kind = 'personal' and swimmer_id = :'swimmer_id';
+--    Il file qui sotto è già allineato: entrambe null.
 --
 -- 🚫 NON RILANCIARLO. NON È IDEMPOTENTE: una seconda esecuzione duplica
 --    la scheda. Resta qui come traccia di cosa è stato scritto.
@@ -50,6 +56,12 @@
 --
 -- 2000 m contro i 2500 di lunedì: la seduta è più corta perché è più densa
 -- di tecnica: 1100 m su 2000 sono esercizi a velocità controllata.
+----
+-- SCALATURA — le colonne scale_down/scale_up NON si usano sulle schede 1:1
+-- (kind='personal'): la scalatura scritta è una funzione del Canale Open,
+-- dove l'allenamento è uno per tutti e ognuno lo adatta a sé. In 1:1 il
+-- carico è già scritto per questo atleta, quindi entrambe restano null.
+-- La stessa logica di scalatura resta valida quando si scrive per l'Open.
 --
 -- week_day resta null come nella seduta di lunedì: l'atleta sceglie il
 -- giorno. week_start = '2026-09-07' (stessa settimana).
@@ -93,8 +105,8 @@ values
       "note": "GIRO 1, stile — i 4x50 si nuotano meglio che si può: entrambe le braccia, il boccaglio aiuta a tenere la testa ferma e a pensare solo alla bracciata. I 6x25 in apnea totale sono neuromuscolari, non aerobici: progressione dal primo al terzo, il terzo a buona intensità — easy speed — ma senza mai respirare. Poi la terna si ripete. I 100 finali sono sciolti, senza attrezzi.\n\nGIRO 2, dorso — sui 4x50 con pull e palette: 25 di dorso completo, 25 di ritorno a dorso doppio. Sui 6x25 con le pinne stessa natura neuromuscolare e stessa progressione dal primo al terzo: gambata costante e rotazione delle spalle morbida, mai forzata. Si chiude di nuovo con 100 sciolti, in Z1: servono a scaricare, non a fare passo."
     }
   ]'::jsonb,
-  'Blocco 2: un solo giro invece di due (1550 m totali).',
-  'Blocco 2: aggiungi un 100 sciolti e porta i 6x25 a 8x25 in ogni giro (2200 m totali).',
+  null,
+  null,
   now()
 );
 
