@@ -29,9 +29,8 @@
 --     6x50 sciolto tecnico + 8x50 misti + 4x100 braccia.
 --   Blocco 2 (NM, 1 giro)   dodici da 25               300 m
 --     tre per stile: due a bracciate minime, uno in easy speed.
---   Blocco 3 (2 giri)       aerobico con misti        1200 m
---     stile in Z2, misti in Z3 — le righe portano la zona in chiaro.
---     Due giri da 600 riproducono i 6x100 e i 12x50 dettati.
+--   Blocco 3 (Z2, 1 giro)   aerobico con misti        1200 m
+--     6x100 e 12x50 come dettati, un blocco solo, tutto in Z2.
 --   Blocco 4 (Z1, 1 giro)   defaticamento              400 m
 --                                                    -------
 --                                                     3000 m
@@ -80,15 +79,13 @@ values
       "note": "Tutto il blocco è neuromuscolare: conta la qualità del singolo 25, non il passo. Recuperi personali, si riparte quando si è pronti.\n\nI primi nove si fanno con le pinne — delfino, dorso, stile. Per gli ultimi tre, a rana, le pinne si tolgono.\n\nSui due a bracciate minime cerca il numero più basso possibile senza spegnere la nuotata. Sull''easy speed la velocità sale, ma resta facile: nessuna forzatura."
     },
     {
-      "z": "Z3",
+      "z": "Z2",
       "name": "Aerobico con misti",
-      "rounds": 2,
+      "rounds": 1,
       "lines": [
-        "2x100 SL @1''40\" · Z2",
-        "100 MX @1''50\" · Z3",
-        "6x50 SL pinne — 2 @50\" + 1 @1'' · Z2"
-      ],
-      "note": "Lo stile è in Z2, il misto in Z3: è lui a fare la differenza di intensità, non i 100 di stile che lo circondano.\n\nSui 6x50 con le pinne il terzo di ogni terna ha un secondo in più di partenza: usalo per rientrare, non per andare più forte."
+        "6x100 completi — 2x SL @1''40\" / 1x MX @1''50\"",
+        "12x50 pinne — 2x SL @50\" / 1x SL @1''"
+      ]
     },
     {
       "z": "Z1",
