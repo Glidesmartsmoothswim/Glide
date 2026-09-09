@@ -1,0 +1,49 @@
+allenamenti_settimana;cadenza_checkin;canale;canone_A_eur;credito_B_eur;mensile_equivalente_eur;periodo_fatturazione;importo_per_addebito_eur;descrizione
+2;bimestre;presenza;35;16;51;bimestrale;102;2 allenamenti/sett + check-in 1 volta ogni 2 mesi (in presenza (vasca)), fatturazione bimestrale
+2;bimestre;remoto;35;11;46;bimestrale;92;2 allenamenti/sett + check-in 1 volta ogni 2 mesi (remoto (call)), fatturazione bimestrale
+2;mensile;presenza;35;32;67;mensile;67;2 allenamenti/sett + check-in 1 volta al mese (in presenza (vasca)), fatturazione mensile
+2;mensile;remoto;35;22;57;mensile;57;2 allenamenti/sett + check-in 1 volta al mese (remoto (call)), fatturazione mensile
+2;bisettimanale;presenza;35;60;95;mensile;95;2 allenamenti/sett + check-in 2 volte al mese (in presenza (vasca)), fatturazione mensile
+2;bisettimanale;remoto;35;41;76;mensile;76;2 allenamenti/sett + check-in 2 volte al mese (remoto (call)), fatturazione mensile
+2;settimanale;presenza;35;113;148;mensile;148;2 allenamenti/sett + check-in 1 volta a settimana (in presenza (vasca)), fatturazione mensile
+2;settimanale;remoto;35;77;112;mensile;112;2 allenamenti/sett + check-in 1 volta a settimana (remoto (call)), fatturazione mensile
+3;bimestre;presenza;44;16;60;bimestrale;120;3 allenamenti/sett + check-in 1 volta ogni 2 mesi (in presenza (vasca)), fatturazione bimestrale
+3;bimestre;remoto;44;11;55;bimestrale;110;3 allenamenti/sett + check-in 1 volta ogni 2 mesi (remoto (call)), fatturazione bimestrale
+3;mensile;presenza;44;32;76;mensile;76;3 allenamenti/sett + check-in 1 volta al mese (in presenza (vasca)), fatturazione mensile
+3;mensile;remoto;44;22;66;mensile;66;3 allenamenti/sett + check-in 1 volta al mese (remoto (call)), fatturazione mensile
+3;bisettimanale;presenza;44;60;104;mensile;104;3 allenamenti/sett + check-in 2 volte al mese (in presenza (vasca)), fatturazione mensile
+3;bisettimanale;remoto;44;41;85;mensile;85;3 allenamenti/sett + check-in 2 volte al mese (remoto (call)), fatturazione mensile
+3;settimanale;presenza;44;113;157;mensile;157;3 allenamenti/sett + check-in 1 volta a settimana (in presenza (vasca)), fatturazione mensile
+3;settimanale;remoto;44;77;121;mensile;121;3 allenamenti/sett + check-in 1 volta a settimana (remoto (call)), fatturazione mensile
+4;bimestre;presenza;52;16;68;bimestrale;136;4 allenamenti/sett + check-in 1 volta ogni 2 mesi (in presenza (vasca)), fatturazione bimestrale
+4;bimestre;remoto;52;11;63;bimestrale;126;4 allenamenti/sett + check-in 1 volta ogni 2 mesi (remoto (call)), fatturazione bimestrale
+4;mensile;presenza;52;32;84;mensile;84;4 allenamenti/sett + check-in 1 volta al mese (in presenza (vasca)), fatturazione mensile
+4;mensile;remoto;52;22;74;mensile;74;4 allenamenti/sett + check-in 1 volta al mese (remoto (call)), fatturazione mensile
+4;bisettimanale;presenza;52;60;112;mensile;112;4 allenamenti/sett + check-in 2 volte al mese (in presenza (vasca)), fatturazione mensile
+4;bisettimanale;remoto;52;41;93;mensile;93;4 allenamenti/sett + check-in 2 volte al mese (remoto (call)), fatturazione mensile
+4;settimanale;presenza;52;113;165;mensile;165;4 allenamenti/sett + check-in 1 volta a settimana (in presenza (vasca)), fatturazione mensile
+4;settimanale;remoto;52;77;129;mensile;129;4 allenamenti/sett + check-in 1 volta a settimana (remoto (call)), fatturazione mensile
+5;bimestre;presenza;59;16;75;bimestrale;150;5 allenamenti/sett + check-in 1 volta ogni 2 mesi (in presenza (vasca)), fatturazione bimestrale
+5;bimestre;remoto;59;11;70;bimestrale;140;5 allenamenti/sett + check-in 1 volta ogni 2 mesi (remoto (call)), fatturazione bimestrale
+5;mensile;presenza;59;32;91;mensile;91;5 allenamenti/sett + check-in 1 volta al mese (in presenza (vasca)), fatturazione mensile
+5;mensile;remoto;59;22;81;mensile;81;5 allenamenti/sett + check-in 1 volta al mese (remoto (call)), fatturazione mensile
+5;bisettimanale;presenza;59;60;119;mensile;119;5 allenamenti/sett + check-in 2 volte al mese (in presenza (vasca)), fatturazione mensile
+5;bisettimanale;remoto;59;41;100;mensile;100;5 allenamenti/sett + check-in 2 volte al mese (remoto (call)), fatturazione mensile
+5;settimanale;presenza;59;113;172;mensile;172;5 allenamenti/sett + check-in 1 volta a settimana (in presenza (vasca)), fatturazione mensile
+5;settimanale;remoto;59;77;136;mensile;136;5 allenamenti/sett + check-in 1 volta a settimana (remoto (call)), fatturazione mensile
+6;bimestre;presenza;65;16;81;bimestrale;162;6 allenamenti/sett + check-in 1 volta ogni 2 mesi (in presenza (vasca)), fatturazione bimestrale
+6;bimestre;remoto;65;11;76;bimestrale;152;6 allenamenti/sett + check-in 1 volta ogni 2 mesi (remoto (call)), fatturazione bimestrale
+6;mensile;presenza;65;32;97;mensile;97;6 allenamenti/sett + check-in 1 volta al mese (in presenza (vasca)), fatturazione mensile
+6;mensile;remoto;65;22;87;mensile;87;6 allenamenti/sett + check-in 1 volta al mese (remoto (call)), fatturazione mensile
+6;bisettimanale;presenza;65;60;125;mensile;125;6 allenamenti/sett + check-in 2 volte al mese (in presenza (vasca)), fatturazione mensile
+6;bisettimanale;remoto;65;41;106;mensile;106;6 allenamenti/sett + check-in 2 volte al mese (remoto (call)), fatturazione mensile
+6;settimanale;presenza;65;113;178;mensile;178;6 allenamenti/sett + check-in 1 volta a settimana (in presenza (vasca)), fatturazione mensile
+6;settimanale;remoto;65;77;142;mensile;142;6 allenamenti/sett + check-in 1 volta a settimana (remoto (call)), fatturazione mensile
+7;bimestre;presenza;70;16;86;bimestrale;172;7 allenamenti/sett + check-in 1 volta ogni 2 mesi (in presenza (vasca)), fatturazione bimestrale
+7;bimestre;remoto;70;11;81;bimestrale;162;7 allenamenti/sett + check-in 1 volta ogni 2 mesi (remoto (call)), fatturazione bimestrale
+7;mensile;presenza;70;32;102;mensile;102;7 allenamenti/sett + check-in 1 volta al mese (in presenza (vasca)), fatturazione mensile
+7;mensile;remoto;70;22;92;mensile;92;7 allenamenti/sett + check-in 1 volta al mese (remoto (call)), fatturazione mensile
+7;bisettimanale;presenza;70;60;130;mensile;130;7 allenamenti/sett + check-in 2 volte al mese (in presenza (vasca)), fatturazione mensile
+7;bisettimanale;remoto;70;41;111;mensile;111;7 allenamenti/sett + check-in 2 volte al mese (remoto (call)), fatturazione mensile
+7;settimanale;presenza;70;113;183;mensile;183;7 allenamenti/sett + check-in 1 volta a settimana (in presenza (vasca)), fatturazione mensile
+7;settimanale;remoto;70;77;147;mensile;147;7 allenamenti/sett + check-in 1 volta a settimana (remoto (call)), fatturazione mensile
