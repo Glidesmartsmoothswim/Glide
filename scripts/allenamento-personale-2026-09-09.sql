@@ -2,10 +2,6 @@
 -- Scheda personale 1:1 — "Alternato — stile e dorso"
 -- Seconda seduta della settimana del 07/09/2026.
 --
--- ⏳ NON ANCORA ESEGUITO. Serve il GO esplicito di Alessio: l'insert
---    pubblica (published_at = now()) e la scheda diventa visibile
---    all'atleta all'istante.
---
 -- 🚫 NON È IDEMPOTENTE. Una seconda esecuzione duplica la scheda.
 --
 -- Come lo script scripts/allenamenti-open-2026-09-07.sql, questo NON è un
@@ -26,23 +22,26 @@
 -- ---------------------------------------------------------------------
 -- L'IMPIANTO — dettato da Alessio, 09/09/2026.
 --
--- Lavoro ALTERNATO stile/dorso, gemello della seduta di lunedì
--- ("Simmetria — delfino e rana", 2500 m, svolta martedì sera, RPE 6,
--- blocchi non modificati): stessa meccanica del "1° giro / 2° giro", qui
--- applicata a stile libero e dorso.
+-- Lavoro ALTERNATO stile/dorso. Dalla seduta di lunedì ("Simmetria —
+-- delfino e rana", 2500 m, svolta martedì sera, RPE 6, blocchi non
+-- modificati) resta la meccanica del "1° giro / 2° giro", qui applicata
+-- allo stile libero e al dorso.
 --
---   Blocco 1 (Z1, 1 giro)   riscaldamento              500 m
---   Blocco 2 (Z1, 2 giri)   esercitazione 6x50/giro    600 m
---   Blocco 3 (2 giri)       alternato 450 m/giro       900 m
+--   Blocco 1 (Z1, 1 giro)  riscaldamento unico       1100 m
+--     300 (2x150: 100 SL + 50 DS doppio) + 4x50 MX + 12x50 di esercizi.
+--     I 12x50 NON sono un blocco a parte: stanno dentro il riscaldamento,
+--     e la nota li scompone in 6 a stile + 6 a dorso.
+--   Blocco 2 (2 giri)      alternato 450 m/giro       900 m
 --     4x50 pull+palette Z2 · 6x25 NM · 100 sciolti Z1 — le righe portano la
---     zona in chiaro, il blocco è marcato NM perché il set chiave sono i 6x25.
+--     zona in chiaro, il blocco è marcato NM perché il set chiave sono i
+--     6x25 in progressione.
 --                                                    -------
 --                                                     2000 m
 --
--- Il filo tecnico è uno solo, ripetuto nei tre blocchi: la rotazione delle
--- spalle non si perde quando entra il braccio, e la mano resta in appoggio
--- il più a lungo possibile. Prima si isola (blocco 2, un braccio alla
--- volta), poi si nuota completo sotto attrezzo (blocco 3).
+-- Il filo tecnico è uno solo: la rotazione delle spalle non si perde quando
+-- entra il braccio, e la mano resta in appoggio il più a lungo possibile.
+-- Prima si isola (12x50, un braccio alla volta), poi si nuota completo
+-- sotto attrezzo (blocco 2).
 --
 -- 2000 m contro i 2500 di lunedì: la seduta è più corta perché è più densa
 -- di tecnica: 1100 m su 2000 sono esercizi a velocità controllata.
@@ -72,18 +71,10 @@ values
       "rounds": 1,
       "lines": [
         "2x150 — 100 SL completo + 50 DS doppio",
-        "4x50 MX cambio 12,5"
+        "4x50 MX cambio 12,5",
+        "12x50 pinne — 6 SL con boccaglio, poi 6 DS senza boccaglio"
       ],
-      "note": "Il 50 di dorso doppio chiude ogni 150: braccia simultanee, senza fretta, serve solo ad aprire le spalle prima del misto."
-    },
-    {
-      "z": "Z1",
-      "name": "Esercitazione — rotazione e appoggio",
-      "rounds": 2,
-      "lines": [
-        "6x50 pinne — 1° giro SL + boccaglio / 2° giro DS senza boccaglio · sequenza ×2: 50 solo gambe con rotazione spalle + 50 solo braccio destro + 50 solo braccio sinistro"
-      ],
-      "note": "GIRO 1, stile — la rotazione delle spalle non si perde quando entra il braccio. La mano entra, prima si allunga in avanti, poi passa sotto a spingere: più tempo resta in appoggio, meglio è. Non anticipare la spinta.\n\nGIRO 2, dorso — stesso schema e stesso principio, senza boccaglio. Due cose in più: i fianchi restano alti e in linea, e la mano resta in acqua il più a lungo possibile. Sul 50 di sole gambe le braccia stanno lungo i fianchi e la rotazione parte dal tronco, non dal collo."
+      "note": "Il 50 di dorso doppio chiude ogni 150: braccia simultanee, senza fretta, serve ad aprire le spalle prima del misto.\n\nI 12x50 si dividono in due metà, prima stile e poi dorso. In ciascuna la terna si ripete due volte: 50 di sole gambe con rotazione delle spalle, 50 con il solo braccio destro, 50 con il solo braccio sinistro.\n\nSTILE — la rotazione delle spalle non si perde quando entra il braccio. La mano entra, prima si allunga in avanti, poi passa sotto a spingere: più tempo resta in appoggio, meglio è. Non anticipare la spinta.\n\nDORSO — stesso schema e stesso principio, senza boccaglio. I fianchi restano alti e in linea e la mano resta in acqua il più a lungo possibile. Alla fine del recupero cerca l''ingresso con il dorso della mano, non con il mignolo. Sul 50 di sole gambe le braccia stanno lungo i fianchi e la rotazione parte dal tronco, non dal collo."
     },
     {
       "z": "NM",
@@ -97,8 +88,8 @@ values
       "note": "GIRO 1, stile — i 4x50 si nuotano meglio che si può: entrambe le braccia, il boccaglio aiuta a tenere la testa ferma e a pensare solo alla bracciata. I 6x25 in apnea totale sono neuromuscolari, non aerobici: progressione dal primo al terzo, il terzo a buona intensità — easy speed — ma senza mai respirare. Poi la terna si ripete. I 100 finali sono sciolti, senza attrezzi.\n\nGIRO 2, dorso — sui 4x50 con pull e palette: 25 di dorso completo, 25 di ritorno a dorso doppio. Sui 6x25 con le pinne stessa natura neuromuscolare e stessa progressione dal primo al terzo: gambata costante e rotazione delle spalle morbida, mai forzata. Si chiude di nuovo con 100 sciolti, in Z1: servono a scaricare, non a fare passo."
     }
   ]'::jsonb,
-  'Blocco 3: un solo giro invece di due (1550 m totali).',
-  'Blocco 3: aggiungi un 100 sciolti e porta i 6x25 a 8x25 in ogni giro (2200 m totali).',
+  'Blocco 2: un solo giro invece di due (1550 m totali).',
+  'Blocco 2: aggiungi un 100 sciolti e porta i 6x25 a 8x25 in ogni giro (2200 m totali).',
   now()
 );
 
