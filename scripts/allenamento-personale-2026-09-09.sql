@@ -2,7 +2,12 @@
 -- Scheda personale 1:1 — "Alternato — stile e dorso"
 -- Seconda seduta della settimana del 07/09/2026.
 --
--- 🚫 NON È IDEMPOTENTE. Una seconda esecuzione duplica la scheda.
+-- ✅ GIÀ ESEGUITO il 09/09/2026 sul progetto live, con GO esplicito di
+--    Alessio in sessione. Riga creata: pubblicata subito, 2000 m,
+--    week_start 2026-09-07.
+--
+-- 🚫 NON RILANCIARLO. NON È IDEMPOTENTE: una seconda esecuzione duplica
+--    la scheda. Resta qui come traccia di cosa è stato scritto.
 --
 -- Come lo script scripts/allenamenti-open-2026-09-07.sql, questo NON è un
 -- file in supabase/migrations/: è uno script manuale. Non tocca lo schema,
