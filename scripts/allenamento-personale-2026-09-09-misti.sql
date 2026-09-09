@@ -2,11 +2,12 @@
 -- Scheda personale 1:1 — "Misti — neuromuscolare e aerobico"
 -- Terza seduta della settimana del 07/09/2026.
 --
--- ⏳ NON ANCORA ESEGUITO. Serve il GO esplicito di Alessio: l'insert
---    pubblica (published_at = now()) e la scheda diventa visibile
---    all'atleta all'istante.
+-- ✅ GIÀ ESEGUITO il 09/09/2026 sul progetto live, con GO esplicito di
+--    Alessio in sessione. Riga creata: pubblicata subito, 3000 m,
+--    week_start 2026-09-07.
 --
--- 🚫 NON È IDEMPOTENTE. Una seconda esecuzione duplica la scheda.
+-- 🚫 NON RILANCIARLO. NON È IDEMPOTENTE: una seconda esecuzione duplica
+--    la scheda. Resta qui come traccia di cosa è stato scritto.
 --
 -- Script manuale, non una migration: non tocca lo schema, usa solo colonne
 -- già esistenti. Stessa forma di scripts/allenamenti-open-2026-09-07.sql e
@@ -97,8 +98,8 @@ values
       "note": "Esercizi liberi, li scegli tu. Tieni il focus della settimana: rotazione delle spalle e mano che resta in appoggio il più a lungo possibile."
     }
   ]'::jsonb,
-  'Blocco aerobico: un solo giro invece di due (2400 m totali).',
-  'Blocco aerobico: tre giri invece di due (3600 m totali).',
+  'Blocco aerobico: 4x100 invece di 6x100 e 8x50 invece di 12x50 (2600 m totali).',
+  'Blocco aerobico: 8x100 invece di 6x100 (3200 m totali).',
   now()
 );
 
