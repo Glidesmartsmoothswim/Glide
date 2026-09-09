@@ -33,7 +33,9 @@
 --
 --   Blocco 1 (Z1, 1 giro)   riscaldamento              500 m
 --   Blocco 2 (Z1, 2 giri)   esercitazione 6x50/giro    600 m
---   Blocco 3 (Z2, 2 giri)   alternato 450 m/giro       900 m
+--   Blocco 3 (2 giri)       alternato 450 m/giro       900 m
+--     4x50 pull+palette Z2 · 6x25 NM · 100 sciolti Z1 — le righe portano la
+--     zona in chiaro, il blocco è marcato NM perché il set chiave sono i 6x25.
 --                                                    -------
 --                                                     2000 m
 --
@@ -58,7 +60,7 @@ values
   :'swimmer_id',
   'personal',
   'Alternato — stile e dorso',
-  'Z2',
+  'Tecnica · NM',
   25,
   null,
   '2026-09-07',
@@ -79,20 +81,20 @@ values
       "name": "Esercitazione — rotazione e appoggio",
       "rounds": 2,
       "lines": [
-        "6x50 pinne — 1° giro SL + boccaglio / 2° giro DS · sequenza ×2: 50 solo gambe con rotazione spalle + 50 solo braccio destro + 50 solo braccio sinistro"
+        "6x50 pinne — 1° giro SL + boccaglio / 2° giro DS senza boccaglio · sequenza ×2: 50 solo gambe con rotazione spalle + 50 solo braccio destro + 50 solo braccio sinistro"
       ],
-      "note": "GIRO 1, stile — la rotazione delle spalle non si perde quando entra il braccio. La mano entra, prima si allunga in avanti, poi passa sotto a spingere: più tempo resta in appoggio, meglio è. Non anticipare la spinta.\n\nGIRO 2, dorso — stesso schema, stesso principio, due cose in più: i fianchi restano alti e in linea, e la mano resta in acqua il più a lungo possibile. Sul 50 di sole gambe le braccia stanno lungo i fianchi e la rotazione parte dal tronco, non dal collo."
+      "note": "GIRO 1, stile — la rotazione delle spalle non si perde quando entra il braccio. La mano entra, prima si allunga in avanti, poi passa sotto a spingere: più tempo resta in appoggio, meglio è. Non anticipare la spinta.\n\nGIRO 2, dorso — stesso schema e stesso principio, senza boccaglio. Due cose in più: i fianchi restano alti e in linea, e la mano resta in acqua il più a lungo possibile. Sul 50 di sole gambe le braccia stanno lungo i fianchi e la rotazione parte dal tronco, non dal collo."
     },
     {
-      "z": "Z2",
+      "z": "NM",
       "name": "Alternato — stile e dorso",
       "rounds": 2,
       "lines": [
-        "4x50 pull + palette — 1° giro SL a braccia + boccaglio / 2° giro DS: 25 dorso completo + 25 dorso doppio",
-        "6x25 pinne — 1° giro SL in apnea totale / 2° giro DS · progressione 1→3, poi si ripete",
-        "100 sciolti senza attrezzi"
+        "4x50 pull + palette — 1° giro SL a braccia + boccaglio / 2° giro DS senza boccaglio: 25 dorso completo + 25 dorso doppio · Z2",
+        "6x25 pinne — 1° giro SL in apnea totale / 2° giro DS · progressione 1→3, poi si ripete · NM",
+        "100 sciolti senza attrezzi · Z1"
       ],
-      "note": "GIRO 1, stile — i 4x50 si nuotano meglio che si può: entrambe le braccia, il boccaglio aiuta a tenere la testa ferma e a pensare solo alla bracciata. Sui 6x25 in apnea totale la progressione è dal primo al terzo, con il terzo a buona intensità — easy speed — ma senza mai respirare. Poi la terna si ripete. I 100 finali sono sciolti, senza attrezzi.\n\nGIRO 2, dorso — sui 4x50 con pull e palette: 25 di dorso completo, 25 di ritorno a dorso doppio. Sui 6x25 con le pinne stessa progressione dal primo al terzo: gambata costante e rotazione delle spalle morbida, mai forzata. Si chiude di nuovo con 100 sciolti."
+      "note": "GIRO 1, stile — i 4x50 si nuotano meglio che si può: entrambe le braccia, il boccaglio aiuta a tenere la testa ferma e a pensare solo alla bracciata. I 6x25 in apnea totale sono neuromuscolari, non aerobici: progressione dal primo al terzo, il terzo a buona intensità — easy speed — ma senza mai respirare. Poi la terna si ripete. I 100 finali sono sciolti, senza attrezzi.\n\nGIRO 2, dorso — sui 4x50 con pull e palette: 25 di dorso completo, 25 di ritorno a dorso doppio. Sui 6x25 con le pinne stessa natura neuromuscolare e stessa progressione dal primo al terzo: gambata costante e rotazione delle spalle morbida, mai forzata. Si chiude di nuovo con 100 sciolti, in Z1: servono a scaricare, non a fare passo."
     }
   ]'::jsonb,
   'Blocco 3: un solo giro invece di due (1550 m totali).',
