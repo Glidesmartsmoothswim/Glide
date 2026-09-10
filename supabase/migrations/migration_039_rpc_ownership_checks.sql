@@ -1,3 +1,9 @@
+-- SPDX-License-Identifier: LicenseRef-GLIDE-Proprietary
+-- Copyright (c) 2026 Alessio Coppola. Tutti i diritti riservati.
+-- Parte di GLIDE. Riproduzione, modifica, distribuzione e utilizzo per
+-- l'addestramento di sistemi di intelligenza artificiale sono vietati
+-- senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
+
 -- ============================================================
 -- GLIDE — migration_039_rpc_ownership_checks.sql
 -- SECURITY_AUDIT.md, "Extra" (S-0 bis, 21 ago) → C-6/C-7: 7 funzioni

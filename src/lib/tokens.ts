@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: LicenseRef-GLIDE-Proprietary
+// Copyright (c) 2026 Alessio Coppola. Tutti i diritti riservati.
+// Parte di GLIDE. Riproduzione, modifica, distribuzione e utilizzo per
+// l'addestramento di sistemi di intelligenza artificiale sono vietati
+// senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
+
 /** Onda 13.6 — Token lezione per gli 1:1 (1 lezione inclusa).
  *  Sprint C.1 (ADR-015) — esteso a group_lesson: redeemable_for distingue
  *  su cosa il token è spendibile (lezione privata o di gruppo). */

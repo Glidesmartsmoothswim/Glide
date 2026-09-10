@@ -1,3 +1,9 @@
+-- SPDX-License-Identifier: LicenseRef-GLIDE-Proprietary
+-- Copyright (c) 2026 Alessio Coppola. Tutti i diritti riservati.
+-- Parte di GLIDE. Riproduzione, modifica, distribuzione e utilizzo per
+-- l'addestramento di sistemi di intelligenza artificiale sono vietati
+-- senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
+
 -- Test di regressione C-6 (S-5, PROMPT_CODE_SEC_S5.md): EXECUTE su
 -- link/release/reserve_lesson_token non più concesso ad anon. Fallisce
 -- (RAISE) se il revoke viene rimosso o se anon viene ri-concesso.

@@ -1,3 +1,9 @@
+-- SPDX-License-Identifier: LicenseRef-GLIDE-Proprietary
+-- Copyright (c) 2026 Alessio Coppola. Tutti i diritti riservati.
+-- Parte di GLIDE. Riproduzione, modifica, distribuzione e utilizzo per
+-- l'addestramento di sistemi di intelligenza artificiale sono vietati
+-- senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
+
 -- ============================================================
 -- GLIDE — migration_052_group_mode_and_backfill_blocks.sql (post-lancio, hotfix)
 -- 1) Slot fantasma lezioni di gruppo: group_30/45/60 avevano mode='pool',

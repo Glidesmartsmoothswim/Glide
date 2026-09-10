@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: LicenseRef-GLIDE-Proprietary
+// Copyright (c) 2026 Alessio Coppola. Tutti i diritti riservati.
+// Parte di GLIDE. Riproduzione, modifica, distribuzione e utilizzo per
+// l'addestramento di sistemi di intelligenza artificiale sono vietati
+// senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
+
 // GLIDE — dominio readiness v3 (GLIDE_QUESTIONARIO.md / ADR-006 / ADR-013).
 // 5 = SEMPRE meglio. Nessuna inversione, nessun "6 - x". Due indici separati,
 // calcolati dalla vista v_readiness. Il nuotatore NON vede mai il suo indice.

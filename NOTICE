@@ -4,43 +4,108 @@ NOTICE — GLIDE
 Copyright (c) 2026 Alessio Coppola (P.IVA 02381880505). Tutti i diritti
 riservati. Vedi LICENSE per le condizioni d'uso del Software.
 
-Questo file assolve due funzioni: dichiarare la titolarità del codice
-originale e dare atto dei componenti di terzi utilizzati, con le relative
-licenze.
+Questo file assolve due funzioni: documentare la titolarità e la paternità
+del codice originale, e dare atto dei componenti di terzi utilizzati con le
+relative licenze.
+
+Identificativo SPDX proprietario: `LicenseRef-GLIDE-Proprietary`. È
+l'identificativo riportato nell'intestazione di ogni file sorgente e rinvia
+integralmente al file LICENSE di questo repository.
 
 Ultimo aggiornamento: 10 settembre 2026 (rif. package-lock.json,
 lockfileVersion 3, 548 pacchetti risolti).
 
 
-1. TITOLARITÀ DEL CODICE ORIGINALE
-----------------------------------
+1. TITOLARITÀ E PATERNITÀ DEL CODICE ORIGINALE
+----------------------------------------------
+
+1.1 Titolarità
 
 Tutto il codice applicativo di questo repository (`src/`, `test/`,
 `scripts/`, `supabase/`, `middleware.ts` e i file di configurazione in
-radice) è opera originale di Alessio Coppola. Non contiene codice di terzi
-incorporato: una verifica sull'intero albero non rileva alcuna
-intestazione di copyright, identificativo SPDX o clausola di licenza
-appartenente a soggetti diversi dal titolare.
+radice) è opera di Alessio Coppola, unico titolare dei diritti di
+utilizzazione economica ai sensi della L. 633/1941.
+
+Non contiene codice di terzi incorporato: la verifica sull'intero albero non
+rileva intestazioni di copyright, identificativi SPDX o clausole di licenza
+appartenenti a soggetti diversi dal titolare. Il controllo è automatizzato e
+gira a ogni push (`scripts/check-license-headers.mjs`): un identificativo
+SPDX diverso da `LicenseRef-GLIDE-Proprietary` fa fallire la pipeline.
 
 La cronologia Git registra un solo autore umano, Alessio Coppola
-(`Glidesmartsmoothswim <glide.smartswim@gmail.com>`).
+(`glide.smartswim@gmail.com`). Nessuna altra persona, fisica o giuridica,
+ha contribuito al codice, e non esistono contitolari.
 
-Una parte dei commit riporta come autore, o come co-autore nel trailer
-`Co-authored-by`, l'assistente di programmazione Claude (Anthropic).
-Si tratta di attribuzione di strumento, non di co-titolarità: l'output
-generato da un sistema di intelligenza artificiale non attribuisce
-paternità né diritti d'autore al fornitore del sistema, e i termini di
-servizio di Anthropic assegnano all'utente ogni diritto sull'output.
-Non esistono pertanto contitolari, né persone fisiche né giuridiche,
-dei diritti su questo Software.
+1.2 Apporto creativo umano
+
+Il Software è stato realizzato dal titolare avvalendosi di assistenti di
+programmazione basati su intelligenza artificiale, utilizzati come
+strumento. Le scelte creative che caratterizzano l'opera sono state
+compiute, valutate e approvate dal titolare. In particolare:
+
+  - l'ideazione del prodotto, il modello di servizio e il listino;
+  - l'architettura applicativa e le decisioni tecniche di fondo, deliberate
+    una per una e motivate per iscritto prima della realizzazione;
+  - il modello dei dati, lo schema Postgres e le politiche di accesso (RLS);
+  - la specifica funzionale di ogni incremento di prodotto;
+  - la revisione, la correzione e l'accettazione di ogni contributo prodotto
+    dagli strumenti, nessuno dei quali è entrato nel ramo principale senza
+    verifica del titolare.
+
+Questo apporto è documentato in modo contestuale e verificabile in:
+
+  `.aios/architecture/DECISIONS/`  decisioni di architettura (ADR), numerate
+                                   e datate, con alternative scartate e
+                                   motivazione della scelta
+  `STATO.md`                       stato di avanzamento e indirizzo dato a
+                                   ogni ciclo di lavoro
+  `PROMPT_CODE_SEC*.md`            istruzioni impartite agli strumenti
+  `GLIDE_SECURITY_AUDIT_v*.md`     revisioni di sicurezza condotte dal
+                                   titolare
+  `GLIDE_DATA_MAP.md`              mappa dei trattamenti e del modello dati
+  `docs/legal/`                    documentazione legale e privacy
+
+Tali documenti sono parte integrante della prova di paternità dell'opera e
+vanno conservati insieme al codice.
+
+1.3 Attribuzione degli strumenti nella cronologia Git
+
+Una parte dei commit anteriori al 10 settembre 2026 riporta l'assistente
+Claude (Anthropic) nel campo `Author` o nel trailer `Co-authored-by`. Si
+tratta di un'attribuzione di strumento inserita automaticamente
+dall'assistente stesso secondo la propria convenzione, e non di
+un'attribuzione di paternità in senso giuridico.
+
+Anthropic non vanta né rivendica alcun diritto sull'output generato: i
+termini di servizio assegnano all'utente ogni diritto sui contenuti
+prodotti. Un sistema automatico, del resto, non è autore e non può esserlo.
+
+La cronologia non è stata riscritta: alterarla a posteriori
+comprometterebbe l'integrità delle date, che è essa stessa elemento di
+prova. A partire dal 10 settembre 2026 la convenzione di progetto è che il
+campo `Author` di ogni commit indichi la persona fisica che ha diretto e
+approvato il lavoro; l'eventuale impiego di strumenti è annotato nel corpo
+del messaggio. La regola operativa è in `docs/legal/paternita-e-commit.md`.
 
 
 2. COMPONENTI SOFTWARE DI TERZI
 -------------------------------
 
 Il Software dipende da pacchetti npm di terze parti, non ridistribuiti in
-questo repository (sono installati da `package-lock.json`). Nessuno di
-essi è soggetto a licenze GPL, AGPL, SSPL o BUSL.
+questo repository: sono installati a partire da `package-lock.json`.
+
+Nell'albero risolto NON è presente alcun componente sotto copyleft forte o
+licenza source-available — nessun GPL, AGPL, SSPL, BUSL, OSL, CPAL o EUPL.
+Sono invece presenti componenti sotto copyleft debole o a livello di singolo
+file — LGPL e MPL — e componenti che richiedono attribuzione; sono elencati
+nominativamente al §2.4, che ne motiva l'irrilevanza rispetto al codice
+proprietario.
+
+La verifica è automatizzata (`scripts/check-licenses.mjs`): gira a ogni push
+e una volta al mese, blocca la pipeline se compare copyleft forte e segnala
+ogni variazione nell'elenco del §2.4. Va rieseguita a ogni aggiornamento del
+lockfile, perché un pacchetto può cambiare licenza tra una versione e
+l'altra.
 
 2.1 Dipendenze dirette di produzione
 
@@ -67,23 +132,23 @@ essi è soggetto a licenze GPL, AGPL, SSPL o BUSL.
 2.4 Componenti sotto licenza non permissiva, e perché non incidono
 
     libvips — LGPL-3.0-or-later
-        Pacchetti `@img/sharp-libvips-*` e `@img/sharp-win32-*`
-        (questi ultimi Apache-2.0 AND LGPL-3.0-or-later). Sono binari
-        precompilati inclusi come dipendenza OPTIONAL e TRANSITIVA di
-        `next`, per l'ottimizzazione delle immagini; non compaiono in
-        `package.json` e non sono stati modificati.
-        La LGPL impone obblighi in caso di DISTRIBUZIONE del software.
-        GLIDE è erogato come servizio accessibile via rete: nessun binario
-        viene consegnato agli utenti, quindi gli obblighi di
-        redistribuzione non si attivano. Anche in ipotesi di
-        distribuzione, il collegamento è dinamico e la libreria non è
-        modificata, condizione sufficiente ai sensi dell'art. 4 LGPL-3.0.
-        Il codice proprietario non è in alcun modo contaminato.
+        Pacchetti `@img/sharp-libvips-*` e `@img/sharp-win32-*` (questi
+        ultimi Apache-2.0 AND LGPL-3.0-or-later), più `@img/sharp-wasm32`
+        (Apache-2.0 AND LGPL-3.0-or-later AND MIT). Sono binari
+        precompilati, dipendenza OPTIONAL e TRANSITIVA di `next` per
+        l'ottimizzazione delle immagini: non compaiono in `package.json` e
+        non sono stati modificati.
+        La LGPL-3.0 impone obblighi in caso di DISTRIBUZIONE. GLIDE è
+        erogato come servizio accessibile via rete e nessun binario viene
+        consegnato agli utenti, quindi quegli obblighi non si attivano.
+        Anche in ipotesi di distribuzione, il collegamento è dinamico e la
+        libreria non è modificata: condizione sufficiente ai sensi
+        dell'art. 4 LGPL-3.0. Il codice proprietario non è contaminato.
 
     lightningcss, axe-core — MPL-2.0
-        Strumenti di sola SVILUPPO. Il copyleft MPL-2.0 opera a livello di
-        singolo file e si attiva solo sui file modificati e ridistribuiti:
-        nessun file è stato modificato, nessuno è ridistribuito.
+        Strumenti di sola SVILUPPO. Il copyleft MPL-2.0 opera sul singolo
+        file e si attiva solo sui file modificati e ridistribuiti: nessun
+        file è stato modificato, nessuno è ridistribuito.
 
     caniuse-lite — CC-BY-4.0
         Database di compatibilità browser, usato in fase di build. La
@@ -92,6 +157,12 @@ essi è soggetto a licenze GPL, AGPL, SSPL o BUSL.
 
     argparse — Python-2.0
         Dipendenza di sola sviluppo, licenza permissiva.
+
+    Avvertenza di metodo. L'argomento "erogazione via rete, quindi nessuna
+    distribuzione" vale per LGPL e MPL ma NON varrebbe per una licenza
+    AGPL, che si attiva proprio sull'uso via rete. Nessuna dipendenza AGPL
+    può quindi essere introdotta senza una valutazione dedicata: è la
+    ragione per cui il controllo del §2 è bloccante e non consultivo.
 
 
 3. FONT
@@ -114,7 +185,7 @@ essi è soggetto a licenze GPL, AGPL, SSPL o BUSL.
 -------------------
 
 GLIDE si appoggia a servizi gestiti da terzi (tra cui Supabase, Vercel,
-Resend, Upstash, Anthropic). L'uso di tali servizi è regolato dai
-rispettivi contratti commerciali e non incide sulla titolarità né sul
-regime di licenza del codice di questo repository. Il trattamento dei
-dati personali è documentato in `docs/legal/`.
+Resend, Upstash, Anthropic). L'uso di tali servizi è regolato dai rispettivi
+contratti commerciali e non incide sulla titolarità né sul regime di licenza
+del codice di questo repository. Il trattamento dei dati personali è
+documentato in `docs/legal/`.

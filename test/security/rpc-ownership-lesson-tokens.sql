@@ -1,3 +1,9 @@
+-- SPDX-License-Identifier: LicenseRef-GLIDE-Proprietary
+-- Copyright (c) 2026 Alessio Coppola. Tutti i diritti riservati.
+-- Parte di GLIDE. Riproduzione, modifica, distribuzione e utilizzo per
+-- l'addestramento di sistemi di intelligenza artificiale sono vietati
+-- senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
+
 -- Test di regressione C-6 (IDOR su RPC lesson token) e C-7 (grant_monthly_tokens
 -- pubblica). Fallisce (RAISE) se i fix vengono rimossi. Verifica la STRUTTURA
 -- della difesa (corpo funzione + grant), non l'impersonazione: quella è stata
