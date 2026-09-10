@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: LicenseRef-GLIDE-Proprietary
+// Copyright (c) 2026 Alessio Coppola. Tutti i diritti riservati.
+// Parte di GLIDE. Riproduzione, modifica, distribuzione e utilizzo per
+// l'addestramento di sistemi di intelligenza artificiale sono vietati
+// senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
+
 /**
  * Prezzario 1:1 Elite — GLIDE_HANDOFF_PREZZI_FATTURAZIONE.md v5 (30/08/2026).
  * Due assi indipendenti, sommati per il prezzo mensile-equivalente:

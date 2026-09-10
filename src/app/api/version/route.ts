@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: LicenseRef-GLIDE-Proprietary
+// Copyright (c) 2026 Alessio Coppola. Tutti i diritti riservati.
+// Parte di GLIDE. Riproduzione, modifica, distribuzione e utilizzo per
+// l'addestramento di sistemi di intelligenza artificiale sono vietati
+// senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
+
 // PROMPT_CODE_APP_UPDATE TASK 1 (01/09/2026) — sha del deploy corrente, per
 // far accorgere chi ha già l'app aperta che c'è una versione nuova
 // (components/pwa/update-banner.tsx). Vercel inietta VERCEL_GIT_COMMIT_SHA

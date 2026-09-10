@@ -1,3 +1,9 @@
+-- SPDX-License-Identifier: LicenseRef-GLIDE-Proprietary
+-- Copyright (c) 2026 Alessio Coppola. Tutti i diritti riservati.
+-- Parte di GLIDE. Riproduzione, modifica, distribuzione e utilizzo per
+-- l'addestramento di sistemi di intelligenza artificiale sono vietati
+-- senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
+
 -- Test di regressione C-2 (idempotenza webhook Stripe). Fallisce (RAISE) se il
 -- fix viene rimosso. La verifica di FIRMA è coperta dal codice (constructEvent);
 -- qui verifichiamo l'infrastruttura di dedup e la sua semantica.

@@ -1,3 +1,9 @@
+-- SPDX-License-Identifier: LicenseRef-GLIDE-Proprietary
+-- Copyright (c) 2026 Alessio Coppola. Tutti i diritti riservati.
+-- Parte di GLIDE. Riproduzione, modifica, distribuzione e utilizzo per
+-- l'addestramento di sistemi di intelligenza artificiale sono vietati
+-- senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
+
 -- Test di regressione C-1 (role lock). Fallisce (RAISE) se il fix viene rimosso.
 -- Esegui nel SQL editor Supabase o via MCP. Verifica la STRUTTURA della difesa,
 -- non l'impersonazione (quella è il test manuale della checklist S-1).

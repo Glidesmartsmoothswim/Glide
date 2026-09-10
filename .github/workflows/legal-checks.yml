@@ -1,0 +1,43 @@
+name: Controlli legali
+
+# Due verifiche che devono restare vere per sempre:
+#  1. ogni file sorgente porta l'intestazione di copyright;
+#  2. nessuna dipendenza introduce copyleft forte.
+# Il punto 2 gira anche a calendario: una dipendenza può cambiare licenza
+# tra una versione e l'altra, e il lockfile lo scopre solo quando lo aggiorni.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 1 * *" # il primo di ogni mese
+  workflow_dispatch:
+
+jobs:
+  intestazioni:
+    name: Intestazioni di copyright
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/check-license-headers.mjs
+
+  licenze:
+    name: Licenze delle dipendenze
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: node scripts/check-licenses.mjs --report /tmp/licenze.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: report-licenze
+          path: /tmp/licenze.txt

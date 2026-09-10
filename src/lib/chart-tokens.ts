@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: LicenseRef-GLIDE-Proprietary
+// Copyright (c) 2026 Alessio Coppola. Tutti i diritti riservati.
+// Parte di GLIDE. Riproduzione, modifica, distribuzione e utilizzo per
+// l'addestramento di sistemi di intelligenza artificiale sono vietati
+// senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
+
 // SSOT colori zona per i grafici. Derivato da `lib/workout.ts` (ZONES/ZoneId),
 // la palette REALE già in uso nei chip zona dell'editor/workout-hand (Onda
 // 29.1) — non da glide-suite.jsx: quel file di riferimento non esiste più in

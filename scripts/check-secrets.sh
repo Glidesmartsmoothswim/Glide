@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: LicenseRef-GLIDE-Proprietary
+# Copyright (c) 2026 Alessio Coppola. Tutti i diritti riservati.
+# Parte di GLIDE. Riproduzione, modifica, distribuzione e utilizzo per
+# l'addestramento di sistemi di intelligenza artificiale sono vietati
+# senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
+
 # Guardia segreti (S-2): dopo `next build`, verifica che nessun segreto
 # privilegiato sia finito nel bundle client (.next/). Esce 1 se ne trova uno.
 # Da eseguire come step obbligatorio PRIMA del deploy.
