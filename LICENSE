@@ -1,0 +1,119 @@
+GLIDE — Licenza proprietaria / Proprietary License
+==================================================
+
+Copyright (c) 2026 Alessio Coppola. Tutti i diritti riservati.
+Copyright (c) 2026 Alessio Coppola. All rights reserved.
+
+Titolare dei diritti / Rights holder:
+    Alessio Coppola (persona fisica)
+    P.IVA 02381880505
+    glide.smartswim@gmail.com
+
+--------------------------------------------------------------------------
+ITALIANO
+--------------------------------------------------------------------------
+
+1. TITOLARITÀ
+   Il presente software ("GLIDE", il "Software"), comprensivo del codice
+   sorgente, della documentazione, dello schema di base dati, dei contenuti
+   testuali e degli elementi grafici originali contenuti in questo
+   repository, è opera dell'ingegno di Alessio Coppola, che ne è titolare
+   esclusivo di ogni diritto di utilizzazione economica ai sensi della
+   Legge 22 aprile 1941 n. 633 e successive modificazioni.
+
+2. NESSUNA LICENZA CONCESSA
+   Il Software NON è software libero né open source. Nessun diritto viene
+   concesso, in via espressa o implicita, a chi ne venga in possesso a
+   qualsiasi titolo. In particolare, in assenza di un accordo scritto e
+   firmato dal titolare, non sono consentiti:
+     a) la riproduzione, totale o parziale, con qualsiasi mezzo o forma;
+     b) la distribuzione, la comunicazione al pubblico, la messa a
+        disposizione, la vendita, il noleggio o il prestito;
+     c) la modifica, la traduzione, l'adattamento, la trasformazione e la
+        creazione di opere derivate;
+     d) la decompilazione e il reverse engineering, salvo nei limiti
+        inderogabili previsti dall'art. 64-quater L. 633/1941;
+     e) l'uso del Software, o di sue parti, per l'addestramento di sistemi
+        di intelligenza artificiale.
+
+3. USO AUTORIZZATO
+   L'accesso al Software è riservato al titolare e ai soggetti da questi
+   espressamente autorizzati per iscritto, nei soli limiti e per le sole
+   finalità indicati nell'autorizzazione.
+
+4. SEGNI DISTINTIVI
+   Il nome "GLIDE", il pay-off "onda dopo onda", il logo e ogni altro segno
+   distintivo presente nel repository sono di titolarità di Alessio Coppola
+   e non sono oggetto di alcuna licenza d'uso.
+
+5. COMPONENTI DI TERZI
+   Il Software utilizza componenti software di terze parti, ciascuno
+   soggetto alla propria licenza. L'elenco e le relative condizioni sono
+   riportati nel file NOTICE, che costituisce parte integrante della
+   presente licenza. Nulla in questa licenza limita i diritti spettanti
+   all'utente in forza di quelle licenze, relativamente ai soli componenti
+   di terzi.
+
+6. ASSENZA DI GARANZIA
+   IL SOFTWARE È FORNITO "COSÌ COM'È", SENZA GARANZIA DI ALCUN TIPO,
+   ESPRESSA O IMPLICITA, INCLUSE — A TITOLO ESEMPLIFICATIVO — LE GARANZIE
+   DI COMMERCIABILITÀ, IDONEITÀ A UNO SCOPO PARTICOLARE E NON VIOLAZIONE
+   DI DIRITTI ALTRUI. NEI LIMITI CONSENTITI DALLA LEGGE, IL TITOLARE NON
+   RISPONDE DI ALCUN DANNO DERIVANTE DALL'USO O DALL'IMPOSSIBILITÀ DI USO
+   DEL SOFTWARE.
+
+7. LEGGE APPLICABILE
+   La presente licenza è regolata dalla legge italiana. Per ogni
+   controversia è competente il foro di Pisa, salvo diversa competenza
+   inderogabile di legge.
+
+--------------------------------------------------------------------------
+ENGLISH (courtesy translation — the Italian text prevails)
+--------------------------------------------------------------------------
+
+1. OWNERSHIP
+   This software ("GLIDE", the "Software"), including its source code,
+   documentation, database schema, textual content and original graphical
+   elements contained in this repository, is the work of Alessio Coppola,
+   who is the sole owner of all economic exploitation rights therein under
+   Italian Law No. 633 of 22 April 1941, as amended.
+
+2. NO LICENSE GRANTED
+   The Software is NOT free or open source software. No rights are granted,
+   expressly or by implication, to any person who comes into possession of
+   it on any basis. In particular, absent a written agreement signed by the
+   rights holder, the following are not permitted: reproduction in whole or
+   in part; distribution, public communication, making available, sale,
+   rental or lending; modification, translation, adaptation or creation of
+   derivative works; decompilation and reverse engineering, save within the
+   mandatory limits of Art. 64-quater of Law 633/1941; and use of the
+   Software or any part of it to train artificial intelligence systems.
+
+3. AUTHORIZED USE
+   Access to the Software is reserved to the rights holder and to persons
+   expressly authorized by them in writing, solely within the limits and
+   for the purposes stated in such authorization.
+
+4. DISTINCTIVE SIGNS
+   The name "GLIDE", the tagline "onda dopo onda", the logo and every other
+   distinctive sign in this repository are owned by Alessio Coppola and are
+   not licensed for use.
+
+5. THIRD-PARTY COMPONENTS
+   The Software uses third-party software components, each subject to its
+   own license. These are listed, with their terms, in the NOTICE file,
+   which forms an integral part of this license. Nothing herein limits any
+   rights you may have under those licenses with respect to the
+   third-party components alone.
+
+6. NO WARRANTY
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+   TO THE EXTENT PERMITTED BY LAW, THE RIGHTS HOLDER SHALL NOT BE LIABLE
+   FOR ANY DAMAGES ARISING FROM THE USE OF OR INABILITY TO USE THE
+   SOFTWARE.
+
+7. GOVERNING LAW
+   This license is governed by Italian law. The courts of Pisa, Italy,
+   shall have jurisdiction, save for any mandatory statutory venue.

@@ -2,6 +2,8 @@
   "name": "glide-suite",
   "version": "0.1.0",
   "private": true,
+  "license": "UNLICENSED",
+  "author": "Alessio Coppola <glide.smartswim@gmail.com>",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

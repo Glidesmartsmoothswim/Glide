@@ -1,0 +1,120 @@
+NOTICE — GLIDE
+==============
+
+Copyright (c) 2026 Alessio Coppola (P.IVA 02381880505). Tutti i diritti
+riservati. Vedi LICENSE per le condizioni d'uso del Software.
+
+Questo file assolve due funzioni: dichiarare la titolarità del codice
+originale e dare atto dei componenti di terzi utilizzati, con le relative
+licenze.
+
+Ultimo aggiornamento: 10 settembre 2026 (rif. package-lock.json,
+lockfileVersion 3, 548 pacchetti risolti).
+
+
+1. TITOLARITÀ DEL CODICE ORIGINALE
+----------------------------------
+
+Tutto il codice applicativo di questo repository (`src/`, `test/`,
+`scripts/`, `supabase/`, `middleware.ts` e i file di configurazione in
+radice) è opera originale di Alessio Coppola. Non contiene codice di terzi
+incorporato: una verifica sull'intero albero non rileva alcuna
+intestazione di copyright, identificativo SPDX o clausola di licenza
+appartenente a soggetti diversi dal titolare.
+
+La cronologia Git registra un solo autore umano, Alessio Coppola
+(`Glidesmartsmoothswim <glide.smartswim@gmail.com>`).
+
+Una parte dei commit riporta come autore, o come co-autore nel trailer
+`Co-authored-by`, l'assistente di programmazione Claude (Anthropic).
+Si tratta di attribuzione di strumento, non di co-titolarità: l'output
+generato da un sistema di intelligenza artificiale non attribuisce
+paternità né diritti d'autore al fornitore del sistema, e i termini di
+servizio di Anthropic assegnano all'utente ogni diritto sull'output.
+Non esistono pertanto contitolari, né persone fisiche né giuridiche,
+dei diritti su questo Software.
+
+
+2. COMPONENTI SOFTWARE DI TERZI
+-------------------------------
+
+Il Software dipende da pacchetti npm di terze parti, non ridistribuiti in
+questo repository (sono installati da `package-lock.json`). Nessuno di
+essi è soggetto a licenze GPL, AGPL, SSPL o BUSL.
+
+2.1 Dipendenze dirette di produzione
+
+    MIT   @supabase/ssr, @supabase/supabase-js, @upstash/ratelimit,
+          @upstash/redis, next, qrcode, react, react-dom, recharts,
+          resend, server-only, zod
+    ISC   lucide-react
+
+2.2 Dipendenze dirette di sviluppo
+
+    MIT         @tailwindcss/postcss, @types/*, eslint,
+                eslint-config-next, tailwindcss, tsx
+    Apache-2.0  typescript
+
+2.3 Distribuzione delle licenze sull'albero risolto (548 pacchetti)
+
+    MIT 436 · ISC 36 · Apache-2.0 31 · MPL-2.0 13 ·
+    LGPL-3.0-or-later 10 · BSD-2-Clause 7 · Apache-2.0 AND
+    LGPL-3.0-or-later 3 · BSD-3-Clause 3 · Apache-2.0 AND
+    LGPL-3.0-or-later AND MIT 1 · BlueOak-1.0.0 1 · Python-2.0 1 ·
+    CC-BY-4.0 1 · Unlicense 1 · CC0-1.0 1 · MIT-0 1 · 0BSD 1 ·
+    MIT AND ISC 1
+
+2.4 Componenti sotto licenza non permissiva, e perché non incidono
+
+    libvips — LGPL-3.0-or-later
+        Pacchetti `@img/sharp-libvips-*` e `@img/sharp-win32-*`
+        (questi ultimi Apache-2.0 AND LGPL-3.0-or-later). Sono binari
+        precompilati inclusi come dipendenza OPTIONAL e TRANSITIVA di
+        `next`, per l'ottimizzazione delle immagini; non compaiono in
+        `package.json` e non sono stati modificati.
+        La LGPL impone obblighi in caso di DISTRIBUZIONE del software.
+        GLIDE è erogato come servizio accessibile via rete: nessun binario
+        viene consegnato agli utenti, quindi gli obblighi di
+        redistribuzione non si attivano. Anche in ipotesi di
+        distribuzione, il collegamento è dinamico e la libreria non è
+        modificata, condizione sufficiente ai sensi dell'art. 4 LGPL-3.0.
+        Il codice proprietario non è in alcun modo contaminato.
+
+    lightningcss, axe-core — MPL-2.0
+        Strumenti di sola SVILUPPO. Il copyleft MPL-2.0 opera a livello di
+        singolo file e si attiva solo sui file modificati e ridistribuiti:
+        nessun file è stato modificato, nessuno è ridistribuito.
+
+    caniuse-lite — CC-BY-4.0
+        Database di compatibilità browser, usato in fase di build. La
+        licenza richiede attribuzione in caso di ridistribuzione del
+        database; il presente riconoscimento la soddisfa.
+
+    argparse — Python-2.0
+        Dipendenza di sola sviluppo, licenza permissiva.
+
+
+3. FONT
+-------
+
+    Glacial Indifference (Regular, Italic, Bold)
+    Copyright (c) Alfredo Marco Pradil, with Reserved Font Name
+    "Glacial Indifference".
+    SIL Open Font License, Version 1.1.
+
+    File: `public/fonts/GlacialIndifference-*.woff2`
+    Testo integrale della licenza: `public/fonts/OFL.txt`
+
+    L'incorporazione in un'applicazione web e l'uso commerciale sono
+    consentiti dalla OFL 1.1. L'unico divieto rilevante è la vendita del
+    font come prodotto a sé stante, che non ricorre in questo progetto.
+
+
+4. SERVIZI DI TERZI
+-------------------
+
+GLIDE si appoggia a servizi gestiti da terzi (tra cui Supabase, Vercel,
+Resend, Upstash, Anthropic). L'uso di tali servizi è regolato dai
+rispettivi contratti commerciali e non incide sulla titolarità né sul
+regime di licenza del codice di questo repository. Il trattamento dei
+dati personali è documentato in `docs/legal/`.

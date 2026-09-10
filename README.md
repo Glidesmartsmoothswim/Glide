@@ -13,14 +13,15 @@ analisi video e abbonamenti. Monorepo dell'applicazione web **glide.swim**.
 | Linguaggio  | TypeScript                          |
 | Stile       | Tailwind CSS v4                     |
 | Database/Auth | Supabase (Postgres + RLS)         |
-| Pagamenti   | Stripe (abbonamenti + una tantum)   |
+| Pagamenti   | Bonifico SEPA + QR EPC (incasso manuale, ADR-014) |
 | Email       | Resend                              |
 | Validazione | Zod                                 |
+| Tipografia  | Glacial Indifference (locale, SIL OFL 1.1) |
 
 ## Requisiti
 
 - Node.js ≥ 20 (sviluppato su v24)
-- Un progetto Supabase, un account Stripe (modalità test) e un account Resend
+- Un progetto Supabase e un account Resend (Upstash e Anthropic opzionali)
 
 ## Avvio in locale
 
@@ -63,7 +64,7 @@ Due ruoli, letti da `profiles.role` su Supabase:
 middleware.ts          # refresh sessione + protezione rotte
 src/
   app/
-    layout.tsx         # font Oswald/Montserrat, PWA meta, register SW
+    layout.tsx         # font Glacial Indifference, PWA meta, register SW
     globals.css        # design token GLIDE (palette + tipografia)
     manifest.ts        # web manifest (/manifest.webmanifest)
     page.tsx           # instrada per ruolo
@@ -76,21 +77,24 @@ src/
     pwa/register-sw    # registrazione service worker
   lib/
     env.ts             # env + helper "configured" (placeholder-safe)
-    flags.ts           # feature flag Stripe/Resend (funzione "simulata")
+    flags.ts           # feature flag Resend/AI (funzione "simulata")
     auth.ts            # profilo corrente, requireRole, homeForRole
     supabase/          # client browser + server + middleware
-    stripe.ts          # Stripe lazy (null se non configurato)
+    payment/           # listino, richieste, bonifico, QR EPC, stato
     resend.ts          # Resend lazy (null se non configurato)
 public/
   sw.js                # service worker minimale
   icons/               # icone PWA (192, 512, maskable, apple)
-reference/             # prototipi UI (glide-suite.jsx) — non buildati
+  fonts/               # Glacial Indifference + OFL.txt (licenza)
+supabase/migrations/   # schema Postgres + policy RLS
+docs/legal/            # informativa, termini, DPIA, registro trattamenti
 ```
 
 ## Feature flag (nessun crash senza chiavi)
 
-Se mancano le chiavi **Stripe**/**Resend** (o sono placeholder), la relativa
-funzione resta **"simulata"**: l'app parte lo stesso. Vedi `src/lib/flags.ts`.
+Se mancano le chiavi **Resend** o **Anthropic** (o sono placeholder), la
+relativa funzione resta **"simulata"**: l'app parte lo stesso. Vedi
+`src/lib/flags.ts`.
 
 ## Test rapido in locale
 
@@ -106,15 +110,27 @@ funzione resta **"simulata"**: l'app parte lo stesso. Vedi `src/lib/flags.ts`.
 
 ## Abbonamenti
 
-| Piano       | Prezzo        |
-| ----------- | ------------- |
-| Open        | € 29 / mese   |
-| Open Water  | € 79 / mese   |
-| Elite 1:1   | € 129 / mese  |
-| "Offrimi una birra" | € 5 una tantum (analisi video Open) |
+Listino in `src/lib/payment/pricing.ts` (mensili) e
+`src/lib/payment/elite-pricing.ts` (1:1, prezzo composto).
+
+| Piano             | Prezzo             |
+| ----------------- | ------------------ |
+| Open              | € 9,90 / mese      |
+| Open+             | € 12,90 / mese     |
+| 1:1 mensile       | € 79 / mese        |
+| 1:1 stagionale    | € 690 (10 mesi)    |
+| Videoanalisi      | € 100 una tantum   |
+
+L'incasso è **manuale**: il nuotatore riceve gli estremi del bonifico con
+QR EPC, il coach segna la richiesta come pagata dal gestionale. Nessun
+PSP integrato (ADR-014).
+
+## Licenza
+
+Software **proprietario** — © 2026 Alessio Coppola, tutti i diritti
+riservati. Vedi [`LICENSE`](./LICENSE). Componenti di terzi e relative
+licenze in [`NOTICE`](./NOTICE).
 
 ---
 
-**Sprint 0** — impalcatura: PWA installabile, Supabase (browser+server),
-login email + gating ruoli, shell coach/nuotatore, feature flag. Nessuna
-funzione applicativa: quelle arrivano dagli sprint successivi.
+Stato di avanzamento e prossimi passi: [`STATO.md`](./STATO.md).
