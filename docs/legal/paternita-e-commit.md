@@ -105,13 +105,30 @@ if grep -qiE '^(Co-Authored-By: Claude|Claude-Session:|🤖 Generated with)' "$M
 fi
 ```
 
-Attivalo per tutti (l'impostazione viaggia col repository, a differenza di
-`.git/hooks/`):
+Attivalo:
 
 ```bash
 chmod +x .githooks/commit-msg
 git config core.hooksPath .githooks
 ```
+
+### Due limiti dell'hook, da conoscere
+
+**Il file viaggia, l'attivazione no.** A differenza di `.git/hooks/`, la
+cartella `.githooks/` è versionata e segue il repository. Ma
+`core.hooksPath` è configurazione **locale**, che sta in `.git/config` e non
+viene clonata. Chi clona GLIDE — o tu stesso su una macchina diversa —
+parte con l'hook **inattivo** finché non esegue quel `git config`. Il primo
+comando da dare su ogni clone nuovo è quello, prima di qualunque commit.
+
+**L'hook non protegge il commit che lo introduce.** Git cerca l'hook sul
+disco al momento del commit: su un branch che non contiene ancora
+`.githooks/commit-msg` il file non c'è, e git **lo salta senza dire nulla**
+— nessun avviso, nessun errore, il commit passa con i trailer dentro. Vale
+per il commit che porta l'hook e per ogni branch creato da un ramo che non
+lo ha ancora. Finché questa convenzione non è su `main`, ogni branch nuovo
+parte scoperto: controlla l'esito con `git log -1 --format='%B'` invece di
+darlo per fatto.
 
 ---
 
@@ -163,7 +180,14 @@ git log main --format='%h %G? %an %s' | grep -v '^\w* G'
 
 # Trailer automatici sfuggiti
 git log main --format='%b' | grep -ciE 'Co-Authored-By: Claude|Claude-Session:'
+
+# L'hook è attivo su QUESTO clone? (deve stampare .githooks)
+git config core.hooksPath
 ```
 
 Dal 10 settembre 2026 in poi il primo comando deve restituire una sola
 riga, e il terzo deve restituire zero.
+
+Il quarto va rifatto **su ogni clone nuovo e su ogni macchina**: se non
+stampa `.githooks`, l'hook non sta girando, per quanto il file sia presente
+nell'albero.
