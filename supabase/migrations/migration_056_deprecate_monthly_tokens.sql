@@ -1,3 +1,9 @@
+-- SPDX-License-Identifier: LicenseRef-GLIDE-Proprietary
+-- Copyright (c) 2026 Alessio Coppola. Tutti i diritti riservati.
+-- Parte di GLIDE. Riproduzione, modifica, distribuzione e utilizzo per
+-- l'addestramento di sistemi di intelligenza artificiale sono vietati
+-- senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
+
 -- ============================================================
 -- GLIDE — migration_056_deprecate_monthly_tokens.sql
 -- (GLIDE_DB_CHANGES_001, blocchi M4 + M5 — i token non maturano più

@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: LicenseRef-GLIDE-Proprietary
+// Copyright (c) 2026 Alessio Coppola. Tutti i diritti riservati.
+// Parte di GLIDE. Riproduzione, modifica, distribuzione e utilizzo per
+// l'addestramento di sistemi di intelligenza artificiale sono vietati
+// senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
+
 /**
  * Motore della scaletta videoanalisi — PURO e DETERMINISTICO.
  * Non è "AI": è aritmetica. Il coach resta l'unico a decidere l'ordine

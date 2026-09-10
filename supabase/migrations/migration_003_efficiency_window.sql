@@ -1,3 +1,9 @@
+-- SPDX-License-Identifier: LicenseRef-GLIDE-Proprietary
+-- Copyright (c) 2026 Alessio Coppola. Tutti i diritti riservati.
+-- Parte di GLIDE. Riproduzione, modifica, distribuzione e utilizzo per
+-- l'addestramento di sistemi di intelligenza artificiale sono vietati
+-- senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
+
 -- ============================================================
 -- GLIDE — migration_003_efficiency_window.sql
 -- APPLICATA su Supabase il 2026-07-14.

@@ -1,3 +1,9 @@
+-- SPDX-License-Identifier: LicenseRef-GLIDE-Proprietary
+-- Copyright (c) 2026 Alessio Coppola. Tutti i diritti riservati.
+-- Parte di GLIDE. Riproduzione, modifica, distribuzione e utilizzo per
+-- l'addestramento di sistemi di intelligenza artificiale sono vietati
+-- senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
+
 -- Test di regressione C-7 (S-5, PROMPT_CODE_SEC_S5.md): la policy
 -- "bands_read" su public.zone_rpe_bands è scoped a `authenticated`, non più
 -- a PUBLIC/anon. Fallisce (RAISE) se torna aperta o se lo scoping sparisce.

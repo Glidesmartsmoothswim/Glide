@@ -1,3 +1,9 @@
+-- SPDX-License-Identifier: LicenseRef-GLIDE-Proprietary
+-- Copyright (c) 2026 Alessio Coppola. Tutti i diritti riservati.
+-- Parte di GLIDE. Riproduzione, modifica, distribuzione e utilizzo per
+-- l'addestramento di sistemi di intelligenza artificiale sono vietati
+-- senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
+
 -- Test di regressione M4/M5 (GLIDE_DB_CHANGES_001 / migration_056).
 -- Fallisce (RAISE) se la maturazione automatica dei token torna in vita.
 --
