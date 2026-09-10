@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+#
+# GLIDE — normalizzazione dell'attribuzione nei messaggi di commit.
+#
+# Rimuove i trailer inseriti automaticamente dagli assistenti di
+# programmazione e lascia al loro posto una nota leggibile. La paternità
+# dell'opera resta di chi dirige, revisiona e approva il lavoro; l'uso
+# degli strumenti resta dichiarato, perché è vero ed è giusto che si veda.
+#
+# Attivazione (una volta sola, nel repository):
+#   chmod +x .githooks/commit-msg
+#   git config core.hooksPath .githooks
+#
+# A differenza di .git/hooks/, questa cartella è versionata: l'hook viaggia
+# insieme al repository.
+
+set -euo pipefail
+
+MSG="$1"
+PATTERN='^(Co-Authored-By: Claude|Co-authored-by: Claude|Claude-Session:|🤖 Generated with)'
+
+if grep -qE "$PATTERN" "$MSG"; then
+  grep -vE "$PATTERN" "$MSG" > "$MSG.tmp"
+  mv "$MSG.tmp" "$MSG"
+
+  if ! grep -q '^Strumenti:' "$MSG"; then
+    printf '\nStrumenti: assistente IA, sotto direzione e revisione dell'"'"'autore.\n' >> "$MSG"
+  fi
+fi
