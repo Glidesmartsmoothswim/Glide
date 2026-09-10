@@ -137,10 +137,29 @@ Annota ogni baseline nel registro qui sotto.
 
 ## Registro delle baseline
 
-| Data       | Commit    | Tag                | SHA-256 manifest | Marca | Archiviata |
-| ---------- | --------- | ------------------ | ---------------- | ----- | ---------- |
-|            |           |                    |                  | ☐     | ☐          |
+### 2026-09-10 — prima baseline
 
-> Nessuna baseline ancora registrata. La prima riga va compilata con i
-> valori restituiti da `scripts/baseline-manifest.sh`: data di esecuzione,
-> commit fotografato, tag creato e impronta SHA-256 completa.
+| Campo             | Valore |
+| ----------------- | ------ |
+| Data              | 2026-09-10 |
+| Commit fotografato | `21edc5d1a12670e208f2f4d147dc73c3aa09a693` |
+| Tag               | `baseline-2026-09-10` |
+| Ramo              | `main` |
+| File tracciati    | 413 |
+| SHA-256 manifest  | `1ff79c958ed892fa1c425444fb1934125cea1e80d0912efdda2c181b5e71dc22` |
+| Percorso          | `baseline/2026-09-10/` |
+| Marca temporale   | ☐ da applicare |
+| Archiviata fuori sede | ☐ da fare |
+
+Contenuto fotografato: il blocco legale completo — `LICENSE`, `NOTICE`,
+l'intestazione SPDX su tutti i sorgenti gestiti, gli script di verifica,
+il workflow `legal-checks`, l'hook di attribuzione e la procedura sulla
+paternità dei commit.
+
+Determinismo verificato in fase di generazione: il manifest è stato
+prodotto due volte, in destinazioni diverse, ottenendo la stessa impronta.
+
+**Restano da fare su questa baseline:** la marca temporale qualificata su
+`MANIFEST.txt` (§2) e l'archiviazione in tre copie fuori dal repository
+(§3). Finché la marca manca, la baseline prova il *contenuto* ma non la
+*data certa*: è esattamente il punto per cui la procedura esiste.
