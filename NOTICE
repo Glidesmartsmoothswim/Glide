@@ -54,9 +54,16 @@ compiute, valutate e approvate dal titolare. In particolare:
 
 Questo apporto è documentato in modo contestuale e verificabile in:
 
-  `.aios/architecture/DECISIONS/`  decisioni di architettura (ADR), numerate
-                                   e datate, con alternative scartate e
-                                   motivazione della scelta
+  `docs/GLIDE_ADR.md`              registro delle decisioni di architettura
+                                   (ADR): diciassette decisioni numerate e
+                                   datate — da ADR-001 a ADR-018, esclusa la
+                                   006 — ciascuna con contesto, alternative
+                                   scartate e motivazione della scelta
+  `.aios/architecture/DECISIONS/`  ADR-006 (baseline di sicurezza, passo 1),
+                                   l'unica decisione conservata come file a
+                                   sé. Insieme al registro copre la serie
+                                   ADR-001…ADR-018 per intero, senza lacune
+                                   né duplicati
   `STATO.md`                       stato di avanzamento e indirizzo dato a
                                    ogni ciclo di lavoro
   `PROMPT_CODE_SEC*.md`            istruzioni impartite agli strumenti
