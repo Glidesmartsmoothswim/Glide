@@ -7,7 +7,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { monthsCovered, monthlyEquivalent, mrrOf, isGifted } from "./mrr";
-import { seasonWindow } from "./pricing";
+import { seasonWindow, seasonEnd } from "./pricing";
 
 // I tre abbonati realmente attivi al 12/09/2026, coi dati che hanno a DB.
 // Sono il caso che ha fatto sbagliare l'MRR, quindi restano il test di
@@ -128,17 +128,34 @@ test("MRR di un insieme vuoto è zero, non NaN", () => {
   });
 });
 
-test("stagione contabile: settembre apre la stagione nuova", () => {
+test("stagione contabile: 1 luglio → 30 giugno, e chiude dove chiude seasonEnd", () => {
   const s = seasonWindow(new Date("2026-09-12T10:00:00Z"));
   assert.equal(s.label, "2026/27");
-  assert.equal(s.start.toISOString(), "2026-09-01T00:00:00.000Z");
-  assert.equal(s.end.toISOString(), "2027-08-31T23:59:59.000Z");
+  assert.equal(s.start.toISOString(), "2026-07-01T00:00:00.000Z");
+  assert.equal(s.end.toISOString(), seasonEnd(new Date("2026-09-12T10:00:00Z")).toISOString());
 });
 
-test("stagione contabile: luglio appartiene ancora alla stagione che si chiude", () => {
+test("stagione contabile: la vendita del 31 agosto ci sta dentro", () => {
+  // È il caso che ha fatto nascere questa finestra: la lezione Testai del
+  // 31/08/2026 è "da inizio stagione" per il coach, e con un inizio al 1
+  // settembre sarebbe caduta fuori dal totale di stagione.
+  const s = seasonWindow(new Date("2026-09-12T10:00:00Z"));
+  const vendita = new Date("2026-08-31T09:00:00Z");
+  assert.ok(vendita >= s.start && vendita <= s.end);
+});
+
+test("stagione contabile: luglio è pre-stagione, apre quella nuova", () => {
+  // Coerente con seasonEnrollment: a luglio si incassa per la stagione che
+  // deve iniziare, non per quella appena chiusa.
   const s = seasonWindow(new Date("2027-07-15T10:00:00Z"));
+  assert.equal(s.label, "2027/28");
+  assert.equal(s.start.toISOString(), "2027-07-01T00:00:00.000Z");
+});
+
+test("stagione contabile: giugno appartiene alla stagione che si chiude", () => {
+  const s = seasonWindow(new Date("2027-06-15T10:00:00Z"));
   assert.equal(s.label, "2026/27");
-  assert.equal(s.start.toISOString(), "2026-09-01T00:00:00.000Z");
+  assert.equal(s.start.toISOString(), "2026-07-01T00:00:00.000Z");
 });
 
 test("stagione contabile: l'etichetta tiene il decennio", () => {

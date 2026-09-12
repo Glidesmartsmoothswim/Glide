@@ -132,9 +132,9 @@ export function expiryFor(tier: SubTier, from = new Date()): Date {
 }
 
 export type SeasonWindow = {
-  /** 1 settembre: inizio della stagione in corso. */
+  /** 1 luglio: apertura della finestra d'incasso della stagione. */
   start: Date;
-  /** 31 agosto successivo: fine della finestra di recupero (doc §Sospensione). */
+  /** 30 giugno successivo: chiusura, la stessa di `seasonEnd`. */
   end: Date;
   /** Etichetta da mostrare, es. "2026/27". */
   label: string;
@@ -143,20 +143,24 @@ export type SeasonWindow = {
 /**
  * Stagione CONTABILE, per i ricavi "da inizio stagione" del gestionale.
  *
- * Distinta da `seasonEnd` sopra, che è la scadenza di un PIANO (30 giugno,
- * i 10 mesi di allenamento). Qui la finestra arriva al 31 agosto perché è
- * fino a quella data che si incassa e si recupera la stagione (doc
- * §Sospensione): un saldo a luglio appartiene alla stagione che si chiude,
- * non a quella che deve ancora aprirsi.
+ * Va dal 1 LUGLIO al 30 giugno successivo, e non è una scelta arbitraria:
+ * la fine è esattamente `seasonEnd` (unica fonte di verità, non una data
+ * ricopiata a mano), e l'inizio è il 1 luglio perché è lì che si apre la
+ * finestra di iscrizione ANTICIPATA — `seasonEnrollment` tratta luglio e
+ * agosto come pre-stagione, cioè come pagamenti per la stagione che sta
+ * per aprirsi. Un incasso di luglio o agosto finanzia quella stagione, e
+ * nei ricavi va contato con lei.
+ *
+ * Gli allenamenti restano Sett→Giu (10 mesi): questa finestra parla di
+ * denaro, non di vasca. Comprende quindi anche le vendite di fine agosto,
+ * che per il coach sono già "inizio stagione".
  */
 export function seasonWindow(now = new Date()): SeasonWindow {
-  const y = now.getUTCFullYear();
-  // Settembre (mese 9) apre la stagione: prima di settembre si è ancora
-  // nella stagione iniziata l'anno precedente.
-  const startYear = now.getUTCMonth() + 1 >= 9 ? y : y - 1;
+  const end = seasonEnd(now);
+  const startYear = end.getUTCFullYear() - 1;
   return {
-    start: new Date(Date.UTC(startYear, 8, 1, 0, 0, 0)),
-    end: new Date(Date.UTC(startYear + 1, 7, 31, 23, 59, 59)),
+    start: new Date(Date.UTC(startYear, 6, 1, 0, 0, 0)),
+    end,
     label: `${startYear}/${String((startYear + 1) % 100).padStart(2, "0")}`,
   };
 }

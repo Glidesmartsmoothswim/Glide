@@ -694,11 +694,25 @@ Col parco clienti reale del 12/09: MRR mostrato 167,90€, MRR vero 139,10€. I
 **Conseguenze**
 
 - L'MRR scende da 167,90€ a 139,10€. Non è un peggioramento: è il numero vero.
-- Business guadagna "Incassato stagione" (1 sett → 31 ago, la finestra con cui si ragiona sul venduto — distinta dalla soglia forfettario, che resta per anno solare) e "Da incassare", che somma piani richiesti, prenotazioni `da_incassare` e pacchetti messi a `paid` per emettere i token ma con `paid_at` nullo. È la voce che mancava per riconciliare "venduto" con "incassato" senza aprire tre tabelle a mano.
+- Business guadagna "Incassato stagione" (1 lug → 30 giu, la finestra con cui si ragiona sul venduto — distinta dalla soglia forfettario, che resta per anno solare) e "Da incassare", che somma piani richiesti, prenotazioni `da_incassare` e pacchetti messi a `paid` per emettere i token ma con `paid_at` nullo. È la voce che mancava per riconciliare "venduto" con "incassato" senza aprire tre tabelle a mano.
 - Un elenco per abbonato mostra importo, mesi coperti e mensile-equivalente: l'MRR è verificabile riga per riga, non un totale da prendere per buono.
 - Le lezioni singole entrano nei ricavi e quindi **pesano sulla soglia forfettario**. È corretto e va detto: la percentuale salirà più di prima.
 - Il backfill non può ricostruire ciò che non è mai stato registrato. Una lezione venduta e incassata fuori dall'app non ha né booking né importo, e nessuna migrazione la inventa: va inserita a mano.
 - Test di regressione con **impersonazione vera** (`test/db/transactions-insert-rls.sql`), stessa logica di ADR-018: assume i ruoli e **scrive davvero**. È esattamente il controllo che mancava — un test che guarda l'elenco delle policy non distingue "policy assente" da "policy presente e permissiva", ed è per questo che il buco è passato inosservato.
+
+**La stagione contabile va dal 1 luglio al 30 giugno**
+
+Prima versione di `seasonWindow`: 1 settembre → 31 agosto. Sbagliata su un caso reale — la lezione Testai del 31/08/2026, che per il coach è "da inizio stagione", cadeva fuori dal totale. La finestra corretta chiude dove chiude `seasonEnd` (30 giugno, unica fonte di verità, non una data ricopiata) e apre il 1 luglio, perché è lì che `seasonEnrollment` apre l'iscrizione **anticipata**: luglio e agosto sono pre-stagione, cioè pagamenti per la stagione che sta per aprirsi. Un incasso di agosto finanzia quella stagione e nei ricavi va contato con lei. Gli allenamenti restano Sett→Giu: questa finestra parla di denaro, non di vasca.
+
+**Correzioni sui dati, applicate il 12/09/2026**
+
+Il backfill non inventa ciò che non è mai stato registrato, ma tre righe erano ricostruibili con certezza una volta chiesto ad Alessio:
+
+1. **Due lezioni singole alle affiliate a 25€**, già incassate e senza alcuna prenotazione a sistema (Testai 31/08, Battaglini 05/09). Registrato il fatto contabile — chi, quanto, quando — senza inventare un orario o un servizio che nessuno aveva registrato. 25€ è la tariffa che il prezzario prevede per i clienti storici (§Extra fuori piano) e che Testai già portava in `extra_lesson_price_override_cents`.
+2. **`profiles.service_type` di Battaglini era rimasto `open`** mentre `tier` era `one_to_one` (Pacchetto Stagionale Elite 3+1/mese, 646€ incassati). `plan_entitlements` si legge **per `service_type`**, e `open` concede 0 lezioni/mese: il motore di prenotazione non le ha mai dato il check-in mensile del piano. Corretto a `coaching_1_1`, come Amadio che ha lo stesso piano. È il bug più insidioso dei tre — non si vedeva nei ricavi, si vedeva come una lezione compresa nel piano trasformata in una lezione extra da pagare.
+3. **La prenotazione del 12/09 di Battaglini era `cash` / `da_incassare` / 35€**, conseguenza diretta del punto 2: senza credito, il motore l'ha prezzata come lezione extra a listino. Era denaro che non andava chiesto. Riportata a `credit` con il credito di settembre ricostruito e consumato.
+
+Totale ricavi stagione 2026/27 dopo le correzioni: **1.351,90€** — le cinque vendite dichiarate da Alessio, al centesimo (25 + 25 + 646 + 646 + 9,90). "Da incassare" scende a 270€, il solo pacchetto Berti Lorenzi (token già emessi, saldo concordato).
 
 **Link**
 Ripara un effetto collaterale di ADR-014 (uscita di Stripe: il webhook `service_role` era l'unico scrittore di `transactions`). Applica a `transactions` la stessa lezione di ADR-016 Task 4 (mai ingoiare l'esito di una scrittura di pagamento) e di ADR-018 (impersonazione vera nei test RLS). Prende dal calcolo derivato di ADR-016 l'idea di non persistere ciò che si può ricavare. Corregge l'uso di `TIER_PRICE_CENTS` come sorgente dell'MRR, introdotto in Sprint C.6. Migration: `058_transactions_insert_rls`. Codice: `lib/payment/mrr.ts` (nuovo), `lib/payment/pricing.ts` (`seasonWindow`), `lib/payment/request.ts`, `app/coach/business/page.tsx`, `app/coach/agenda/actions.ts`, `app/coach/video/actions.ts`. Regressione: `lib/payment/mrr.test.ts`, `test/db/transactions-insert-rls.sql`.
