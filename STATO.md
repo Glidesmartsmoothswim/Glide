@@ -5,6 +5,102 @@
 > Documento di stato: aggiornato **alla fine di ogni sprint**, così le sessioni
 > future ripartono da qui.
 
+## 💰 Ricavi a zero e MRR sbagliato — riparati (12 set, ADR-019)
+
+Segnalazione di Alessio: «ci sono errori nei ricavi Glide… anche MRR non torna», con l'elenco
+del venduto da inizio stagione. Erano due errori indipendenti che si sommavano.
+
+### Perché i ricavi erano €0 con 1.301,90€ incassati
+`transactions` ha la RLS attiva e **una sola policy, di SELECT**. Nessuna policy `INSERT` — che in
+Postgres non vuol dire "inseriscono tutti", vuol dire **nessuno**, tranne `service_role`. Con
+Stripe funzionava per caso: il webhook girava proprio con quella chiave. Uscito Stripe (ADR-014),
+ogni incasso passa dal client RLS del coach, e le insert venivano respinte in silenzio. Quattro
+punti:
+
+- `markPaid` (abbonamenti) — respinta, **esito non controllato**
+- `unlockPaidVideo` (analisi 5€) — respinta, **esito non controllato**
+- `markPurchasePaid` (pacchetti) — respinta, esito già controllato
+- `markCollected` (lezioni singole) — **non ci provava nemmeno**
+
+Il piano si attivava, la notifica partiva, il coach leggeva "attivato". Il ricavo non esisteva e
+nulla lo diceva. Conseguenze a video: Ricavi totali €0, grafico mensile vuoto, soglia forfettario
+allo 0%.
+
+### Perché l'MRR non tornava
+Sommava un **prezzo di listino** per tier: `TIER_PRICE_CENTS.one_to_one_monthly` = 79€ per ogni
+1:1 attivo. Ma 79€ viene dai vecchi Price ID Stripe e **non è un prezzo del prezzario in vigore**
+(la matrice v5 ha entry 46€, e 3 all./sett + check-in mensile in presenza fa 76€). E `tier` è il
+piano di *accesso*: non distingue mensile da stagionale. Un Pacchetto Stagionale Elite prepagato
+(646€ = 760€ × 10 mesi − 15%) vale **64,60€/mese**, non 79€.
+
+MRR mostrato **167,90€** · MRR vero **139,10€** (64,60 + 64,60 + 9,90).
+
+### Cosa è stato fatto
+`migration_058`: policy `INSERT` su `transactions` con `with check (is_coach())` — solo il coach,
+perché un nuotatore che può inserire può dichiarare da sé di aver pagato. `UPDATE`/`DELETE`
+restano **senza policy**, di proposito: un ricavo non si corregge di nascosto. Nuovo tipo
+`'lesson'` nel CHECK, così una lezione singola non finisce contata come abbonamento in
+`v_monthly_revenue`. Backfill idempotente dai dati contabili già presenti, con `created_at` =
+`paid_at` (altrimenti un incasso di settembre cadrebbe nel mese della migrazione); esclusi gli
+omaggi e tutto ciò che non ha una data d'incasso accertata.
+
+`lib/payment/mrr.ts` (nuovo): mensile-equivalente = importo incassato ÷ mesi coperti
+(`paid_at` → `tier_expires_at`, mese medio 365,25/12, arrotondato all'intero). Il listino resta
+solo come ultima spiaggia, e in quel caso la pagina **dichiara** che il numero è approssimato.
+Nessuna colonna nuova: l'informazione c'era già, e una quarta colonna sarebbe una quarta cosa che
+può divergere dalle altre tre (lezione di ADR-016).
+
+Ogni insert su `transactions` ora controlla il proprio esito, in tutti e quattro i punti.
+
+Business guadagna **Incassato stagione** (1 sett → 31 ago; la soglia forfettario resta per anno
+solare, che è la finestra fiscale), **Da incassare** (piani richiesti + prenotazioni
+`da_incassare` + pacchetti a `paid` con `paid_at` nullo) e un elenco per abbonato con importo,
+mesi coperti e mensile-equivalente — così l'MRR si verifica riga per riga.
+
+### Verificato sul DB live
+`v_monthly_revenue` → settembre 2026: **1.301,90€**, 3 abbonamenti. Policy provata con
+impersonazione vera (`test/db/transactions-insert-rls.sql`, stessa logica di ADR-018): il coach
+scrive i quattro tipi, il nuotatore viene respinto, un tipo inventato viene respinto. Un test che
+guarda l'elenco delle policy non avrebbe distinto "policy assente" da "policy permissiva" — ed è
+per questo che il buco è passato inosservato.
+
+### La stagione contabile: 1 luglio → 30 giugno
+Prima versione: 1 sett → 31 ago. Sbagliata su un caso reale — la lezione Testai del **31/08**, che
+per Alessio è "da inizio stagione", cadeva fuori dal totale. La finestra chiude dove chiude
+`seasonEnd` (30 giugno, unica fonte di verità) e apre il 1 luglio, perché è lì che
+`seasonEnrollment` apre l'iscrizione **anticipata**: luglio e agosto sono pre-stagione, cioè
+pagamenti per la stagione che sta per aprirsi. Gli allenamenti restano Sett→Giu: questa finestra
+parla di denaro, non di vasca.
+
+### Tre correzioni sui dati (12 set, dopo conferma di Alessio)
+1. **Due lezioni alle affiliate a 25€**, già incassate e senza prenotazione a sistema (Testai
+   31/08, Battaglini 05/09). Registrato il fatto contabile — chi, quanto, quando — senza inventare
+   orario e servizio che nessuno aveva registrato. 25€ è la tariffa del prezzario per i clienti
+   storici (§Extra fuori piano), quella che Testai già portava in
+   `extra_lesson_price_override_cents`; ora impostata anche su Battaglini.
+2. **`service_type` di Battaglini era `open`** mentre `tier` era `one_to_one` (Pacchetto Stagionale
+   Elite 3+1/mese, 646€ incassati). `plan_entitlements` si legge **per `service_type`** e `open`
+   concede 0 lezioni/mese: il check-in mensile del piano non le è mai stato dato. Corretto a
+   `coaching_1_1`, come Amadio che ha lo stesso piano. Il bug più insidioso dei tre: non si vedeva
+   nei ricavi, si vedeva come una lezione già pagata col piano trasformata in extra da pagare.
+3. **La prenotazione del 12/09 era `cash`/`da_incassare`/35€** — conseguenza diretta del punto 2:
+   senza credito il motore l'ha prezzata come lezione extra a listino. Era denaro che non andava
+   chiesto. Riportata a `credit`, credito di settembre ricostruito e consumato.
+
+### Numeri finali, verificati sul DB live
+| voce | valore |
+|---|---|
+| Ricavi stagione 2026/27 | **1.351,90€** |
+| di cui abbonamenti | 1.301,90€ |
+| di cui lezioni singole | 50,00€ |
+| MRR | **139,10€** |
+| Da incassare — prenotazioni | 0€ |
+| Da incassare — pacchetti | 270,00€ |
+
+1.351,90€ sono le cinque vendite dichiarate da Alessio al centesimo: 25 + 25 + 646 + 646 + 9,90.
+Le 35€ fantasma sono uscite da "Da incassare"; restano i 270€ del pacchetto Berti Lorenzi (token
+già emessi, saldo concordato).
+
 ## 🔐 L'IBAN esce dall'app — coordinate solo per email (8 set, ADR-018, modalità supervised)
 
 Decisione di Alessio, netta: l'IBAN non deve stare dentro l'app. La mail a una persona sola è

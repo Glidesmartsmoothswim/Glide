@@ -252,7 +252,14 @@ export async function markPaid(
   // legge SOLO `transactions` — senza questa riga un incasso manuale non
   // comparirebbe mai nei ricavi. Stesso schema/tipo che scriveva il vecchio
   // webhook Stripe su checkout.session.completed (type='subscription').
-  await admin.from("transactions").insert({
+  //
+  // 12/09/2026 — l'esito di questa insert NON veniva guardato, e per mesi
+  // la RLS l'ha rifiutata in silenzio (nessuna policy INSERT su
+  // `transactions`, vedi migration_058): il piano si attivava, il ricavo
+  // no, e Business mostrava €0 con oltre 1.300€ incassati. La policy è
+  // sistemata, ma il controllo resta: l'attivazione è già scritta e non si
+  // annulla per una riga di contabilità mancante — si dice, non si ingoia.
+  const { error: txError } = await admin.from("transactions").insert({
     swimmer_id: swimmerId,
     type: "subscription",
     amount_cents: amountCents,
@@ -260,6 +267,11 @@ export async function markPaid(
     status: "succeeded",
     description: p?.requested_tier_detail || `${TIER_LABEL[tier]} — incasso manuale`,
   });
+  if (txError)
+    reportPaymentWriteError(txError, {
+      op: "markPaid:transaction",
+      swimmerId,
+    });
 
   triggerInvoicing({
     swimmerId,
@@ -274,5 +286,9 @@ export async function markPaid(
     "Piano attivato ✅",
     `${TIER_LABEL[tier]} confermato — buon allenamento!`,
   );
+  if (txError)
+    return {
+      info: `${TIER_LABEL[tier]} attivato. ⚠️ La riga nei ricavi non è stata scritta, va aggiunta a mano.`,
+    };
   return { info: `${TIER_LABEL[tier]} attivato.` };
 }

@@ -6,7 +6,11 @@
 // senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
 
 import { revalidatePath } from "next/cache";
-import { isManualPaymentMethod } from "@/lib/payment/methods";
+import {
+  isManualPaymentMethod,
+  PAYMENT_METHOD_LABEL,
+  type ManualPaymentMethod,
+} from "@/lib/payment/methods";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile, type Profile } from "@/lib/auth";
@@ -404,7 +408,9 @@ export async function markCollected(fd: FormData): Promise<void> {
   const supabase = await createClient();
   const { data: b } = await supabase
     .from("bookings")
-    .select("id, swimmer_id, amount_cents, payment_method, payment_status")
+    .select(
+      "id, swimmer_id, amount_cents, payment_method, payment_status, services(name)",
+    )
     .eq("id", id)
     .maybeSingle();
   // ADR-017: si incassa a mano il contante e il bonifico. Il controllo resta
@@ -444,7 +450,56 @@ export async function markCollected(fd: FormData): Promise<void> {
     // un bonifico registrato come contante è una riga falsa.
     method: b.payment_method,
   });
+
+  // 12/09/2026 — il ledger registrava l'incasso, i RICAVI no: Business
+  // legge solo `transactions` (v_monthly_revenue) e le lezioni singole
+  // saldate a contante/bonifico non ci arrivavano mai. Una lezione venduta
+  // fuori abbonamento è un ricavo come gli altri, e pesa sulla soglia
+  // forfettario esattamente come gli altri.
+  //
+  // `type='lesson'` (migration_058): NON 'subscription', altrimenti
+  // `v_monthly_revenue.abbonamenti` conterebbe una lezione singola come un
+  // abbonamento. L'incasso è già scritto sul booking e non si annulla se
+  // questa riga fallisce — ma non resta muto.
+  // `services(name)` torna un oggetto per una relazione molti-a-uno, ma
+  // basta un `!inner` o un cambio di FK perché diventi un array: gestiti
+  // entrambi, così un ricavo non si perde per la forma della risposta.
+  const rel = (b as { services?: unknown }).services;
+  const serviceName =
+    (Array.isArray(rel) ? rel[0] : rel) &&
+    typeof (Array.isArray(rel) ? rel[0] : rel) === "object"
+      ? ((Array.isArray(rel) ? rel[0] : rel) as { name?: string | null }).name
+      : null;
+
+  // `bookings.amount_cents` è nullable: un booking a saldo diretto senza
+  // importo è un dato incoerente (il vincolo `payment_status_coherent` di
+  // migration_054 lo impedisce), ma se arrivasse qui non va inventato uno
+  // zero nei ricavi — si dice e si va avanti.
+  if (!b.amount_cents || b.amount_cents <= 0) {
+    reportPaymentWriteError(
+      { message: "booking incassato senza importo: nessuna riga nei ricavi" },
+      { op: "markCollected:transaction", swimmerId: b.swimmer_id },
+    );
+  } else {
+    const { error: txError } = await supabase.from("transactions").insert({
+      swimmer_id: b.swimmer_id,
+      type: "lesson",
+      amount_cents: b.amount_cents,
+      currency: "eur",
+      status: "succeeded",
+      description: `${serviceName ?? "Lezione singola"} — ${
+        PAYMENT_METHOD_LABEL[b.payment_method as ManualPaymentMethod]
+      }${receipt ? ` · ricevuta ${receipt}` : ""}`,
+    });
+    if (txError)
+      reportPaymentWriteError(txError, {
+        op: "markCollected:transaction",
+        swimmerId: b.swimmer_id,
+      });
+  }
+
   revalidatePath("/coach/agenda");
+  revalidatePath("/coach/business");
 }
 
 // ---------- Eventi ----------

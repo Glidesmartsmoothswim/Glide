@@ -130,3 +130,37 @@ export function expiryFor(tier: SubTier, from = new Date()): Date {
   d.setUTCMonth(d.getUTCMonth() + 1);
   return d;
 }
+
+export type SeasonWindow = {
+  /** 1 luglio: apertura della finestra d'incasso della stagione. */
+  start: Date;
+  /** 30 giugno successivo: chiusura, la stessa di `seasonEnd`. */
+  end: Date;
+  /** Etichetta da mostrare, es. "2026/27". */
+  label: string;
+};
+
+/**
+ * Stagione CONTABILE, per i ricavi "da inizio stagione" del gestionale.
+ *
+ * Va dal 1 LUGLIO al 30 giugno successivo, e non è una scelta arbitraria:
+ * la fine è esattamente `seasonEnd` (unica fonte di verità, non una data
+ * ricopiata a mano), e l'inizio è il 1 luglio perché è lì che si apre la
+ * finestra di iscrizione ANTICIPATA — `seasonEnrollment` tratta luglio e
+ * agosto come pre-stagione, cioè come pagamenti per la stagione che sta
+ * per aprirsi. Un incasso di luglio o agosto finanzia quella stagione, e
+ * nei ricavi va contato con lei.
+ *
+ * Gli allenamenti restano Sett→Giu (10 mesi): questa finestra parla di
+ * denaro, non di vasca. Comprende quindi anche le vendite di fine agosto,
+ * che per il coach sono già "inizio stagione".
+ */
+export function seasonWindow(now = new Date()): SeasonWindow {
+  const end = seasonEnd(now);
+  const startYear = end.getUTCFullYear() - 1;
+  return {
+    start: new Date(Date.UTC(startYear, 6, 1, 0, 0, 0)),
+    end,
+    label: `${startYear}/${String((startYear + 1) % 100).padStart(2, "0")}`,
+  };
+}

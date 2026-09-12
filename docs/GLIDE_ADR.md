@@ -632,3 +632,87 @@ L'IBAN e l'intestatario **non compaiono in nessuna pagina, in nessuna risposta J
 
 **Link**
 Restringe ADR-016/ADR-017 (incasso manuale) sul canale di comunicazione delle coordinate. Supera la scelta di `PROMPT_CODE_PAGAMENTI` TASK 2 (IBAN in `app_config` a lettura pubblica come secondo punto di verifica). Migration: `057_app_config_iban_private`. Codice: `lib/payment/transfer-email.ts` (ex `booking-transfer.ts`, generalizzato a due flussi), `lib/payment/bank.ts`, `components/payment/payment-request-card.tsx`, `components/booking/swimmer-booking.tsx`, `app/app/profilo/page.tsx`, `app/app/abbonamenti/actions.ts`, `api/booking/create/route.ts`.
+
+---
+
+## ADR-019 — I ricavi si scrivono, e l'MRR si ricava dall'incasso
+
+**Stato:** ACCETTATO — 12/09/2026 (segnalazione di Alessio: "ci sono errori nei ricavi Glide… anche MRR non torna")
+
+**Contesto**
+
+Due errori distinti, che sommati rendevano la sezione Business inservibile proprio dove serve — la riconciliazione del venduto e la soglia forfettario.
+
+**1. I ricavi erano a zero con oltre 1.300€ incassati in stagione.**
+`transactions` ha la RLS attiva e **una sola** policy:
+
+```
+"transazioni: lettura propria o coach"  SELECT  using (swimmer_id = auth.uid() or is_coach())
+```
+
+Nessuna policy `INSERT`. In Postgres questo non significa "tutti possono inserire": significa che **nessuno** può, tranne `service_role`, che è esente da RLS. Con Stripe la cosa funzionava per caso — il webhook girava proprio con quella chiave. Rimosso Stripe (ADR-014), ogni incasso passa dalle azioni del coach, che usano il **client RLS del coach**, non l'admin. Da allora i quattro punti che scrivono un ricavo venivano respinti:
+
+| punto | file | esito |
+|---|---|---|
+| `markPaid` (abbonamenti) | `lib/payment/request.ts` | insert respinta, **esito non controllato** |
+| `markPurchasePaid` (pacchetti) | `lib/payment/packages.ts` | insert respinta, esito già controllato |
+| `unlockPaidVideo` (analisi 5€) | `coach/video/actions.ts` | insert respinta, **esito non controllato** |
+| `markCollected` (lezioni singole) | `coach/agenda/actions.ts` | **non provava nemmeno** |
+
+Il primo e il terzo sono la parte che fa male: `await supabase.from("transactions").insert(...)` senza guardare `error`. Il piano si attivava, la notifica partiva, il coach vedeva "attivato" — e il ricavo non esisteva. Non c'era nessun segnale, da nessuna parte.
+
+**2. L'MRR sommava un prezzo di listino, non quello che entra.**
+Business faceva `MONTHLY_EQUIV[p.tier]` con `TIER_PRICE_CENTS.one_to_one_monthly` = 79€ per ogni 1:1 attivo. Due problemi in uno:
+
+- 79€ non è un prezzo del prezzario in vigore: viene dai vecchi Price ID Stripe, e la matrice di `GLIDE_HANDOFF_PREZZI_FATTURAZIONE.md` v5 non lo contiene (entry 46€, 3 all./sett + check-in mensile in presenza 76€).
+- `profiles.tier` è il piano di **accesso** e non distingue mensile da stagionale. Un Pacchetto Stagionale Elite prepagato — 646€ = 760€ × 10 mesi − 15% — vale **64,60€/mese**, non 79€.
+
+Col parco clienti reale del 12/09: MRR mostrato 167,90€, MRR vero 139,10€. Il vecchio commento in pagina chiamava la cosa "approssimazione onesta", ma la sovrastima non era il compromesso dichiarato (stagionale contato come mensile): era un prezzo che nessuno paga.
+
+**Alternative considerate**
+
+1. **Scrivere i ricavi col client admin (`service_role`).** Scartata. Funzionerebbe subito e senza migrazione, ma per farlo bisogna bypassare la RLS da un percorso che non ne ha bisogno: il coach è autenticato, ha già il diritto di registrare un incasso, e la policy è il posto dove quel diritto va scritto. Usare la chiave che ignora le regole al posto di scrivere la regola sposta il problema e lo nasconde meglio.
+2. **Una colonna nuova per il periodo di fatturazione** (`payment_period_months`), da cui derivare l'MRR. Scartata per ora: l'informazione **c'è già** in forma contabile — `payment_amount_cents`, `paid_at`, `tier_expires_at`. Una quarta colonna che dice la stessa cosa è una quarta cosa che può divergere dalle altre tre (la lezione di ADR-016 sul gate derivato invece che persistito).
+3. **Ricavare il mensile-equivalente dall'incasso** — scelta. Importo realmente incassato ÷ mesi che quel pagamento copre.
+
+**Decisione**
+
+**I ricavi si scrivono, e chi li scrive è il coach.**
+
+- `migration_058`: policy `INSERT` su `transactions` con `with check (is_coach())`. Solo il coach: se un nuotatore potesse inserire, potrebbe dichiarare da sé di aver pagato. `UPDATE` e `DELETE` restano **senza policy**, di proposito — un ricavo registrato non si corregge di nascosto, e la contabilità non ha la gomma.
+- Nuovo tipo `'lesson'` nel CHECK su `transactions.type`. Una lezione singola saldata non è un abbonamento: senza un tipo proprio finirebbe etichettata "Abbonamento" e gonfierebbe `v_monthly_revenue.abbonamenti`.
+- `markCollected` scrive il ricavo, oltre al ledger che già scriveva.
+- **Ogni** insert su `transactions` controlla il proprio esito. L'incasso è già scritto e non si annulla per una riga di contabilità mancante, ma il coach lo viene a sapere: "⚠️ La riga nei ricavi non è stata scritta, va aggiunta a mano".
+- Backfill nella stessa migrazione, ricostruito dai dati contabili già presenti (`profiles`, `package_purchases`, `bookings`) e **idempotente**. `created_at` prende `paid_at`, altrimenti un incasso di settembre finirebbe nel mese in cui gira la migrazione. Esclusi gli abbonamenti omaggio (`payment_amount_cents = 0`) e tutto ciò che non ha una data d'incasso accertata: in contabilità non si inventa una data.
+
+**L'MRR si ricava dall'incasso, non dal listino** (`lib/payment/mrr.ts`).
+
+- Mensile-equivalente = `payment_amount_cents ÷ monthsCovered(paid_at, tier_expires_at)`, arrotondato. I mesi si contano sul mese medio gregoriano (365,25/12) e si arrotondano all'intero: le date reali sono negoziate a mano e cadono su giorni di calendario, quindi 03/09 → 30/06 sono 9,86 mesi e vanno letti come 10.
+- Il listino resta solo come **ultima spiaggia**, per un profilo attivato a mano senza importo o senza date — e in quel caso la pagina lo dichiara approssimato, invece di far passare il numero per esatto.
+- Gli omaggi restano fuori dall'MRR e dentro gli attivi, come già decideva il codice precedente: il servizio lo ricevono davvero, il denaro non entra.
+
+**Conseguenze**
+
+- L'MRR scende da 167,90€ a 139,10€. Non è un peggioramento: è il numero vero.
+- Business guadagna "Incassato stagione" (1 lug → 30 giu, la finestra con cui si ragiona sul venduto — distinta dalla soglia forfettario, che resta per anno solare) e "Da incassare", che somma piani richiesti, prenotazioni `da_incassare` e pacchetti messi a `paid` per emettere i token ma con `paid_at` nullo. È la voce che mancava per riconciliare "venduto" con "incassato" senza aprire tre tabelle a mano.
+- Un elenco per abbonato mostra importo, mesi coperti e mensile-equivalente: l'MRR è verificabile riga per riga, non un totale da prendere per buono.
+- Le lezioni singole entrano nei ricavi e quindi **pesano sulla soglia forfettario**. È corretto e va detto: la percentuale salirà più di prima.
+- Il backfill non può ricostruire ciò che non è mai stato registrato. Una lezione venduta e incassata fuori dall'app non ha né booking né importo, e nessuna migrazione la inventa: va inserita a mano.
+- Test di regressione con **impersonazione vera** (`test/db/transactions-insert-rls.sql`), stessa logica di ADR-018: assume i ruoli e **scrive davvero**. È esattamente il controllo che mancava — un test che guarda l'elenco delle policy non distingue "policy assente" da "policy presente e permissiva", ed è per questo che il buco è passato inosservato.
+
+**La stagione contabile va dal 1 luglio al 30 giugno**
+
+Prima versione di `seasonWindow`: 1 settembre → 31 agosto. Sbagliata su un caso reale — la lezione Testai del 31/08/2026, che per il coach è "da inizio stagione", cadeva fuori dal totale. La finestra corretta chiude dove chiude `seasonEnd` (30 giugno, unica fonte di verità, non una data ricopiata) e apre il 1 luglio, perché è lì che `seasonEnrollment` apre l'iscrizione **anticipata**: luglio e agosto sono pre-stagione, cioè pagamenti per la stagione che sta per aprirsi. Un incasso di agosto finanzia quella stagione e nei ricavi va contato con lei. Gli allenamenti restano Sett→Giu: questa finestra parla di denaro, non di vasca.
+
+**Correzioni sui dati, applicate il 12/09/2026**
+
+Il backfill non inventa ciò che non è mai stato registrato, ma tre righe erano ricostruibili con certezza una volta chiesto ad Alessio:
+
+1. **Due lezioni singole alle affiliate a 25€**, già incassate e senza alcuna prenotazione a sistema (Testai 31/08, Battaglini 05/09). Registrato il fatto contabile — chi, quanto, quando — senza inventare un orario o un servizio che nessuno aveva registrato. 25€ è la tariffa che il prezzario prevede per i clienti storici (§Extra fuori piano) e che Testai già portava in `extra_lesson_price_override_cents`.
+2. **`profiles.service_type` di Battaglini era rimasto `open`** mentre `tier` era `one_to_one` (Pacchetto Stagionale Elite 3+1/mese, 646€ incassati). `plan_entitlements` si legge **per `service_type`**, e `open` concede 0 lezioni/mese: il motore di prenotazione non le ha mai dato il check-in mensile del piano. Corretto a `coaching_1_1`, come Amadio che ha lo stesso piano. È il bug più insidioso dei tre — non si vedeva nei ricavi, si vedeva come una lezione compresa nel piano trasformata in una lezione extra da pagare.
+3. **La prenotazione del 12/09 di Battaglini era `cash` / `da_incassare` / 35€**, conseguenza diretta del punto 2: senza credito, il motore l'ha prezzata come lezione extra a listino. Era denaro che non andava chiesto. Riportata a `credit` con il credito di settembre ricostruito e consumato.
+
+Totale ricavi stagione 2026/27 dopo le correzioni: **1.351,90€** — le cinque vendite dichiarate da Alessio, al centesimo (25 + 25 + 646 + 646 + 9,90). "Da incassare" scende a 270€, il solo pacchetto Berti Lorenzi (token già emessi, saldo concordato).
+
+**Link**
+Ripara un effetto collaterale di ADR-014 (uscita di Stripe: il webhook `service_role` era l'unico scrittore di `transactions`). Applica a `transactions` la stessa lezione di ADR-016 Task 4 (mai ingoiare l'esito di una scrittura di pagamento) e di ADR-018 (impersonazione vera nei test RLS). Prende dal calcolo derivato di ADR-016 l'idea di non persistere ciò che si può ricavare. Corregge l'uso di `TIER_PRICE_CENTS` come sorgente dell'MRR, introdotto in Sprint C.6. Migration: `058_transactions_insert_rls`. Codice: `lib/payment/mrr.ts` (nuovo), `lib/payment/pricing.ts` (`seasonWindow`), `lib/payment/request.ts`, `app/coach/business/page.tsx`, `app/coach/agenda/actions.ts`, `app/coach/video/actions.ts`. Regressione: `lib/payment/mrr.test.ts`, `test/db/transactions-insert-rls.sql`.

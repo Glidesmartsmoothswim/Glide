@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/auth";
 import { notifyUser } from "@/lib/notify";
 import { BIRRA_CENTS } from "@/lib/video";
+import { reportPaymentWriteError } from "@/lib/payment/errors";
 
 export type CommentState = { error?: string; info?: string };
 
@@ -73,7 +74,11 @@ export async function unlockPaidVideo(formData: FormData) {
     .maybeSingle();
   if (!video) return;
 
-  await supabase.from("transactions").insert({
+  // 12/09/2026 — esito controllato: la RLS rifiutava questa insert in
+  // silenzio (nessuna policy INSERT su `transactions` fino a
+  // migration_058) e i 5€ non arrivavano mai nei ricavi. Lo sblocco è già
+  // scritto e non si annulla per la riga contabile, ma il log deve esserci.
+  const { error: txError } = await supabase.from("transactions").insert({
     swimmer_id: video.swimmer_id,
     type: "birra",
     video_id: videoId,
@@ -82,6 +87,11 @@ export async function unlockPaidVideo(formData: FormData) {
     status: "succeeded",
     description: "Sblocco analisi video — incassato dal coach",
   });
+  if (txError)
+    reportPaymentWriteError(txError, {
+      op: "unlockPaidVideo:transaction",
+      swimmerId: video.swimmer_id as string,
+    });
   await notifyUser(
     video.swimmer_id as string,
     "birra",
@@ -90,6 +100,7 @@ export async function unlockPaidVideo(formData: FormData) {
   );
   revalidatePath("/coach/video");
   revalidatePath("/app/video");
+  revalidatePath("/coach/business");
 }
 
 /** Segna un video come analizzato senza commento testuale. */
