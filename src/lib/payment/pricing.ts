@@ -130,3 +130,33 @@ export function expiryFor(tier: SubTier, from = new Date()): Date {
   d.setUTCMonth(d.getUTCMonth() + 1);
   return d;
 }
+
+export type SeasonWindow = {
+  /** 1 settembre: inizio della stagione in corso. */
+  start: Date;
+  /** 31 agosto successivo: fine della finestra di recupero (doc §Sospensione). */
+  end: Date;
+  /** Etichetta da mostrare, es. "2026/27". */
+  label: string;
+};
+
+/**
+ * Stagione CONTABILE, per i ricavi "da inizio stagione" del gestionale.
+ *
+ * Distinta da `seasonEnd` sopra, che è la scadenza di un PIANO (30 giugno,
+ * i 10 mesi di allenamento). Qui la finestra arriva al 31 agosto perché è
+ * fino a quella data che si incassa e si recupera la stagione (doc
+ * §Sospensione): un saldo a luglio appartiene alla stagione che si chiude,
+ * non a quella che deve ancora aprirsi.
+ */
+export function seasonWindow(now = new Date()): SeasonWindow {
+  const y = now.getUTCFullYear();
+  // Settembre (mese 9) apre la stagione: prima di settembre si è ancora
+  // nella stagione iniziata l'anno precedente.
+  const startYear = now.getUTCMonth() + 1 >= 9 ? y : y - 1;
+  return {
+    start: new Date(Date.UTC(startYear, 8, 1, 0, 0, 0)),
+    end: new Date(Date.UTC(startYear + 1, 7, 31, 23, 59, 59)),
+    label: `${startYear}/${String((startYear + 1) % 100).padStart(2, "0")}`,
+  };
+}
