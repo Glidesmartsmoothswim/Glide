@@ -58,7 +58,9 @@ import {
 import type { SubTier } from "@/lib/payment/pricing";
 import { SwimmerTabs, type SwimmerTabKey } from "./swimmer-tabs";
 import { CommentForm } from "@/app/coach/video/comment-form";
-import { markReviewed, unlockPaidVideo } from "@/app/coach/video/actions";
+import { markReviewed } from "@/app/coach/video/actions";
+import { BirraPanel } from "@/components/video/birra-panel";
+import { totaleDovuto, euro, type BirraTab } from "@/lib/birra";
 import { VideoActions } from "@/app/app/video/video-actions";
 import { STATUS_LABEL as VIDEO_STATUS_LABEL, type VideoRow, type VideoCommentRow } from "@/lib/video";
 import { TIER_LABEL } from "@/lib/access";
@@ -353,6 +355,21 @@ export default async function SwimmerDetail({
   // Tab Video (Sprint B): commenti + URL firmati dei file già caricati.
   const videos = (videoRes.data ?? []) as VideoRow[];
   const videoIds = videos.map((v) => v.id);
+
+  // Colletta per la Birra (migration_061). Le partite aperte servono DUE
+  // volte in questa pagina: accanto al video, e — soprattutto — nel pannello
+  // Pagamenti, che è il momento in cui il coach prepara un rinnovo ed è lì
+  // che una colletta in sospeso va incassata. Un cruscotto a parte nessuno
+  // lo guarderebbe al momento giusto.
+  const { data: birraData } = await supabase
+    .from("birra_tab")
+    .select("*")
+    .eq("swimmer_id", id);
+  const birre = (birraData ?? []) as BirraTab[];
+  const birraByVideo = new Map(
+    birre.filter((b) => b.video_id).map((b) => [b.video_id as string, b]),
+  );
+  const birreInSospeso = birre.filter((b) => b.state === "dovuta");
   const { data: vcData } = videoIds.length
     ? await supabase.from("video_comments").select("*").in("video_id", videoIds)
     : { data: [] as VideoCommentRow[] };
@@ -386,25 +403,15 @@ export default async function SwimmerDetail({
           </Pill>
         </div>
 
-        {v.status === "locked" ? (
-          <div className="flex items-center justify-between gap-3 rounded-xl bg-amber-500/5 p-3">
-            <p className="text-sm text-muted">
-              Analisi bloccata (Open · €5) — sblocca dopo aver incassato.
-            </p>
-            <form action={unlockPaidVideo}>
-              <input type="hidden" name="video_id" value={v.id} />
-              <button
-                type="submit"
-                className="whitespace-nowrap rounded-lg bg-blu px-3 py-1.5 text-sm font-bold text-white"
-              >
-                Segna incassato
-              </button>
-            </form>
-          </div>
-        ) : url ? (
+        {url ? (
           <video controls src={url} className="w-full rounded-xl bg-black" />
         ) : (
           <p className="text-sm text-muted">File non disponibile.</p>
+        )}
+
+        {/* Colletta per la Birra (migration_061): non blocca il video. */}
+        {v.tier === "open" && (
+          <BirraPanel video={v} birra={birraByVideo.get(v.id)} />
         )}
 
         {vc.length > 0 && (
@@ -417,22 +424,20 @@ export default async function SwimmerDetail({
           </div>
         )}
 
-        {v.status !== "locked" && (
-          <div className="flex flex-col gap-2">
-            <CommentForm videoId={v.id} />
-            {v.status !== "reviewed" && (
-              <form action={markReviewed}>
-                <input type="hidden" name="video_id" value={v.id} />
-                <button
-                  type="submit"
-                  className="text-sm text-muted underline hover:text-foreground"
-                >
-                  Segna come analizzato senza commento
-                </button>
-              </form>
-            )}
-          </div>
-        )}
+        <div className="flex flex-col gap-2">
+          <CommentForm videoId={v.id} />
+          {v.status !== "reviewed" && (
+            <form action={markReviewed}>
+              <input type="hidden" name="video_id" value={v.id} />
+              <button
+                type="submit"
+                className="text-sm text-muted underline hover:text-foreground"
+              >
+                Segna come analizzato senza commento
+              </button>
+            </form>
+          )}
+        </div>
 
         <VideoActions
           videoId={v.id}
@@ -787,6 +792,32 @@ export default async function SwimmerDetail({
 
     pagamenti: (
       <div className="flex flex-col gap-6">
+        {/* Le collette aperte stanno QUI, in cima ai pagamenti: è il momento
+            in cui il coach prepara un rinnovo, ed è l'unico momento in cui
+            serve saperlo. Non blocca nulla — è un promemoria da incassare
+            insieme alla quota. */}
+        {birreInSospeso.length > 0 && (
+          <section className="flex flex-col gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+            <h2 className="font-display text-lg text-foreground">
+              🍺 Colletta per la Birra — da incassare col rinnovo
+            </h2>
+            <p className="text-sm text-foreground">
+              {birreInSospeso.length}{" "}
+              {birreInSospeso.length === 1 ? "colletta aperta" : "collette aperte"} ·{" "}
+              <b>{euro(totaleDovuto(birreInSospeso))}</b>
+            </p>
+            <div className="flex flex-col gap-2">
+              {birreInSospeso.map((b) => (
+                <BirraPanel
+                  key={b.id}
+                  video={{ id: b.video_id ?? "", swimmer_id: id }}
+                  birra={b}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
         <section className="flex flex-col gap-3">
           <h2 className="font-display text-lg text-foreground">Stato abbonamento</h2>
           <PaymentPanel

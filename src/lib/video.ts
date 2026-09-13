@@ -5,7 +5,10 @@
 // senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
 
 export type VideoTier = "coaching_1_1" | "open";
-export type VideoStatus = "locked" | "pending" | "reviewed";
+// 'locked' è uscito dal vocabolario con migration_061: un video non si blocca
+// mai in attesa di pagamento. Il vincolo in DB lo rifiuta, e toglierlo da qui
+// fa sì che il compilatore trovi ogni punto che ci contava ancora.
+export type VideoStatus = "pending" | "reviewed";
 
 export type RetentionState = "active" | "archived" | "preserved";
 
@@ -37,13 +40,14 @@ export type VideoCommentRow = {
 };
 
 export const STATUS_LABEL: Record<VideoStatus, string> = {
-  locked: "Bloccato",
   pending: "In coda",
   reviewed: "Analizzato",
 };
 
-/** Prezzo birra in centesimi (una tantum sblocco video Open). */
-export const BIRRA_CENTS = 500;
+// Il prezzo della colletta NON sta più qui. Era `BIRRA_CENTS = 500`, un 5 €
+// hardcoded che non era più il prezzo giusto e che nessuno poteva cambiare
+// senza un deploy. Ora è la riga `birra` di `services` (migration_061), letta
+// da `birraPriceCents` in src/lib/birra.ts.
 
 /* ------------------------------------------------------------------ *
  * M-6 — limiti di upload (dimensione / tipo).

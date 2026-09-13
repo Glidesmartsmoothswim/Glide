@@ -40,6 +40,30 @@ export function subTierToAccessTier(
   return "one_to_one";
 }
 
+/**
+ * `profiles.service_type` risultante da un piano attivato — il SECONDO asse.
+ *
+ * Il 12/09/2026 un Pacchetto Stagionale Elite (646 € incassati) è rimasto con
+ * `service_type = 'open'` perché l'attivazione scriveva solo `tier`. Siccome
+ * `plan_entitlements` è indicizzata su `service_type`, la riga 'open' concede
+ * `lessons_granted = 0`: il check-in mensile compreso nel piano non è mai
+ * stato concesso e il motore di prenotazione l'ha fatturato come lezione
+ * extra a listino. Denaro chiesto per una prestazione già pagata, e nessun
+ * controllo che protestasse. Vedi docs/GLIDE_MIGRAZIONE_TIER.md §5.
+ *
+ * `both` (1:1 + Canale Open) è una scelta commerciale che l'attivazione non
+ * deve mai cancellare: chi ce l'ha se lo tiene, qualunque piano rinnovi.
+ * Negli altri casi il piano decide, perché un 1:1 che passa a Open deve
+ * davvero perdere il servizio 1:1.
+ */
+export function serviceTypeFor(
+  tier: SubTier,
+  current?: string | null,
+): "coaching_1_1" | "open" | "both" {
+  if (current === "both") return "both";
+  return tier === "open" || tier === "open_plus" ? "open" : "coaching_1_1";
+}
+
 /** true per i piani mensili ricorrenti (periodo = 1 mese da paid_at). */
 export function isMonthly(tier: SubTier): boolean {
   return tier !== "one_to_one_season";

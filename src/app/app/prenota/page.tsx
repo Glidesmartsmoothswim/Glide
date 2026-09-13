@@ -12,6 +12,7 @@ import { getCreditStatus, ensureCreditPeriod } from "@/lib/booking/credits";
 import { SwimmerBooking } from "@/components/booking/swimmer-booking";
 import { availableCountByType } from "@/lib/tokens";
 import { effectiveCashPriceCents } from "@/lib/booking/pricing";
+import { onlyBookable } from "@/lib/booking/modes";
 import { UpcomingLessons } from "@/components/booking/upcoming-lessons";
 import { SwimmerEvents } from "@/components/booking/swimmer-events";
 
@@ -55,7 +56,7 @@ export default async function PrenotaPage() {
     .select("code, name, mode, duration_min, price_cents")
     .eq("active", true)
     .order("sort");
-  const services = ((svcData ?? []) as Svc[])
+  const services = onlyBookable((svcData ?? []) as Svc[])
     // Le call sono incluse nel coaching, non vendibili a sé: in elenco solo
     // per chi ha il percorso 1:1 davvero attivo (stesso criterio del server).
     .filter((s) => s.mode !== "remote" || canBookRemote(profile, credit.remoteAllowed))

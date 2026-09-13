@@ -6,7 +6,12 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { seasonExpiryDate, seasonEnrollment, expiryFor } from "./pricing";
+import {
+  seasonExpiryDate,
+  seasonEnrollment,
+  expiryFor,
+  serviceTypeFor,
+} from "./pricing";
 
 // Erano in gate.test.ts, che testava il gate ADR-014 ora rimosso (sostituito
 // da status.ts / ADR-016): sono sempre stati test di LISTINO, non di gate.
@@ -63,4 +68,39 @@ test("seasonEnrollment — luglio/agosto anticipata (10 mesi, 15%, 31/08 succ.);
   const june = seasonEnrollment(new Date("2027-06-15T12:00:00Z"));
   assert.equal(june.months, 1);
   assert.equal(june.discount, 0.1);
+});
+
+// --- I due assi dell'attivazione (12/09/2026) -------------------------------
+// Regressione dell'incidente: un Pacchetto Stagionale Elite attivato con
+// `tier = one_to_one` ma `service_type` rimasto 'open'. `plan_entitlements` si
+// legge per service_type e la riga 'open' concede lessons_granted = 0, quindi
+// il check-in compreso nel piano è stato fatturato come lezione extra.
+
+test("serviceTypeFor — i piani 1:1 portano il servizio 1:1, non solo il livello", () => {
+  assert.equal(serviceTypeFor("one_to_one_season", "open"), "coaching_1_1");
+  assert.equal(serviceTypeFor("one_to_one_monthly", "open"), "coaching_1_1");
+  // È il caso esatto del 12/09: partiva da 'open' e ci restava.
+  assert.notEqual(serviceTypeFor("one_to_one_season", "open"), "open");
+});
+
+test("serviceTypeFor — Open e Open+ restano sul servizio 'open'", () => {
+  // Open+ è un livello del CANALE: il tipo di servizio non cambia. È il caso
+  // dei due profili open_plus/open in produzione, coerenti per costruzione.
+  assert.equal(serviceTypeFor("open", null), "open");
+  assert.equal(serviceTypeFor("open_plus", null), "open");
+  assert.equal(serviceTypeFor("open_plus", "open"), "open");
+});
+
+test("serviceTypeFor — 'both' non viene mai cancellato da un rinnovo", () => {
+  // Chi ha 1:1 + Canale Open se lo tiene, qualunque piano rinnovi: è una
+  // scelta commerciale del coach, non un effetto collaterale dell'incasso.
+  for (const t of ["open", "open_plus", "one_to_one_monthly", "one_to_one_season"] as const)
+    assert.equal(serviceTypeFor(t, "both"), "both");
+});
+
+test("serviceTypeFor — un 1:1 che passa a Open perde davvero il servizio 1:1", () => {
+  // Il rovescio della regola precedente: senza questo, un downgrade
+  // lascerebbe crediti lezione a chi non li paga più.
+  assert.equal(serviceTypeFor("open", "coaching_1_1"), "open");
+  assert.equal(serviceTypeFor("open_plus", "coaching_1_1"), "open");
 });
