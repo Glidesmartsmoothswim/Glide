@@ -30,6 +30,13 @@ export type PurchaseRow = {
  * ADR-016 — ordini pacchetto del nuotatore. Il documento chiede di mostrare
  * il saldo token accanto all'ordine, così il coach verifica a colpo d'occhio
  * che l'emissione sia avvenuta davvero dopo la marcatura.
+ *
+ * 13/09/2026 — "Incassato" lo dice `paid_at`, non `status`. I due campi
+ * rispondono a domande diverse (`status = 'paid'` = token consegnati,
+ * `paid_at` = denaro entrato) e su un pacchetto anticipato al nuotatore
+ * divergono: questa scheda diceva "Incassato" mentre Business contava lo
+ * stesso ordine in "Da incassare", e nessun pulsante permetteva di chiudere
+ * la partita. Ora il bottone resta finché l'incasso non è registrato.
  */
 export function PackagePanel({
   swimmerId,
@@ -80,12 +87,19 @@ export function PackagePanel({
                   {p.receipt_number ? ` · ricevuta ${p.receipt_number}` : ""}
                 </p>
               </div>
-              <Pill tone={p.status === "paid" ? "ok" : "warn"}>
-                {p.status === "paid" ? "Incassato" : "Da incassare"}
+              <Pill tone={p.paid_at ? "ok" : "warn"}>
+                {p.paid_at ? "Incassato" : "Da incassare"}
               </Pill>
             </div>
 
-            {p.status === "pending_payment" && (
+            {p.status === "paid" && !p.paid_at && (
+              <p className="text-xs text-muted">
+                Token già emessi, denaro non ancora entrato: è questa la voce
+                che Business conta in &ldquo;Da incassare&rdquo;.
+              </p>
+            )}
+
+            {p.status !== "cancelled" && !p.paid_at && (
               <div className="flex flex-wrap gap-2">
                 <input
                   value={receipt}
@@ -106,7 +120,7 @@ export function PackagePanel({
                   }
                   className="rounded-lg bg-gradient-to-br from-blu to-navy px-3 py-2 text-sm font-bold text-white disabled:opacity-50"
                 >
-                  Segna pagato
+                  Segna incassato
                 </button>
               </div>
             )}

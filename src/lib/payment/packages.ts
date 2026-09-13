@@ -109,23 +109,57 @@ export async function requestPackage(
 }
 
 /**
- * "Segna pagato" del coach. NON emette i token da qui: lo fa il trigger
+ * "Segna incassato" del coach. NON emette i token da qui: lo fa il trigger
  * `issue_package_tokens`, che è idempotente — se lo facessimo in codice
  * dovremmo garantire noi che una doppia marcatura non raddoppi il credito.
+ *
+ * 13/09/2026 — un ordine ha DUE fatti distinti, e il coach può compierli in
+ * qualsiasi ordine: la consegna del credito (`status = 'paid'`, che accende
+ * i token) e l'incasso del denaro (`paid_at`). Quando il coach anticipa i
+ * token al nuotatore e riscuote dopo, la riga resta `paid` con `paid_at`
+ * nullo: è esattamente ciò che Business conta in "Da incassare". Prima
+ * questa funzione filtrava su `status = 'pending_payment'`, quindi per
+ * quell'ordine non esisteva più alcun modo di registrare l'incasso dalla
+ * UI. Il discrimine ora è `paid_at`, che è il fatto contabile: finché è
+ * nullo il denaro non è entrato, chiunque abbia già i token in mano.
  */
 export async function markPurchasePaid(
   supabase: SupabaseClient,
   purchaseId: string,
   receiptNumber?: string | null,
 ): Promise<{ info?: string; error?: string }> {
+  // Si legge prima per sapere se i token erano già stati emessi: serve solo
+  // a dire al coach la verità su cosa ha appena fatto il suo clic.
+  const { data: before, error: readError } = await supabase
+    .from("package_purchases")
+    .select("id, status, paid_at, tokens_issued_at")
+    .eq("id", purchaseId)
+    .maybeSingle();
+  if (readError)
+    return {
+      error: reportPaymentWriteError(readError, {
+        op: "markPurchasePaid:read",
+        swimmerId: purchaseId,
+      }).message,
+    };
+  if (!before) return { error: "Ordine non trovato." };
+
+  const receipt = receiptNumber?.trim() || null;
+  const collectedAt = new Date().toISOString();
   const { data, error } = await supabase
     .from("package_purchases")
     .update({
       status: "paid",
-      receipt_number: receiptNumber?.trim() || null,
+      paid_at: collectedAt,
+      // Un numero di ricevuta già registrato non si cancella con un campo
+      // lasciato vuoto: si scrive solo ciò che il coach ha scritto.
+      ...(receipt ? { receipt_number: receipt } : {}),
     })
     .eq("id", purchaseId)
-    .eq("status", "pending_payment")
+    // Idempotenza dell'incasso: la riga si aggiorna solo finché il denaro
+    // non risulta entrato. Un doppio clic non scrive un secondo ricavo.
+    .is("paid_at", null)
+    .neq("status", "cancelled")
     .select("id, swimmer_id, quantity, amount_cents")
     .maybeSingle();
 
@@ -136,11 +170,20 @@ export async function markPurchasePaid(
         swimmerId: purchaseId,
       }).message,
     };
-  // Nessuna riga aggiornata = l'ordine non era più pendente (già incassato o
-  // annullato). Va detto, non ingoiato: il coach deve sapere che il suo clic
-  // non ha fatto nulla.
+  // Nessuna riga aggiornata = non c'era nulla da incassare. Va detto, non
+  // ingoiato: il coach deve sapere che il suo clic non ha fatto nulla.
   if (!data)
-    return { error: "Ordine non più in attesa: forse è già stato incassato." };
+    return {
+      error:
+        before.status === "cancelled"
+          ? "Ordine annullato: non c'è nulla da incassare."
+          : "Ordine già incassato: nessun ricavo aggiunto.",
+    };
+
+  const tokensWereAlreadyIssued = Boolean(before.tokens_issued_at);
+  const collected = tokensWereAlreadyIssued
+    ? `Incasso registrato: i ${data.quantity} token erano già stati emessi.`
+    : `Pacchetto incassato: ${data.quantity} token emessi.`;
 
   // Business/Ricavi legge SOLO `transactions`: senza questa riga un pacchetto
   // incassato non comparirebbe mai nei ricavi né nella soglia forfettario.
@@ -152,6 +195,9 @@ export async function markPurchasePaid(
     currency: "eur",
     status: "succeeded",
     description: `Pacchetto ${data.quantity} lezioni — incasso manuale`,
+    // Il ricavo porta la data dell'incasso, la stessa scritta su `paid_at`:
+    // le due scritture raccontano lo stesso fatto e devono coincidere.
+    created_at: collectedAt,
   });
   // I token sono già stati emessi dal trigger: se fallisce solo la riga dei
   // ricavi non si annulla l'incasso, ma non lo si nasconde nemmeno.
@@ -161,9 +207,9 @@ export async function markPurchasePaid(
       swimmerId: data.swimmer_id,
     });
     return {
-      info: `Pacchetto incassato: ${data.quantity} token emessi. ⚠️ La riga nei ricavi non è stata scritta, va aggiunta a mano.`,
+      info: `${collected} ⚠️ La riga nei ricavi non è stata scritta, va aggiunta a mano.`,
     };
   }
 
-  return { info: `Pacchetto incassato: ${data.quantity} token emessi.` };
+  return { info: collected };
 }
