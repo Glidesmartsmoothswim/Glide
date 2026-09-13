@@ -37,13 +37,21 @@
 --    \set coach_id '00000000-0000-0000-0000-000000000000'
 -- Per ritrovarlo:
 --    select id, email from public.profiles where role = 'coach';
+--
+-- Poco dopo l'insert, sempre il 13/09 e sempre su richiesta di Alessio:
+-- focus 'Z5' su "Approccio al passo gara", che il builder aveva lasciato
+-- vuoto. Qui è già dentro l'insert, così il file racconta lo stato vero
+-- della tabella; sul live è passato da un update mirato sull'id:
+--    update public.workouts set focus = 'Z5'
+--    where kind = 'open_channel' and week_start = '2026-09-14'
+--      and title = 'Approccio al passo gara';
 -- =====================================================================
 
 insert into public.workouts
   (coach_id, swimmer_id, kind, title, focus, pool, week_day, week_start,
    total_meters, scale_down, scale_up, published_at, blocks)
 values
-  (:'coach_id', null, 'open_channel', 'Approccio al passo gara', null, 25, null, '2026-09-14', 2900, '-1 giro blocco 2', '+ 1 giro blocco 2', now(),
+  (:'coach_id', null, 'open_channel', 'Approccio al passo gara', 'Z5', 25, null, '2026-09-14', 2900, '-1 giro blocco 2', '+ 1 giro blocco 2', now(),
    $b$[{"z":"Z1","name":"Riscaldamento","lines":["100 Pinne Stile","100 Misti cambio 25","4x50 Pull 25 remate 25 ben nuotati","3x50 15 metri di gambe forti in superficie + 3 cicli veloci"],"rounds":2},{"z":"Z5","name":"Approccio al passo gara","lines":["20x25 Passo (4 Passo 1 recupero - 3 Passo 2 Recupero - 2 Passo 3 recupero - 1 Passo 4 Recupero Lavorando sul numero di bracciate e sul ritmo di gara per il proprio obbiettivo . Recuperi: Passo 100 e 200  40\" Passo 400+ 25\"","100 Sciolto con Pinne Z1"],"rounds":2},{"z":"Z2","name":"Defaticamento","lines":["12x50 Pinne 3x Stile 1x Dorso recupero 15\""],"rounds":1}]$b$::jsonb),
   (:'coach_id', null, 'open_channel', 'Fondo Specifico', 'Z2', 25, null, '2026-09-14', 3500, null, null, now(),
    $b$[{"z":"Z1","name":"Riscaldamento","lines":["200 Pinne 50 Stile 50 Dorso 50 Stile esercizi 500 Dorso Doppio","6x50 Misti cambio 25 (Df Do / Do Ra / Ra Sl)","3x100 Pinne 50 Gambe laterale 50 Struscio le dita in acqua gomito alto nel recupero","6x50 Braccia Pull e Palette 4x PAlette AFFERATE (poggiano su avambraccio, mano chiusa attorno alla parte in basso) 2x solo Pull"],"rounds":1},{"z":"Z2","name":"Distanze Lunghe","lines":["3x800 1° 4x200 Completi 2° 2x400 Pinne con 3 colpi di gambe sub e prima bracciata lato opposto alla respirazione 3° 800 Pinne Palette e Boccaglio nuotando ampi e con poche bracciate"],"rounds":1}]$b$::jsonb),
