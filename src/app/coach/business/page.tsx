@@ -104,10 +104,14 @@ export default async function BusinessPage() {
         .from("bookings")
         .select("amount_cents")
         .eq("payment_status", "da_incassare"),
+      // Un pacchetto è da incassare finché `paid_at` è nullo, qualunque sia
+      // lo `status`: `pending_payment` è l'ordine ancora senza token,
+      // `paid` col `paid_at` nullo è il pacchetto già consegnato al
+      // nuotatore e non ancora saldato. Solo `cancelled` esce dal conto.
       supabase
         .from("package_purchases")
         .select("amount_cents")
-        .eq("status", "paid")
+        .in("status", ["pending_payment", "paid"])
         .is("paid_at", null),
     ]);
   const sumCents = (rows: { amount_cents?: number | null; payment_amount_cents?: number | null }[] | null) =>
