@@ -8,6 +8,11 @@
 -- GLIDE — incasso del pacchetto 10 lezioni di Flavia Berti Lorenzi
 -- (ADR-016, saldo in contanti di sabato 12/09/2026)
 --
+-- APPLICATO sul progetto live il 13/09/2026 (MCP), con data d'incasso
+-- 12/09/2026 confermata da Alessio. Tenuto qui perché una correzione
+-- contabile deve restare leggibile e ripetibile, non vivere solo nella
+-- cronologia di una sessione.
+--
 -- Il fatto: l'11/09/2026 il pacchetto è stato assegnato PRIMA dell'incasso
 -- (token emessi a mano, `tokens_issued_at` valorizzato apposta perché il
 -- trigger non li riemettesse). La riga è quindi rimasta `status = 'paid'`
@@ -51,10 +56,12 @@ where pp.id = '45280a9f-ca38-4676-8aa0-c6e4e34aa913'
 
 commit;
 
--- --- Verifica -----------------------------------------------------------
--- Atteso: paid_at valorizzato, 1 sola riga di ricavo, "Da incassare" in
--- Business sceso a 467,50€ (il piano stagione di Wilma Zulian, bonifico
--- non ancora ricevuto — quello resta scoperto davvero).
+-- --- Verifica (eseguita il 13/09/2026) ----------------------------------
+-- paid_at = 12/09/2026 12:00 UTC, tokens_issued_at intatto all'11/09, una
+-- sola riga di ricavo da 270€ datata 12/09, 10 token di cui 7 disponibili
+-- (05/09, 12/09 e 19/09 già prenotate a token). "Da incassare" è sceso a
+-- 467,50€: il piano stagione di Wilma Zulian, bonifico non ancora
+-- ricevuto — quello resta scoperto davvero.
 --
 --   select status, paid_at, tokens_issued_at from public.package_purchases
 --   where id = '45280a9f-ca38-4676-8aa0-c6e4e34aa913';
