@@ -46,13 +46,18 @@ uno a Base · Open · Open+ · Elite 1:1 di sito e prototipo — `TIER_LABEL` in
 | `race_videos.tier` | `coaching_1_1` · `open` | `race_videos_tier_check` | 10 |
 | `events.audience` (`text[]`) | gli stessi tre | default `{coaching_1_1,both,open}` | 1 |
 
-**Qui sta la trappola.** `plan_entitlements.tier` e `race_videos.tier` non
-contengono livelli: contengono tipi di servizio. Il nome della colonna mente. Il
-commento in `supabase/migrations/migration_005_booking.sql:119` lo dichiara
+**Qui sta la trappola, e non è teorica.** `plan_entitlements.tier` e
+`race_videos.tier` non contengono livelli: contengono tipi di servizio. Il nome
+della colonna mente. Il commento in
+`supabase/migrations/migration_005_booking.sql:119` lo dichiara
 (`-- = profiles.service_type REALE`), ma un commento non è un contratto, e la
 confusione è già passata nel codice: in `src/app/app/prenota/page.tsx:90` e in
 `src/app/api/events/signup/route.ts:57` la variabile locale si chiama `tier` e
 contiene `service_type`.
+
+`plan_entitlements` **viene già letta direttamente**, per `service_type`, da
+`src/lib/booking/credits.ts:79`: è da lì che passano i crediti lezione. Quella
+lettura ha già prodotto un danno in produzione — vedi §5.
 
 ### Asse C — SKU commerciale richiesto all'attivazione
 
@@ -205,13 +210,42 @@ coach):
 | `open` | `open` | `paid` | 1 | coerente |
 | `open_plus` | `open` | `paid` | 2 | coerente, per costruzione |
 
+La tabella è lo stato **dopo** la correzione del 12 settembre: fino a quel
+giorno c'era una quarta forma incoerente, `one_to_one` con `service_type`
+`'open'`, ed è quella che ha fatto il danno descritto qui sotto.
+
 I due profili `free` con servizio 1:1 sono quelli che il commento in
 `src/lib/access.ts:99-109` descrive: nessun pagamento, ma `plan_entitlements`
 li fa risultare `remote_allowed = true`, perché l'entitlement è indicizzato
-sull'asse B. **Oggi non è una falla**: `canBookRemote` passa da `accessTier`, e
-quindi dal livello di accesso reale, e li blocca. La falla si aprirebbe il
-giorno in cui qualcuno leggesse `plan_entitlements` direttamente — che è
-precisamente la cosa che l'audit chiede di rendere impossibile.
+sull'asse B. **Per le call da remoto non è una falla**: `canBookRemote` passa da
+`accessTier`, e quindi dal livello di accesso reale, e li blocca.
+
+**Per i crediti lezione, invece, la falla si è già aperta.** Non è
+un'ipotesi: è successo il 12 settembre 2026, il giorno prima di questo audit.
+Il commit `63c9f58` e lo script `scripts/ricavi-correzioni-2026-09-12.sql` §2
+lo documentano. Una nuotatrice con il Pacchetto Stagionale Elite 1:1 attivo —
+`tier = one_to_one`, 646 € incassati — aveva `service_type` rimasto `'open'`.
+`src/lib/booking/credits.ts` legge `plan_entitlements` per `service_type`, la
+riga `'open'` concede `lessons_granted = 0`, e quindi:
+
+1. il check-in mensile compreso nel piano non le è mai stato concesso;
+2. il motore di prenotazione ha prezzato quella lezione come **extra a
+   listino, 35 € in contanti da incassare**;
+3. le si è chiesto denaro per una prestazione già pagata.
+
+Nessun controllo ha protestato. Il `tier` era corretto, il pagamento era
+registrato, l'interfaccia era coerente: l'unico dato sbagliato era su un asse
+che nessuna schermata mostra accanto all'altro. La correzione è stata manuale,
+e ha richiesto di ricostruire a mano anche il credito di settembre e di
+riclassificare la prenotazione.
+
+**È per questo che la fase 2 non è igiene.** La vista `v_tier_coherence`
+intercetta esattamente quella forma — `tier = 'one_to_one'` con `service_type`
+fuori da `('coaching_1_1','both')` è il suo primo ramo — e l'avrebbe messa
+sotto gli occhi del coach prima che diventasse una richiesta di pagamento
+sbagliata. Il caso è anche la prova che i due assi vanno tenuti distinti **e**
+sorvegliati insieme: distinguerli senza confrontarli è come stanno le cose
+oggi.
 
 Le due righe `open_plus` con `service_type = 'open'` non sono un errore: Open+ è
 un livello del canale, il tipo di servizio resta Open. È il caso che dimostra

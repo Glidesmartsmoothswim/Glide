@@ -77,6 +77,9 @@ comment on column public.profiles.service_type is
 comment on column public.plan_entitlements.tier is
   'ASSE B, NOME FUORVIANTE: contiene un profiles.service_type, non un tier. '
   'Da rinominare in service_type (fase 3 di docs/GLIDE_MIGRAZIONE_TIER.md). '
+  'Letta da src/lib/booking/credits.ts per concedere i crediti lezione: un '
+  'service_type incoerente col tier NEGA una prestazione già pagata (accaduto '
+  'il 12/09/2026, scripts/ricavi-correzioni-2026-09-12.sql §2). '
   'ATTENZIONE: remote_allowed qui vale true per il service_type 1:1 anche '
   'senza pagamento — non usarlo da solo per autorizzare, passa da '
   'canBookRemote() che incrocia l''asse A e il gate di pagamento.';
@@ -118,6 +121,13 @@ end $$;
 -- Non corregge niente: mette in evidenza. La correzione di un profilo è una
 -- decisione del coach, da prendere dall'interfaccia, perché cambia accesso e
 -- gate di pagamento di una persona reale.
+--
+-- Non è sorveglianza preventiva di un rischio ipotetico: il 12/09/2026 un
+-- profilo con tier one_to_one e service_type 'open' si è visto negare il
+-- check-in compreso nel piano e fatturare 35€ di lezione extra
+-- (scripts/ricavi-correzioni-2026-09-12.sql §2). Il primo ramo del CASE qui
+-- sotto è esattamente quella forma: la vista l'avrebbe mostrata prima che
+-- diventasse una richiesta di pagamento sbagliata.
 create or replace view public.v_tier_coherence as
 select
   p.id,
