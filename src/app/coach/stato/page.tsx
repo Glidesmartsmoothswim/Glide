@@ -12,6 +12,7 @@ import { publicEnv } from "@/lib/env";
 import { bankTransferDetails } from "@/lib/payment/bank";
 import { Card } from "@/components/ui/card";
 import { currentMonday } from "@/lib/week";
+import { BOOKABLE_MODES } from "@/lib/booking/modes";
 
 export const metadata = { title: "Stato sistema" };
 export const dynamic = "force-dynamic";
@@ -68,7 +69,13 @@ export default async function StatoSistema() {
       .eq("kind", "open_channel")
       .eq("week_start", monday),
     supabase.from("library_items").select("id", { count: "exact", head: true }).eq("published", true),
-    supabase.from("services").select("id", { count: "exact", head: true }).eq("active", true),
+    supabase
+      .from("services")
+      .select("id", { count: "exact", head: true })
+      .eq("active", true)
+      // Conta i servizi PRENOTABILI: la Colletta per la Birra è una voce di
+      // listino (migration_061) e non è una cosa che si mette a calendario.
+      .in("mode", BOOKABLE_MODES as unknown as string[]),
   ]);
 
   const n = (r: { count: number | null }) => r.count ?? 0;

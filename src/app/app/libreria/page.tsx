@@ -129,10 +129,18 @@ export default async function SwimmerLibreria() {
         </div>
       )}
 
-      <p className="flex items-center gap-2 text-sm text-muted">
-        <BookOpen size={14} /> I contenuti bloccati si sbloccano con il piano
-        indicato.
-      </p>
+      {/* migration_059: la RLS ora filtra per `visibility`, quindi in elenco
+          arriva solo ciò che questo livello può davvero aprire. La riga sotto
+          comparirebbe a vuoto — e prometterebbe contenuti che non si vedono —
+          se non ci fosse nulla di bloccato da sbloccare. */}
+      {items.some(
+        (i) => !canOpenLibraryItem(tier, i.visibility as Visibility),
+      ) && (
+        <p className="flex items-center gap-2 text-sm text-muted">
+          <BookOpen size={14} /> I contenuti bloccati si sbloccano con il piano
+          indicato.
+        </p>
+      )}
     </div>
   );
 }

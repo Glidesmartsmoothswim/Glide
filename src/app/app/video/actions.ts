@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/lib/auth";
 import { canAccess, accessTier } from "@/lib/access";
-import { BIRRA_CENTS, videoObjectError } from "@/lib/video";
+import { videoObjectError } from "@/lib/video";
 import { notifyCoaches } from "@/lib/notify";
 import { logEvent } from "@/lib/ledger";
 import { RETENTION } from "@/lib/retention";
@@ -128,8 +128,15 @@ export async function togglePreserve(videoId: string): Promise<VideoState> {
 
 /**
  * Registra un video già caricato su Storage.
- * tier dedotto dal servizio: 1:1/both → analisi inclusa (pending, paid);
- * Open → 'locked' finché non paga i €5.
+ *
+ * migration_061 — NESSUN PAYWALL. Prima di oggi il video di chi non è 1:1
+ * nasceva `status='locked'`, `paid=false`: il nuotatore leggeva "Analisi
+ * bloccata" e il coach doveva sbloccare prima di poter lavorare. È ciò che ha
+ * costretto a creare record fittizi `coaching_1_1` pur di sbloccare a mano.
+ *
+ * Ora ogni video nasce `pending` e si lavora. Per chi non ha l'analisi
+ * compresa nel piano, il coach segna la Colletta per la Birra (3 €) e la
+ * incassa col rinnovo successivo: è una partita aperta, non un cancello.
  */
 export async function registerVideo(
   _prev: VideoState,
@@ -192,7 +199,9 @@ export async function registerVideo(
       race_date: raceDate,
       storage_path: storagePath,
       tier,
-      status: is11 ? "pending" : "locked",
+      // Sempre lavorabile. `paid` resta per storia contabile e non apre né
+      // chiude più niente: chi deve la colletta lo dice `birra_tab`.
+      status: "pending",
       paid: is11,
       program_id: activeProg?.id ?? null,
     })
@@ -215,27 +224,11 @@ export async function registerVideo(
   return {
     info: is11
       ? "Video inviato al coach — analisi inclusa."
-      : "Video caricato. Sblocca l'analisi con una birra 🍺.",
+      : "Video inviato al coach. L'analisi arriva appena è pronta 🍺",
   };
 }
 
-/**
- * ADR-014 — Stripe rimosso: niente più checkout/sblocco automatico. Il
- * nuotatore RICHIEDE lo sblocco (€5), il coach lo incassa fuori piattaforma
- * e lo conferma da /coach/video (stesso pattern "segna pagato" di ADR-010,
- * vedi coach/video/actions.ts → unlockPaidVideo). Il video resta `locked`
- * finché il coach non conferma.
- */
-export async function unlockVideo(formData: FormData) {
-  const profile = await getCurrentProfile();
-  if (!profile) return;
-  const videoId = String(formData.get("video_id") ?? "");
-  if (!videoId) return;
-
-  await notifyCoaches(
-    "birra",
-    "🍺 Sblocco analisi richiesto",
-    `${fullName(profile)} chiede lo sblocco dell'analisi video (€${Math.round(BIRRA_CENTS / 100)}) — da confermare in Video gare dopo l'incasso.`,
-  );
-  revalidatePath("/app/video");
-}
+// `unlockVideo` è stata rimossa con migration_061. Chiedeva al coach di
+// sbloccare un'analisi bloccata: senza lucchetto non c'è niente da sbloccare,
+// e un pulsante "richiedi sblocco" rimetterebbe in testa al nuotatore
+// l'ostacolo che il modello della partita aperta toglie di mezzo.

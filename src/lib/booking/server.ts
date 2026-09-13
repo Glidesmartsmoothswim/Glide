@@ -16,6 +16,7 @@ import {
   type Rule,
 } from "./slots";
 import { BOOKING } from "./config";
+import { BOOKABLE_MODES } from "./modes";
 
 /** Servizio prenotabile (riga di `services`). */
 export type Service = {
@@ -57,6 +58,10 @@ export async function getServiceByCode(
     )
     .eq("code", code)
     .eq("active", true)
+    // migration_061: `services` ospita anche voci di listino non prenotabili
+    // (la Colletta per la Birra). Qui si crea un booking: una voce di listino
+    // non deve poterci arrivare nemmeno passando il codice a mano.
+    .in("mode", BOOKABLE_MODES as unknown as string[])
     .maybeSingle();
   return (data as Service) ?? null;
 }

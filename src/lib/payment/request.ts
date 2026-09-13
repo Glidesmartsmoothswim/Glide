@@ -14,6 +14,7 @@ import {
   TIER_PRICE_CENTS,
   TIER_LABEL,
   subTierToAccessTier,
+  serviceTypeFor,
   expiryFor,
   type SubTier,
 } from "./pricing";
@@ -204,7 +205,7 @@ export async function markPaid(
   const { data: p } = await admin
     .from("profiles")
     .select(
-      "requested_tier, requested_tier_detail, payment_amount_cents, first_name, last_name, email",
+      "requested_tier, requested_tier_detail, payment_amount_cents, service_type, first_name, last_name, email",
     )
     .eq("id", swimmerId)
     .maybeSingle();
@@ -227,6 +228,13 @@ export async function markPaid(
     .from("profiles")
     .update({
       tier: subTierToAccessTier(tier),
+      // I DUE ASSI INSIEME, sempre. `tier` è il livello di accesso, letto da
+      // my_tier()/ACCESS_MATRIX; `service_type` è il tipo di servizio, ed è
+      // su quello che `plan_entitlements` concede i crediti lezione. Scrivere
+      // solo il primo è il bug del 12/09/2026 (vedi serviceTypeFor): il piano
+      // risultava attivo e il check-in compreso veniva fatturato come extra.
+      // Non separarli, e non dedurne uno dall'altro a valle: qui, insieme.
+      service_type: serviceTypeFor(tier, p?.service_type),
       tier_expires_at: expiresAt.toISOString(),
       requested_tier: null,
       // PROMPT_CODE_PAGAMENTI TASK 6 (01/09/2026): NON azzerare più questo

@@ -8,15 +8,17 @@ import { Video as VideoIcon, Archive as ArchiveIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Avatar, Pill } from "@/components/ui/card";
 import { CommentForm } from "./comment-form";
-import { markReviewed, unlockPaidVideo } from "./actions";
+import { markReviewed } from "./actions";
 import { VideoActions } from "@/app/app/video/video-actions";
+import { BirraPanel } from "@/components/video/birra-panel";
 import { STATUS_LABEL, type VideoRow, type VideoCommentRow } from "@/lib/video";
+import type { BirraTab } from "@/lib/birra";
 import { daysToPurge } from "@/lib/retention";
 import { fullName, initials, type SwimmerRow } from "@/lib/types";
 
 export const metadata = { title: "Video gare" };
 
-const order = { pending: 0, locked: 1, reviewed: 2 } as const;
+const order = { pending: 0, reviewed: 1 } as const;
 
 export default async function CoachVideo() {
   const supabase = await createClient();
@@ -44,6 +46,19 @@ export default async function CoachVideo() {
     .select("*")
     .in("video_id", videos.map((v) => v.id).length ? videos.map((v) => v.id) : [""]);
   const comments = (cData ?? []) as VideoCommentRow[];
+
+  // Colletta per la Birra: una riga per video, se esiste (migration_061).
+  const { data: bData } = videos.length
+    ? await supabase
+        .from("birra_tab")
+        .select("*")
+        .in("video_id", videos.map((v) => v.id))
+    : { data: [] };
+  const birraByVideo = new Map(
+    ((bData ?? []) as BirraTab[])
+      .filter((b) => b.video_id)
+      .map((b) => [b.video_id as string, b]),
+  );
 
   const paths = videos.filter((v) => v.storage_path).map((v) => v.storage_path!);
   const signed = paths.length
@@ -111,26 +126,16 @@ export default async function CoachVideo() {
           </p>
         )}
 
-        {v.status === "locked" ? (
-          <div className="flex items-center justify-between gap-3 rounded-xl bg-amber-500/5 p-3">
-            <p className="text-sm text-muted">
-              Analisi bloccata (Open · €5) — sblocca dopo aver incassato.
-            </p>
-            <form action={unlockPaidVideo}>
-              <input type="hidden" name="video_id" value={v.id} />
-              <button
-                type="submit"
-                className="whitespace-nowrap rounded-lg bg-blu px-3 py-1.5 text-sm font-bold text-white"
-              >
-                Segna incassato
-              </button>
-            </form>
-          </div>
-        ) : url ? (
+        {url ? (
           <video controls src={url} className="w-full rounded-xl bg-black" />
         ) : (
           <p className="text-sm text-muted">File non disponibile.</p>
         )}
+
+        {/* Colletta per la Birra — non blocca niente: il video qui sopra si
+            guarda e si commenta comunque. Compare solo per chi non ha
+            l'analisi compresa nel piano (tier 'open' sul video). */}
+        {v.tier === "open" && <BirraPanel video={v} birra={birraByVideo.get(v.id)} />}
 
         {vc.length > 0 && (
           <div className="flex flex-col gap-1 rounded-xl bg-background p-3">
@@ -142,22 +147,20 @@ export default async function CoachVideo() {
           </div>
         )}
 
-        {v.status !== "locked" && (
-          <div className="flex flex-col gap-2">
-            <CommentForm videoId={v.id} />
-            {v.status !== "reviewed" && (
-              <form action={markReviewed}>
-                <input type="hidden" name="video_id" value={v.id} />
-                <button
-                  type="submit"
-                  className="text-sm text-muted underline hover:text-foreground"
-                >
-                  Segna come analizzato senza commento
-                </button>
-              </form>
-            )}
-          </div>
-        )}
+        <div className="flex flex-col gap-2">
+          <CommentForm videoId={v.id} />
+          {v.status !== "reviewed" && (
+            <form action={markReviewed}>
+              <input type="hidden" name="video_id" value={v.id} />
+              <button
+                type="submit"
+                className="text-sm text-muted underline hover:text-foreground"
+              >
+                Segna come analizzato senza commento
+              </button>
+            </form>
+          )}
+        </div>
 
         <VideoActions
           videoId={v.id}

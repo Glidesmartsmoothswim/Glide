@@ -5,7 +5,10 @@
 // senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
 
 export type VideoTier = "coaching_1_1" | "open";
-export type VideoStatus = "locked" | "pending" | "reviewed";
+// 'locked' è uscito dal vocabolario con migration_061: un video non si blocca
+// mai in attesa di pagamento. Il vincolo in DB lo rifiuta, e toglierlo da qui
+// fa sì che il compilatore trovi ogni punto che ci contava ancora.
+export type VideoStatus = "pending" | "reviewed";
 
 export type RetentionState = "active" | "archived" | "preserved";
 
@@ -37,13 +40,14 @@ export type VideoCommentRow = {
 };
 
 export const STATUS_LABEL: Record<VideoStatus, string> = {
-  locked: "Bloccato",
   pending: "In coda",
   reviewed: "Analizzato",
 };
 
-/** Prezzo birra in centesimi (una tantum sblocco video Open). */
-export const BIRRA_CENTS = 500;
+// Il prezzo della colletta NON sta più qui. Era `BIRRA_CENTS = 500`, un 5 €
+// hardcoded che non era più il prezzo giusto e che nessuno poteva cambiare
+// senza un deploy. Ora è la riga `birra` di `services` (migration_061), letta
+// da `birraPriceCents` in src/lib/birra.ts.
 
 /* ------------------------------------------------------------------ *
  * M-6 — limiti di upload (dimensione / tipo).
@@ -56,8 +60,21 @@ export const BIRRA_CENTS = 500;
  *     migration_053): l'unico che blocca DAVVERO l'upload, lato Supabase.
  * ------------------------------------------------------------------ */
 
-/** Dimensione massima di un video gara: 500 MB. */
-export const VIDEO_MAX_BYTES = 500 * 1024 * 1024;
+/**
+ * Dimensione massima di un video gara: 50 MB.
+ *
+ * Non è un numero scelto: è il limite globale dello Storage sul piano Free,
+ * e non è alzabile. Il limite effettivo è min(globale, bucket), quindi i
+ * 500 MB che questa costante dichiarava fino al 13/09/2026 erano una promessa
+ * che lo Storage non poteva mantenere — l'app accettava un file, il
+ * caricamento partiva e moriva contro il tetto vero. I 7 record senza file in
+ * produzione vengono da lì.
+ *
+ * 50 MB per un video girato col telefono è poco: per questo l'app COMPRIME
+ * prima di caricare (src/lib/video-compress.ts) invece di limitarsi a
+ * respingere. Il limite resta l'ultima parola, non la prima.
+ */
+export const VIDEO_MAX_BYTES = 50 * 1024 * 1024;
 export const VIDEO_MAX_MB = Math.round(VIDEO_MAX_BYTES / (1024 * 1024));
 
 /** Estensioni note → MIME: alcuni browser lasciano `File.type` vuoto. */
@@ -102,6 +119,9 @@ export function videoFileError(file: {
   if (file.size <= 0) return "File vuoto o illeggibile.";
   if (file.size > VIDEO_MAX_BYTES)
     return `Video troppo grande (${videoMb(file.size)} MB): il limite è ${VIDEO_MAX_MB} MB. Ritaglia la gara o riduci la qualità.`;
+  // Nota: in `uploader.tsx` questo controllo gira DOPO la compressione, sul
+  // file che parte davvero. Prima serviva solo a respingere; ora è la rete di
+  // sicurezza di ultima istanza, quando nemmeno la compressione è bastata.
   return null;
 }
 

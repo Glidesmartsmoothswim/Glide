@@ -4,12 +4,10 @@
 // l'addestramento di sistemi di intelligenza artificiale sono vietati
 // senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
 
-import { Beer, Lock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { Card, Pill } from "@/components/ui/card";
 import { VideoUploader } from "@/components/video/uploader";
-import { unlockVideo } from "./actions";
 import { VideoActions, UndoDelete } from "./video-actions";
 import { STATUS_LABEL, type VideoRow, type VideoCommentRow } from "@/lib/video";
 import { daysToPurge } from "@/lib/retention";
@@ -50,7 +48,7 @@ export default async function SwimmerVideo() {
 
   // URL firmati per i video sbloccati (RLS: solo i propri file).
   const paths = videos
-    .filter((v) => v.storage_path && v.status !== "locked")
+    .filter((v) => v.storage_path)
     .map((v) => v.storage_path!);
   const signed = paths.length
     ? (await supabase.storage.from("race-videos").createSignedUrls(paths, 3600))
@@ -120,27 +118,10 @@ export default async function SwimmerVideo() {
                 </Pill>
               </div>
 
-              {v.status === "locked" ? (
-                <div className="flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-                  <div className="flex items-center gap-2 text-sm text-foreground">
-                    <Lock size={16} /> Analisi bloccata — offri una birra per
-                    sbloccarla.
-                  </div>
-                  <form action={unlockVideo}>
-                    <input type="hidden" name="video_id" value={v.id} />
-                    <button
-                      type="submit"
-                      className="inline-flex items-center gap-2 rounded-xl bg-[#F59E0B] px-4 py-2.5 font-bold text-white"
-                    >
-                      <Beer size={16} /> Richiedi sblocco (€5)
-                    </button>
-                  </form>
-                  <p className="t-small text-muted">
-                    Il coach conferma dopo l&apos;incasso (in vasca o
-                    bonifico) — l&apos;analisi si sblocca appena confermato.
-                  </p>
-                </div>
-              ) : url ? (
+              {/* migration_061 — nessun lucchetto: il video si guarda e si
+                  lavora sempre. La colletta, se dovuta, si salda col rinnovo
+                  e non è un ostacolo che il nuotatore incontra qui. */}
+              {url ? (
                 <video
                   controls
                   src={url}

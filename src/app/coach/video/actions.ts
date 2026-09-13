@@ -9,7 +9,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/auth";
 import { notifyUser } from "@/lib/notify";
-import { BIRRA_CENTS } from "@/lib/video";
+import { birraPriceCents } from "@/lib/birra";
 import { reportPaymentWriteError } from "@/lib/payment/errors";
 
 export type CommentState = { error?: string; info?: string };
@@ -55,52 +55,130 @@ export async function addComment(
 }
 
 /**
- * ADR-014 — sblocco analisi Open dopo incasso manuale dei €5 (stesso spirito
- * di "segna pagato" ADR-010: il coach conferma DOPO aver incassato fuori
- * piattaforma, mai un incasso simulato/automatico).
+ * Colletta per la Birra — partita aperta (migration_061, A4.1).
+ *
+ * Sostituisce `unlockPaidVideo`, che era un cancello: il video restava
+ * `locked` finché il coach non confermava l'incasso di 5 €. Adesso il video
+ * si lavora sempre; la colletta si annota e si salda col rinnovo successivo.
+ *
+ * `segnaBirraDovuta` non blocca niente ed è idempotente per video: due click
+ * non fanno due debiti.
  */
-export async function unlockPaidVideo(formData: FormData) {
+export async function segnaBirraDovuta(formData: FormData) {
   await requireRole("coach");
-  const videoId = String(formData.get("video_id") ?? "");
-  if (!videoId) return;
+  const videoId = String(formData.get("video_id") ?? "") || null;
+  const swimmerId = String(formData.get("swimmer_id") ?? "");
+  if (!swimmerId) return;
 
   const supabase = await createClient();
-  const { data: video } = await supabase
-    .from("race_videos")
-    .update({ paid: true, status: "pending" })
-    .eq("id", videoId)
-    .eq("status", "locked")
+
+  if (videoId) {
+    const { data: gia } = await supabase
+      .from("birra_tab")
+      .select("id")
+      .eq("video_id", videoId)
+      .maybeSingle();
+    if (gia) return; // già segnata: non se ne apre una seconda
+  }
+
+  const amount = await birraPriceCents(supabase);
+  const { error } = await supabase.from("birra_tab").insert({
+    swimmer_id: swimmerId,
+    video_id: videoId,
+    amount_cents: amount,
+    state: "dovuta",
+  });
+  if (error)
+    reportPaymentWriteError(error, { op: "segnaBirraDovuta", swimmerId });
+
+  revalidatePath("/coach/video");
+  revalidatePath(`/coach/nuotatori/${swimmerId}`);
+}
+
+/**
+ * Chiude la partita: incassata. Nasce la transazione `type='birra'`, che è
+ * ciò che Business e `v_monthly_revenue` contano a parte.
+ */
+export async function chiudiBirra(formData: FormData) {
+  await requireRole("coach");
+  const id = String(formData.get("birra_id") ?? "");
+  if (!id) return;
+
+  const supabase = await createClient();
+  const { data: tab } = await supabase
+    .from("birra_tab")
+    .select("id, swimmer_id, video_id, amount_cents, state")
+    .eq("id", id)
+    .maybeSingle();
+  if (!tab || tab.state !== "dovuta") return;
+
+  // Prima il ricavo, poi la chiusura: se la transazione non passa, la partita
+  // resta aperta e si riprova. Il contrario perderebbe l'incasso in silenzio —
+  // è esattamente l'errore costato 1.301,90 € di ricavi invisibili (ADR-019).
+  const { data: tx, error: txError } = await supabase
+    .from("transactions")
+    .insert({
+      swimmer_id: tab.swimmer_id,
+      type: "birra",
+      video_id: tab.video_id,
+      amount_cents: tab.amount_cents,
+      currency: "eur",
+      status: "succeeded",
+      description: "Colletta per la Birra — incassata col rinnovo",
+    })
+    .select("id")
+    .single();
+  if (txError) {
+    reportPaymentWriteError(txError, {
+      op: "chiudiBirra:transaction",
+      swimmerId: tab.swimmer_id as string,
+    });
+    return;
+  }
+
+  await supabase
+    .from("birra_tab")
+    .update({
+      state: "pagata",
+      settled_at: new Date().toISOString(),
+      transaction_id: tx?.id ?? null,
+    })
+    .eq("id", id)
+    .eq("state", "dovuta");
+
+  revalidatePath("/coach/video");
+  revalidatePath("/coach/business");
+  revalidatePath(`/coach/nuotatori/${tab.swimmer_id}`);
+}
+
+/**
+ * Il coach offre la colletta. Caso DISTINTO da "incassata": nessun importo,
+ * nessuna transazione. Se le due cose si confondessero, un omaggio finirebbe
+ * nei ricavi e i conti tornerebbero solo per caso.
+ */
+export async function offriBirra(formData: FormData) {
+  await requireRole("coach");
+  const id = String(formData.get("birra_id") ?? "");
+  if (!id) return;
+
+  const supabase = await createClient();
+  const { data: tab } = await supabase
+    .from("birra_tab")
+    .update({ state: "offerta", settled_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("state", "dovuta")
     .select("swimmer_id")
     .maybeSingle();
-  if (!video) return;
+  if (!tab) return;
 
-  // 12/09/2026 — esito controllato: la RLS rifiutava questa insert in
-  // silenzio (nessuna policy INSERT su `transactions` fino a
-  // migration_058) e i 5€ non arrivavano mai nei ricavi. Lo sblocco è già
-  // scritto e non si annulla per la riga contabile, ma il log deve esserci.
-  const { error: txError } = await supabase.from("transactions").insert({
-    swimmer_id: video.swimmer_id,
-    type: "birra",
-    video_id: videoId,
-    amount_cents: BIRRA_CENTS,
-    currency: "eur",
-    status: "succeeded",
-    description: "Sblocco analisi video — incassato dal coach",
-  });
-  if (txError)
-    reportPaymentWriteError(txError, {
-      op: "unlockPaidVideo:transaction",
-      swimmerId: video.swimmer_id as string,
-    });
   await notifyUser(
-    video.swimmer_id as string,
+    tab.swimmer_id as string,
     "birra",
-    "Analisi sbloccata 🍺",
-    "Il coach ha confermato l'incasso: puoi vedere l'analisi appena pronta.",
+    "Offre il coach 🍺",
+    "L'analisi di questa gara è offerta: nessuna colletta da saldare.",
   );
   revalidatePath("/coach/video");
-  revalidatePath("/app/video");
-  revalidatePath("/coach/business");
+  revalidatePath(`/coach/nuotatori/${tab.swimmer_id}`);
 }
 
 /** Segna un video come analizzato senza commento testuale. */
