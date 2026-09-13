@@ -2,8 +2,14 @@
 
 **Risposta a:** `PROMPT_CODE_GATING.md`, Sessione A
 **Data:** 13 settembre 2026
-**Livello:** Supervised. **Nessuna DDL applicata al database di produzione.**
-Le migrazioni `059`–`063` sono file versionati, pronti ma **non eseguiti**.
+**Livello:** Supervised.
+
+> **Aggiornamento 13/09/2026, sera.** Questo documento è nato quando le
+> migrazioni erano proposte da non eseguire. Su indicazione del committente —
+> l'esecuzione manuale non è disponibile — **sono state applicate al database
+> di produzione**, nell'ordine `053` → `059` → `060` → `061` → `062` → `063`,
+> una per volta e con verifica dopo ciascuna. L'esito sta in §5.
+> Nessuna cancellazione è stata eseguita: Matteo B è intatto.
 
 ---
 
@@ -66,18 +72,23 @@ Un video di gara girato col telefono sta comodamente fra i 50 e i 500 MB: passa
 la validazione del browser, parte, e muore contro il limite globale. Il
 nuotatore vede fallire senza capire perché.
 
-**Proposta, NON applicata.** Due mosse, e la prima non basta da sola:
+**RISOLTO il 13/09/2026** (aggiornamento). Il committente ha chiarito che **il
+tetto globale di 50 MB non è alzabile**: il progetto sta sul piano Free. Quindi
+la strada non era alzare lo Storage, era smettere di promettere 500 MB.
 
-1. **Dalla Dashboard** → Storage → Settings: alzare il limite globale del
-   progetto ad almeno 500 MB. Non è SQL e non può stare in una migrazione: va
-   fatto a mano, ed è il motivo per cui `migration_053` avvertiva già di farlo.
-2. **Rieseguire `migration_053`**, così il bucket riprende i suoi 500 MB e il
-   filtro `video/*`.
+1. **`migration_053` riscritta e applicata**: il bucket dichiara ora
+   `file_size_limit = 52428800` (50 MB) e `allowed_mime_types = {video/*}` —
+   il tetto vero, non uno che non può avere effetto. Verificato in produzione.
+2. **L'app allineata a 50 MB** (`VIDEO_MAX_BYTES` in `src/lib/video.ts`).
+3. **Compressione lato client** (`src/lib/video-compress.ts`): 50 MB per un
+   video girato col telefono è poco, quindi l'app non si limita a respingere —
+   ridimensiona a 720p e ricomprime con `MediaRecorder` prima di caricare,
+   puntando al 90% del tetto. Due costi, entrambi dichiarati nella UI: è in
+   tempo reale (comprimere due minuti richiede due minuti) e l'audio si perde.
+   Fallisce morbido: se il browser non la supporta si carica l'originale e, se
+   non ci sta, il messaggio dice quanto pesa, quanto può pesare e **cosa fare**.
 
-Finché il punto 1 non è fatto, il punto 2 resta lettera morta — lo diceva già il
-commento della migrazione, ed è successo esattamente questo.
-
-Va poi deciso cosa fare dei 7 record orfani: sono righe che puntano a un file
+Va ancora deciso cosa fare dei 7 record orfani: sono righe che puntano a un file
 che non esiste. Non li ho toccati.
 
 ### 1.3 — Cosa si porta dietro il profilo di Matteo B (A5)
@@ -158,10 +169,31 @@ profili → `alter table ... add constraint ... not valid` → `validate constra
 
 ---
 
+## 5 · Le migrazioni applicate, con esito verificato
+
+Applicate il 13 settembre 2026 sul progetto `unsdbeliaunhhgnuefyz`, una per
+volta, verificando lo stato del database dopo ciascuna prima di passare alla
+successiva. Nessuna è fallita.
+
+| # | Migrazione | Verifica fatta dopo | Esito |
+|---|---|---|---|
+| 053 | Limiti del bucket `race-videos` | `file_size_limit` = 52428800 (50 MB), `allowed_mime_types` = `{video/*}` | ✅ |
+| 059 | Libreria per `visibility` | policy vecchia sparita, nuova con il `CASE` sui quattro livelli | ✅ |
+| 060 | Builder non ai Base | `with check` contiene `my_tier() in (open, open_plus, one_to_one)` | ✅ |
+| 061 | Colletta per la Birra | `birra` a 300c in listino · `birra_tab` + 2 policy · **0 video ancora `locked`** · `locked` fuori dal vincolo | ✅ |
+| 062 | Call non prenotabili | `call_30` e `call_60` a `active = false`; restano 5 prenotabili | ✅ |
+| 063 | Profilo di test | Chiara C. `is_test = true`; **Matteo B intatto**, `is_test = false` | ✅ |
+
+Le sei compaiono ora in `list_migrations`. Nota che **`053` non figurava nello
+storico precedente**: la conferma indipendente che non era mai stata applicata,
+come il documento sosteneva prima di applicarla.
+
+---
+
 ## 4 · Le decisioni che restano sue
 
-1. **Il limite globale dello Storage** va alzato a mano dalla Dashboard: senza,
-   `migration_053` resta inefficace e i caricamenti continueranno a morire.
+1. ~~Il limite globale dello Storage va alzato a mano~~ — **chiuso**: non è
+   alzabile (piano Free). Risolto abbassando l'app a 50 MB e comprimendo.
 2. **I 7 record video senza file**: cancellarli o tenerli come traccia.
 3. **Matteo B**: cancellare o no, sapendo che si portano via 8 `glide_scores` e
    che l'utente `auth.users` va rimosso a parte.

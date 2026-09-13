@@ -17,9 +17,14 @@ import {
 
 const file = (name: string, size: number, type: string) => ({ name, size, type });
 
-test("M-6: il limite è 500 MB", () => {
-  assert.equal(VIDEO_MAX_MB, 500);
-  assert.equal(VIDEO_MAX_BYTES, 524288000);
+test("M-6: il limite è 50 MB, quanto lo Storage accetta davvero", () => {
+  // 13/09/2026 — era 500 MB, e non poteva funzionare: il limite globale dello
+  // Storage sul piano Free è 50 MB e non è alzabile, quindi l'app prometteva
+  // dieci volte quello che il bucket avrebbe accettato. I 7 record senza file
+  // in produzione venivano da lì. Questo numero non si alza senza cambiare
+  // piano E migration_053: se cambia solo qui, si ricrea il buco.
+  assert.equal(VIDEO_MAX_MB, 50);
+  assert.equal(VIDEO_MAX_BYTES, 52428800);
 });
 
 test("content-type: usa File.type se è un video", () => {
@@ -35,13 +40,13 @@ test("content-type: fallback sull'estensione quando il browser non lo popola", (
 });
 
 test("file ok: sotto al limite e riconosciuto come video", () => {
-  assert.equal(videoFileError(file("gara.mp4", 120 * 1024 * 1024, "video/mp4")), null);
+  assert.equal(videoFileError(file("gara.mp4", 20 * 1024 * 1024, "video/mp4")), null);
   assert.equal(videoFileError(file("gara.mov", VIDEO_MAX_BYTES, "")), null);
 });
 
-test("file rifiutato: oltre 500 MB, formato non video, file vuoto", () => {
+test("file rifiutato: oltre 50 MB, formato non video, file vuoto", () => {
   const tooBig = videoFileError(file("gara.mp4", VIDEO_MAX_BYTES + 1, "video/mp4"));
-  assert.match(tooBig ?? "", /500 MB/);
+  assert.match(tooBig ?? "", /50 MB/);
   assert.match(videoFileError(file("doc.pdf", 1000, "application/pdf")) ?? "", /Formato/);
   assert.match(videoFileError(file("gara.mp4", 0, "video/mp4")) ?? "", /vuoto/);
 });
@@ -50,7 +55,7 @@ test("check server sui metadati Storage: stessa soglia, MIME reale", () => {
   assert.equal(videoObjectError({ size: 10, mimetype: "video/mp4" }), null);
   assert.match(
     videoObjectError({ size: VIDEO_MAX_BYTES + 1, mimetype: "video/mp4" }) ?? "",
-    /500 MB/,
+    /50 MB/,
   );
   assert.match(
     videoObjectError({ size: 10, mimetype: "application/octet-stream" }) ?? "",

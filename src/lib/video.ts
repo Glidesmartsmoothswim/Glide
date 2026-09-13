@@ -60,8 +60,21 @@ export const STATUS_LABEL: Record<VideoStatus, string> = {
  *     migration_053): l'unico che blocca DAVVERO l'upload, lato Supabase.
  * ------------------------------------------------------------------ */
 
-/** Dimensione massima di un video gara: 500 MB. */
-export const VIDEO_MAX_BYTES = 500 * 1024 * 1024;
+/**
+ * Dimensione massima di un video gara: 50 MB.
+ *
+ * Non è un numero scelto: è il limite globale dello Storage sul piano Free,
+ * e non è alzabile. Il limite effettivo è min(globale, bucket), quindi i
+ * 500 MB che questa costante dichiarava fino al 13/09/2026 erano una promessa
+ * che lo Storage non poteva mantenere — l'app accettava un file, il
+ * caricamento partiva e moriva contro il tetto vero. I 7 record senza file in
+ * produzione vengono da lì.
+ *
+ * 50 MB per un video girato col telefono è poco: per questo l'app COMPRIME
+ * prima di caricare (src/lib/video-compress.ts) invece di limitarsi a
+ * respingere. Il limite resta l'ultima parola, non la prima.
+ */
+export const VIDEO_MAX_BYTES = 50 * 1024 * 1024;
 export const VIDEO_MAX_MB = Math.round(VIDEO_MAX_BYTES / (1024 * 1024));
 
 /** Estensioni note → MIME: alcuni browser lasciano `File.type` vuoto. */
@@ -106,6 +119,9 @@ export function videoFileError(file: {
   if (file.size <= 0) return "File vuoto o illeggibile.";
   if (file.size > VIDEO_MAX_BYTES)
     return `Video troppo grande (${videoMb(file.size)} MB): il limite è ${VIDEO_MAX_MB} MB. Ritaglia la gara o riduci la qualità.`;
+  // Nota: in `uploader.tsx` questo controllo gira DOPO la compressione, sul
+  // file che parte davvero. Prima serviva solo a respingere; ora è la rete di
+  // sicurezza di ultima istanza, quando nemmeno la compressione è bastata.
   return null;
 }
 
