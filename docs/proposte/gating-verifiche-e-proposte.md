@@ -116,7 +116,14 @@ readiness, nessun questionario, nessun primato, nessun token, nessun pacchetto.
   rimosso a parte dall'API admin di Supabase, altrimenti resta un account
   capace di autenticarsi senza profilo.
 
-**Non ho cancellato nulla**, come da istruzioni. La decisione è sua.
+**AGGIORNAMENTO 13/09/2026, sera — cancellato su conferma esplicita.**
+La verifica qui sopra è stata riportata, la conferma è arrivata, e il profilo
+è stato rimosso. Si è cancellato da `auth.users` e non da `profiles`, perché
+`profiles_id_fkey` è `REFERENCES auth.users(id) ON DELETE CASCADE`: partire da
+lì porta via profilo e `glide_scores` **e** non lascia l'account orfano.
+Verificato dopo: 0 righe ovunque, nuotatori da 17 a 16. La traccia completa —
+comprese le 8 righe perse, riga per riga — sta in
+`scripts/rimozione-profilo-prova-2026-09-13.sql`.
 
 Nota: 8 `glide_scores` su un profilo che non ha mai nuotato significa che il
 calcolo del punteggio gira anche su profili senza attività. Non è un problema
@@ -195,8 +202,9 @@ come il documento sosteneva prima di applicarla.
 1. ~~Il limite globale dello Storage va alzato a mano~~ — **chiuso**: non è
    alzabile (piano Free). Risolto abbassando l'app a 50 MB e comprimendo.
 2. **I 7 record video senza file**: cancellarli o tenerli come traccia.
-3. **Matteo B**: cancellare o no, sapendo che si portano via 8 `glide_scores` e
-   che l'utente `auth.users` va rimosso a parte.
+3. ~~Matteo B: cancellare o no~~ — **chiuso il 13/09/2026**: cancellato su sua
+   conferma, da `auth.users` così da non lasciare l'account orfano. Traccia in
+   `scripts/rimozione-profilo-prova-2026-09-13.sql`.
 4. **Il builder al 1:1**: allineare `access.ts` alla policy o viceversa.
 5. **Le lezioni di gruppo a 10 €** per 30, 45 e 60 minuti (A4.3): tre durate
    diverse allo stesso prezzo. Segnalato, non corretto — serve sapere se è voluto.

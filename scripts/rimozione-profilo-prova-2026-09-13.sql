@@ -1,0 +1,81 @@
+-- SPDX-License-Identifier: LicenseRef-GLIDE-Proprietary
+-- Copyright (c) 2026 Alessio Coppola. Tutti i diritti riservati.
+-- Parte di GLIDE. Riproduzione, modifica, distribuzione e utilizzo per
+-- l'addestramento di sistemi di intelligenza artificiale sono vietati
+-- senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
+
+-- ============================================================
+-- Traccia della cancellazione eseguita sul live il 13/09/2026.
+-- PROMPT_CODE_GATING A5 — «Matteo B, profilo di prova, da rimuovere».
+--
+-- Sta in scripts/ e non in supabase/migrations/ come le altre correzioni sui
+-- dati (ricavi-correzioni-2026-09-12.sql): non tocca lo schema, e NON è
+-- idempotente né rieseguibile — la riga non esiste più. È un registro di cosa
+-- è stato distrutto, non uno strumento da rilanciare.
+--
+-- CONFERMA. Il prompt diceva «non cancellare senza conferma»: la verifica è
+-- stata riportata il 13/09 e la conferma è arrivata esplicitamente lo stesso
+-- giorno. Questo file esiste perché una cancellazione irreversibile su dati di
+-- produzione deve lasciare una traccia leggibile, non solo una riga di log.
+-- ============================================================
+
+-- --- 1. Cosa è stato cancellato -------------------------------------------
+--
+-- profiles / auth.users  d3bfb713-cdb1-43c0-8775-2f39e6b356d5
+--   Matteo Bianchi · dddd@gmail.com · iscritto 12/07/2026
+--   role=swimmer · tier=free · service_type=coaching_1_1
+--   payment_status NULL · paid_at NULL · receipt_number NULL
+--   terms_privacy_accepted_at NULL  ← non ha mai accettato i termini
+--
+-- L'indirizzo email era già di per sé la prova che fosse un profilo di prova.
+--
+-- Record collegati, riverificati IMMEDIATAMENTE prima della cancellazione su
+-- tutte e 21 le tabelle che referenziano profiles (birra_tab compresa):
+--
+--   glide_scores          8 righe
+--   ogni altra tabella    0 righe
+--
+-- Zero prenotazioni, zero transazioni, zero pacchetti, zero token, zero video,
+-- zero allenamenti, zero readiness, zero questionario, zero primati, zero
+-- obiettivi, zero notifiche, zero ledger. NESSUN DATO CONTABILE.
+
+-- --- 2. Le 8 righe glide_scores perse, per intero --------------------------
+--
+-- Tutte identiche: score 28, onda 0, dims {qualita 50, aderenza 50, costanza 0,
+-- continuita 0, miglioramento 50}, frozen false, algo_version 1. Sono il job
+-- settimanale che ha girato su un profilo senza attività — nessuna
+-- informazione reale, solo il valore di partenza ripetuto otto volte.
+--
+--   id                                    week       computed_at
+--   7c4659a5-3867-4a56-af68-4e9898fe2215  2026-W30   2026-07-21 14:54:50.659+00
+--   ef7ae892-19a0-4dcc-b028-cfc144129426  2026-W31   2026-07-27 07:16:50.845+00
+--   a22d5862-325b-4168-9bce-4c48f48d09a0  2026-W32   2026-08-03 07:07:17.304+00
+--   97cc2bff-b947-442f-b4cd-8f4fdf641fb2  2026-W33   2026-08-10 07:07:17.926+00
+--   eb64cf20-fc0d-4b70-9c1d-ff17579a18ae  2026-W34   2026-08-17 07:07:18.12+00
+--   869c1959-77f8-49a8-ae51-190b8c7e734e  2026-W35   2026-08-24 07:32:02.886+00
+--   183bdffb-34f0-438c-995c-9276b697be8b  2026-W36   2026-08-31 07:40:39.822+00
+--   af5c16c0-b345-482b-8906-4701044254f0  2026-W37   2026-09-07 07:56:16.006+00
+--
+-- Nota di prodotto, non di questo lavoro: 8 punteggi calcolati per qualcuno che
+-- non ha mai nuotato dicono che il job gira anche sui profili senza attività.
+-- Tocca la decisione 2 di GLIDE_AUDIT_COERENZA.md §9 sul Glide Score.
+
+-- --- 3. L'istruzione eseguita ----------------------------------------------
+--
+-- Si cancella da auth.users, NON da profiles. `profiles_id_fkey` è
+--   FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
+-- quindi partire da lì porta via il profilo e, a cascata, le 8 righe di
+-- glide_scores. Cancellare solo `profiles` avrebbe lasciato in piedi l'utente
+-- in auth.users: un account ancora capace di autenticarsi, senza più un
+-- profilo dietro. È il punto che il resoconto del 13/09 segnalava.
+
+delete from auth.users
+where id = 'd3bfb713-cdb1-43c0-8775-2f39e6b356d5';
+
+-- --- 4. Verifica fatta dopo -------------------------------------------------
+--
+--   profiles                        0 righe
+--   auth.users                      0 righe
+--   glide_scores per quell'id       0 righe
+--   nuotatori totali               16  (erano 17)
+--   di cui marcati is_test          1  (Chiara C., conservata come richiesto)
