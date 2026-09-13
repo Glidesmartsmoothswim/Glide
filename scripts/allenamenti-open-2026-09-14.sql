@@ -38,13 +38,28 @@
 -- Per ritrovarlo:
 --    select id, email from public.profiles where role = 'coach';
 --
--- Poco dopo l'insert, sempre il 13/09 e sempre su richiesta di Alessio:
--- focus 'Z5' su "Approccio al passo gara", che il builder aveva lasciato
--- vuoto. Qui è già dentro l'insert, così il file racconta lo stato vero
--- della tabella; sul live è passato da un update mirato sull'id:
---    update public.workouts set focus = 'Z5'
---    where kind = 'open_channel' and week_start = '2026-09-14'
---      and title = 'Approccio al passo gara';
+-- Dopo l'insert, in giornata, due correzioni sulle righe già scritte. Qui
+-- sono entrambe dentro l'insert, così il file descrive lo stato vero della
+-- tabella e non una fotografia superata; sul live sono passate da due
+-- update mirati, che restano annotati qui:
+--
+--  1. focus 'Z5' su "Approccio al passo gara", che il builder aveva
+--     lasciato vuoto mentre il blocco centrale è dichiaratamente Z5.
+--     Eseguito sul live il 13/09 alle 18:17 UTC:
+--       update public.workouts set focus = 'Z5'
+--       where kind = 'open_channel' and week_start = '2026-09-14'
+--         and title = 'Approccio al passo gara';
+--
+--  2. il secondo blocco di "Velocità e Tecnica Fondamentali" si chiamava
+--     "Nuovo blocco" — il nome di default del builder, finito in
+--     produzione per svista — ed è diventato "Velocità con subacquee".
+--     Rinominato sul live il 13/09 alle 21:30 UTC. Il nome sta dentro il
+--     JSON dei blocchi, quindi la forma equivalente è un jsonb_set
+--     sull'elemento 1 (l'array è a base zero):
+--       update public.workouts
+--       set blocks = jsonb_set(blocks, '{1,name}', '"Velocità con subacquee"')
+--       where kind = 'open_channel' and week_start = '2026-09-14'
+--         and title = 'Velocità e Tecnica Fondamentali';
 -- =====================================================================
 
 insert into public.workouts
@@ -56,7 +71,7 @@ values
   (:'coach_id', null, 'open_channel', 'Fondo Specifico', 'Z2', 25, null, '2026-09-14', 3500, null, null, now(),
    $b$[{"z":"Z1","name":"Riscaldamento","lines":["200 Pinne 50 Stile 50 Dorso 50 Stile esercizi 500 Dorso Doppio","6x50 Misti cambio 25 (Df Do / Do Ra / Ra Sl)","3x100 Pinne 50 Gambe laterale 50 Struscio le dita in acqua gomito alto nel recupero","6x50 Braccia Pull e Palette 4x PAlette AFFERATE (poggiano su avambraccio, mano chiusa attorno alla parte in basso) 2x solo Pull"],"rounds":1},{"z":"Z2","name":"Distanze Lunghe","lines":["3x800 1° 4x200 Completi 2° 2x400 Pinne con 3 colpi di gambe sub e prima bracciata lato opposto alla respirazione 3° 800 Pinne Palette e Boccaglio nuotando ampi e con poche bracciate"],"rounds":1}]$b$::jsonb),
   (:'coach_id', null, 'open_channel', 'Velocità e Tecnica Fondamentali', 'Tecnica · NM', 25, null, '2026-09-14', 2200, '- 1 serie Blocco centrale', '+ 1 serie blocco centrale', now(),
-   $b$[{"z":"Z1","name":"Riscaldamento","lines":["100 Stile con pinne","2x50 Pinne & Boccaglio 25 gambe delfino braccia lungo i fianchi 25 stile ben nuotato","100 Misto","100 Pull 25 Pugni Stile 25 Remate Proprio stile 50 Stile completo (opzione di esercitazione sul 3° 25 con un esercizio di sensibilità - dita separate oppure OK)"],"rounds":2},{"z":"NM","name":"Nuovo blocco","lines":["50 Pinne facendo subacquea lunga a cacciavite ogni spinta dal muro","2x25 Pinne SOLO Subacquea prolungata FORTE","2x25 Sub + 2 cicli in uscita proprio stile (obbiettivo Subacquea Lunga MA: si esce dall'acqua quando si è VELOCI)","100 Sciolto a piacere"],"rounds":4},{"z":"Z2","name":"Defaticamento","lines":["8x50 Completi 1 25 Gambe 25 Esercizi 1 25 Completo 25 Esercizi"],"rounds":1}]$b$::jsonb);
+   $b$[{"z":"Z1","name":"Riscaldamento","lines":["100 Stile con pinne","2x50 Pinne & Boccaglio 25 gambe delfino braccia lungo i fianchi 25 stile ben nuotato","100 Misto","100 Pull 25 Pugni Stile 25 Remate Proprio stile 50 Stile completo (opzione di esercitazione sul 3° 25 con un esercizio di sensibilità - dita separate oppure OK)"],"rounds":2},{"z":"NM","name":"Velocità con subacquee","lines":["50 Pinne facendo subacquea lunga a cacciavite ogni spinta dal muro","2x25 Pinne SOLO Subacquea prolungata FORTE","2x25 Sub + 2 cicli in uscita proprio stile (obbiettivo Subacquea Lunga MA: si esce dall'acqua quando si è VELOCI)","100 Sciolto a piacere"],"rounds":4},{"z":"Z2","name":"Defaticamento","lines":["8x50 Completi 1 25 Gambe 25 Esercizi 1 25 Completo 25 Esercizi"],"rounds":1}]$b$::jsonb);
 
 
 -- ---------------------------------------------------------------------
