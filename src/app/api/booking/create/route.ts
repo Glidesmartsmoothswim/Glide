@@ -22,6 +22,7 @@ import {
   romeDateStr,
 } from "@/lib/booking/credits";
 import { effectiveCashPriceCents } from "@/lib/booking/pricing";
+import { tokenTypeForService } from "@/lib/tokens";
 import {
   isManualPaymentMethod,
   PAYMENT_METHOD_LABEL,
@@ -108,7 +109,8 @@ export async function POST(req: Request) {
   const credit = await getCreditStatus(admin, profile.id, serviceType);
   // ADR: la call è una prestazione INCLUSA nel coaching, non un prodotto a
   // sé — prenotabile solo da chi ha il percorso 1:1 davvero attivo.
-  if (service.mode === "remote" && !canBookRemote(profile, credit.remoteAllowed))
+  const isCall = service.mode === "remote";
+  if (isCall && !canBookRemote(profile, credit.remoteAllowed))
     return Response.json(
       { error: "Le call non sono incluse nel tuo piano." },
       { status: 403 },
@@ -129,20 +131,23 @@ export async function POST(req: Request) {
   let consumed = false;
   let tokenId: string | null = null;
 
-  if (useToken) {
+  if (useToken || isCall) {
     // Reserve atomico di un token valido (Onda 13.6). Il tipo è derivato dal
     // servizio prenotato (mai dal client): un token group_lesson non copre
-    // una lezione privata e viceversa (ADR-015, Sprint C.1).
-    const tokenType = service.code.startsWith("group_")
-      ? "group_lesson"
-      : "private_lesson";
+    // una lezione privata e viceversa (ADR-015, Sprint C.1), e un token call
+    // non copre nessuna delle due (migration_064).
+    const tokenType = tokenTypeForService(service.code);
     const { data: tid } = await admin.rpc("reserve_lesson_token", {
       p_swimmer: profile.id,
       p_type: tokenType,
     });
     if (!tid)
       return Response.json(
-        { error: "Nessun token disponibile." },
+        {
+          error: isCall
+            ? "Nel tuo pacchetto non ci sono più check-in da remoto: scrivimi e li rivediamo insieme."
+            : "Nessun token disponibile.",
+        },
         { status: 402 },
       );
     tokenId = tid as string;

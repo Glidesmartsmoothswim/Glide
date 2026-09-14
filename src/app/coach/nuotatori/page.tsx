@@ -14,7 +14,7 @@ import {
   type PaymentGate,
 } from "@/lib/payment/status";
 import { TIER_LABEL as SUB_TIER_LABEL, type SubTier } from "@/lib/payment/pricing";
-import { availableCount, type LessonTokenRow } from "@/lib/tokens";
+import { lessonTokenCount, type LessonTokenRow } from "@/lib/tokens";
 import { NewSwimmer } from "./new-swimmer";
 import {
   NuotatoriSegments,
@@ -216,7 +216,9 @@ export default async function NuotatoriPage() {
       nextBooking: upcoming
         ? `${fmtDateTime(upcoming.starts_at)}${upcoming.services?.name ? ` · ${upcoming.services.name}` : ""}`
         : null,
-      tokenBalance: availableCount(tokens),
+      // Solo lezioni: la colonna dice "N token" e un check-in da remoto non è
+      // una lezione da mettere a calendario in vasca (migration_064).
+      tokenBalance: lessonTokenCount(tokens),
       bookingCount: bookings.length,
       history: bookings.slice(0, 8).map((b) => ({
         label: `${fmtDateTime(b.starts_at)} — ${b.services?.name ?? "Lezione"}${

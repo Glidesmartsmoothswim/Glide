@@ -19,8 +19,9 @@ import { MfaSettings } from "@/components/account/mfa-settings";
 import { PbManager, type Pb } from "./pb-manager";
 import type { ObjectiveRow } from "@/lib/objectives";
 import {
-  availableCount,
+  availableCountByType,
   isTokenAvailable,
+  lessonTokenCount,
   type LessonTokenRow,
 } from "@/lib/tokens";
 import { formatTempo } from "@/lib/profile/tempo";
@@ -87,7 +88,10 @@ export default async function SwimmerProfilo() {
   const gate = profile?.payment_gate ?? "not_applicable";
   const objectives = (objRes.data ?? []) as ObjectiveRow[];
   const tokens = (tokRes.data ?? []) as LessonTokenRow[];
-  const tokenAvail = availableCount(tokens);
+  // Lezioni e check-in da remoto si contano a parte: "10 lezioni incluse" a
+  // chi ha dieci call in pacchetto sarebbe una promessa sbagliata.
+  const tokenAvail = lessonTokenCount(tokens);
+  const callAvail = availableCountByType(tokens).call;
   const pbs = pbRes.data;
 
   const hasProfile = Boolean(
@@ -246,8 +250,21 @@ export default async function SwimmerProfilo() {
               questo mese. La usi in fase di prenotazione.
             </Card>
           ) : (
-            <Card className="text-muted">
-              Nessun token disponibile al momento.
+            callAvail === 0 && (
+              <Card className="text-muted">
+                Nessun token disponibile al momento.
+              </Card>
+            )
+          )}
+          {callAvail > 0 && (
+            <Card className="text-foreground">
+              Hai{" "}
+              <span className="font-bold">
+                {callAvail === 1
+                  ? "1 check-in da remoto"
+                  : `${callAvail} check-in da remoto`}
+              </span>{" "}
+              compreso nel percorso. Lo prenoti come una lezione.
             </Card>
           )}
           {tokens.filter((t) => t.redeemed_at || !isTokenAvailable(t)).length >

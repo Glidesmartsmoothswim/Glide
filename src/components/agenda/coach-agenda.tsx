@@ -34,6 +34,7 @@ import {
   groupIds,
   WEEK_DISPLAY_ORDER,
 } from "@/lib/availability";
+import { canMarkAttendance } from "@/lib/booking/attendance";
 
 const WD = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"];
 const KINDS = [
@@ -528,8 +529,18 @@ function BookingsTab({ bookings }: { bookings: Booking[] }) {
             </div>
           )}
 
-          {/* Confermata: presente/assente, blocco pulito e leggibile. */}
-          {b.status === "confirmed" && (
+          {/* Confermata ma non ancora iniziata: nessun tasto Presente/Assente.
+              Comparivano nello stesso identico punto di «Conferma lezione», e
+              un secondo clic chiudeva una lezione futura. */}
+          {b.status === "confirmed" && !canMarkAttendance(b) && (
+            <p className="mt-3 rounded-xl border border-border bg-background px-3 py-2 t-small text-muted">
+              Confermata. Presente/Assente si sbloccano all&apos;inizio della
+              lezione, {dt(b.starts_at)}.
+            </p>
+          )}
+
+          {/* Iniziata: presente/assente, blocco pulito e leggibile. */}
+          {canMarkAttendance(b) && (
             <form action={completeBooking} className="mt-3 flex flex-col gap-2">
               <input type="hidden" name="id" value={b.id} />
               <input

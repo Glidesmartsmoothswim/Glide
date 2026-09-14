@@ -10,8 +10,18 @@ import { Gift } from "lucide-react";
 import { giftToken } from "./token-actions";
 import type { TokenRedeemableFor } from "@/lib/tokens";
 
+/** Tipi regalabili e come si chiamano nella scheda del nuotatore. "Check-in"
+ *  è il nome che il coach usa parlando con chi ha il percorso: la call è
+ *  compresa nel pacchetto, e il token è il modo in cui gliela si dà. */
+const TIPI: readonly { value: TokenRedeemableFor; label: string }[] = [
+  { value: "private_lesson", label: "Privata" },
+  { value: "group_lesson", label: "Gruppo" },
+  { value: "call", label: "Check-in" },
+];
+
 /** Pulsante "Regala token" con tipo + nota opzionale (coach, scheda nuotatore).
- *  Tipo: lezione privata o lezione di gruppo (ADR-015 Sprint C.1). */
+ *  Tipo: lezione privata, di gruppo (ADR-015 Sprint C.1) o check-in da remoto
+ *  (migration_064). */
 export function GiftToken({ swimmerId }: { swimmerId: string }) {
   const [type, setType] = useState<TokenRedeemableFor>("private_lesson");
   const [note, setNote] = useState("");
@@ -21,28 +31,21 @@ export function GiftToken({ swimmerId }: { swimmerId: string }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setType("private_lesson")}
-          className={`rounded-lg border px-2 py-1 text-xs font-semibold ${
-            type === "private_lesson"
-              ? "border-blu bg-blu/10 text-blu"
-              : "border-border text-muted"
-          }`}
-        >
-          Privata
-        </button>
-        <button
-          type="button"
-          onClick={() => setType("group_lesson")}
-          className={`rounded-lg border px-2 py-1 text-xs font-semibold ${
-            type === "group_lesson"
-              ? "border-blu bg-blu/10 text-blu"
-              : "border-border text-muted"
-          }`}
-        >
-          Gruppo
-        </button>
+        {TIPI.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            aria-pressed={type === t.value}
+            onClick={() => setType(t.value)}
+            className={`rounded-lg border px-2 py-1 text-xs font-semibold ${
+              type === t.value
+                ? "border-blu bg-blu/10 text-blu"
+                : "border-border text-muted"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
       <div className="flex gap-2">
         <input

@@ -58,6 +58,15 @@ export async function POST(req: Request) {
     const { start } = periodBounds(ent?.period ?? "month", new Date(b.starts_at));
     await refundCredit(admin, b.swimmer_id, start);
     refunded = true;
+  } else if (hoursTo > BOOKING.cancelHours && b.payment === "token") {
+    // Il token segue la stessa regola del credito: oltre la finestra torna
+    // spendibile. Prima restava riscattato per sempre e la lezione risultava
+    // «usata» pur non essendo mai stata fatta.
+    await admin
+      .from("lesson_tokens")
+      .update({ redeemed_at: null, redeemed_booking_id: null })
+      .eq("redeemed_booking_id", b.id);
+    refunded = true;
   }
 
   await admin
