@@ -8,17 +8,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
-import type { TokenRedeemableFor } from "@/lib/tokens";
+import {
+  emptyTokenCount,
+  tokenTypeForService,
+  type TokenRedeemableFor,
+} from "@/lib/tokens";
 import {
   MANUAL_PAYMENT_METHODS,
   PAYMENT_METHOD_CHOICE,
   type ManualPaymentMethod,
 } from "@/lib/payment/methods";
-
-/** Tipo di token spendibile per un dato servizio (ADR-015 Sprint C.1):
- *  i codici "group_*" sono lezioni di gruppo, il resto è lezione privata. */
-const tokenTypeForService = (code: string): TokenRedeemableFor =>
-  code.startsWith("group_") ? "group_lesson" : "private_lesson";
 
 type Svc = {
   code: string;
@@ -73,7 +72,7 @@ function next14(): string[] {
 export function SwimmerBooking({
   services,
   credit,
-  tokensByType = { private_lesson: 0, group_lesson: 0 },
+  tokensByType = emptyTokenCount(),
 }: {
   services: Svc[];
   credit: Credit;
@@ -116,17 +115,26 @@ export function SwimmerBooking({
     setSlotsByDay(Object.fromEntries(results));
   }
 
-  const willUseToken = Boolean(svc) && tokensAvailable > 0 && useToken;
-  const willUseCredit = Boolean(svc) && !willUseToken && credit.remaining > 0;
+  // Il check-in da remoto è compreso nel percorso, non si compra a sé
+  // (migration_064): si spende il suo token e nient'altro — niente credito
+  // lezione, niente contante, niente bonifico.
+  const isCall = svc?.mode === "remote";
+  const willUseToken = Boolean(svc) && tokensAvailable > 0 && (isCall || useToken);
+  const willUseCredit =
+    Boolean(svc) && !willUseToken && !isCall && credit.remaining > 0;
   const priceLabel = !svc
     ? ""
-    : willUseToken
-      ? "Usi il tuo token — lezione inclusa"
-      : willUseCredit
-        ? "Usi 1 lezione inclusa"
-        : credit.granted > 0
-          ? `Credito esaurito · lezione extra €${Math.round(svc.price_cents / 100)}`
-          : `Lezione extra €${Math.round(svc.price_cents / 100)}`;
+    : isCall
+      ? tokensAvailable === 1
+        ? "Check-in compreso nel percorso · te ne resta 1"
+        : `Check-in compreso nel percorso · te ne restano ${tokensAvailable}`
+      : willUseToken
+        ? "Usi il tuo token — lezione inclusa"
+        : willUseCredit
+          ? "Usi 1 lezione inclusa"
+          : credit.granted > 0
+            ? `Credito esaurito · lezione extra €${Math.round(svc.price_cents / 100)}`
+            : `Lezione extra €${Math.round(svc.price_cents / 100)}`;
 
   async function confirm() {
     if (!svc || !slot) return;
@@ -283,7 +291,7 @@ export function SwimmerBooking({
             </p>
           )}
           <p className="t-small mt-1 text-muted">{priceLabel}</p>
-          {tokensAvailable > 0 && (
+          {tokensAvailable > 0 && !isCall && (
             <button
               onClick={() => setUseToken((v) => !v)}
               className={`mt-3 w-full rounded-lg border px-3 py-2 text-left text-sm font-bold ${
@@ -300,7 +308,7 @@ export function SwimmerBooking({
               </span>
             </button>
           )}
-          {!willUseCredit && !willUseToken && (
+          {!willUseCredit && !willUseToken && !isCall && (
             <div className="mt-3 flex flex-col gap-2">
               <p className="t-label text-muted">Come paghi</p>
               {MANUAL_PAYMENT_METHODS.map((m) => (

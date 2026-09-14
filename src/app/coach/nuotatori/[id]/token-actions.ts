@@ -11,7 +11,8 @@ import { requireRole } from "@/lib/auth";
 import type { TokenRedeemableFor } from "@/lib/tokens";
 
 /** Il coach regala un token (non scade). Onda 13.6, esteso a group_lesson
- *  (ADR-015 Sprint C.1 — videoanalisi_event resta fuori scope). */
+ *  (ADR-015 Sprint C.1 — videoanalisi_event resta fuori scope) e a call
+ *  (migration_064: è così che un pacchetto prevede i check-in da remoto). */
 export async function giftToken(
   swimmerId: string,
   note: string,
@@ -28,10 +29,10 @@ export async function giftToken(
   });
   if (error) return { error: error.message };
   revalidatePath(`/coach/nuotatori/${swimmerId}`);
-  return {
-    info:
-      redeemableFor === "group_lesson"
-        ? "Token gruppo regalato."
-        : "Token regalato.",
+  const INFO: Record<TokenRedeemableFor, string> = {
+    private_lesson: "Token regalato.",
+    group_lesson: "Token gruppo regalato.",
+    call: "Check-in da remoto aggiunto.",
   };
+  return { info: INFO[redeemableFor] };
 }

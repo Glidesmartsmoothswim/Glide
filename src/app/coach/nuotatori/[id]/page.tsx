@@ -42,7 +42,11 @@ import {
   OBJECTIVE_STATUS_LABEL,
   type ObjectiveRow,
 } from "@/lib/objectives";
-import { availableCount, type LessonTokenRow } from "@/lib/tokens";
+import {
+  availableCountByType,
+  lessonTokenCount,
+  type LessonTokenRow,
+} from "@/lib/tokens";
 import { GiftToken } from "./gift-token";
 import { PricingPanel } from "./pricing-panel";
 import { savePersonalWorkout } from "../../workout-actions";
@@ -262,7 +266,11 @@ export default async function SwimmerDetail({
   // tutti già letti in parallelo sopra (Onda 14.2).
   const objectives = (objRes.data ?? []) as ObjectiveRow[];
   const tokens = (tokRes.data ?? []) as LessonTokenRow[];
-  const tokenBalance = availableCount(tokens);
+  // I check-in da remoto (migration_064) sono token, ma non lezioni: restano
+  // fuori dal saldo lezioni, altrimenti gonfierebbero anche il riscontro sui
+  // pacchetti acquistati qui sotto, che di call non ne contengono nessuna.
+  const tokensByType = availableCountByType(tokens);
+  const tokenBalance = lessonTokenCount(tokens);
 
   // Sprint C.5 (TASK 5) — "Distribuzione carico": vista per QUESTO nuotatore
   // (non un aggregato cross-nuotatore), dallo Svolto (workout_completions.blocks).
@@ -855,6 +863,13 @@ export default async function SwimmerDetail({
               Disponibili: <span className="font-semibold">{tokenBalance}</span>
               <span className="text-muted"> · 1 lezione inclusa a token</span>
             </p>
+            {tokensByType.call > 0 && (
+              <p className="text-sm text-foreground">
+                Check-in da remoto:{" "}
+                <span className="font-semibold">{tokensByType.call}</span>
+                <span className="text-muted"> · compresi nel pacchetto</span>
+              </p>
+            )}
             <GiftToken swimmerId={id} />
           </Card>
         </section>

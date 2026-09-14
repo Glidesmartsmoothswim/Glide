@@ -58,8 +58,15 @@ export default async function PrenotaPage() {
     .order("sort");
   const services = onlyBookable((svcData ?? []) as Svc[])
     // Le call sono incluse nel coaching, non vendibili a sé: in elenco solo
-    // per chi ha il percorso 1:1 davvero attivo (stesso criterio del server).
-    .filter((s) => s.mode !== "remote" || canBookRemote(profile, credit.remoteAllowed))
+    // per chi ha il percorso 1:1 davvero attivo (stesso criterio del server) E
+    // ha ancora un check-in nel pacchetto. Il token è il modo in cui il
+    // pacchetto le prevede: finiti quelli non c'è un prezzo da proporre,
+    // quindi non c'è niente da mostrare (migration_064).
+    .filter(
+      (s) =>
+        s.mode !== "remote" ||
+        (canBookRemote(profile, credit.remoteAllowed) && tokensByType.call > 0),
+    )
     // Prezzo cash effettivo per QUESTO nuotatore (sconto affiliato gruppo /
     // override lezione extra) — informativo lato UI, l'importo autoritativo
     // resta ricalcolato server-side alla creazione del booking.

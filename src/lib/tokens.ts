@@ -17,7 +17,29 @@
  *   nasce così; il valore resta ammesso solo per lo storico già riscattato.
  */
 export type TokenSource = "coach" | "purchase" | "mensile";
-export type TokenRedeemableFor = "private_lesson" | "group_lesson";
+/**
+ * Su cosa è spendibile il token.
+ * - `private_lesson` / `group_lesson` — lezioni in vasca (ADR-015).
+ * - `call` — check-in da remoto compreso nel percorso (migration_064). La call
+ *   non si compra da sola: il token È il modo in cui il pacchetto la prevede.
+ */
+export type TokenRedeemableFor = "private_lesson" | "group_lesson" | "call";
+
+/**
+ * Tipo di token che copre un servizio, dal suo codice. Sta qui e non nella UI
+ * perché la stessa regola serve al client (quale saldo mostrare) e al server
+ * (quale token riservare): in due posti diversi diventerebbero due regole.
+ */
+export function tokenTypeForService(code: string): TokenRedeemableFor {
+  if (code.startsWith("group_")) return "group_lesson";
+  if (code.startsWith("call_")) return "call";
+  return "private_lesson";
+}
+
+/** Saldo a zero per ogni tipo: base comune a UI e conteggi. */
+export function emptyTokenCount(): Record<TokenRedeemableFor, number> {
+  return { private_lesson: 0, group_lesson: 0, call: 0 };
+}
 
 export type LessonTokenRow = {
   id: string;
@@ -46,14 +68,21 @@ export function availableCount(tokens: Redeemability[]): number {
   return tokens.filter((t) => isTokenAvailable(t)).length;
 }
 
-/** Quanti token disponibili nella lista, per tipo (private_lesson/group_lesson). */
+/**
+ * Quanti token LEZIONE disponibili (privata + gruppo), esclusi i check-in da
+ * remoto. È il saldo da mostrare dove si parla di lezioni e da confrontare con
+ * i pacchetti acquistati, che call non ne contengono (migration_064).
+ */
+export function lessonTokenCount(tokens: (Redeemability & Typed)[]): number {
+  const byType = availableCountByType(tokens);
+  return byType.private_lesson + byType.group_lesson;
+}
+
+/** Quanti token disponibili nella lista, per tipo (private_lesson/group_lesson/call). */
 export function availableCountByType(
   tokens: (Redeemability & Typed)[],
 ): Record<TokenRedeemableFor, number> {
-  const out: Record<TokenRedeemableFor, number> = {
-    private_lesson: 0,
-    group_lesson: 0,
-  };
+  const out = emptyTokenCount();
   for (const t of tokens) if (isTokenAvailable(t)) out[t.redeemable_for]++;
   return out;
 }
