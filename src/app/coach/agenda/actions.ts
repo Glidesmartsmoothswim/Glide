@@ -18,6 +18,7 @@ import { logEvent } from "@/lib/ledger";
 import { reportPaymentWriteError } from "@/lib/payment/errors";
 import { notifyUser } from "@/lib/notify";
 import { romeWallToUtc } from "@/lib/booking/slots";
+import { canMarkAttendance } from "@/lib/booking/attendance";
 import {
   romeDateStr,
   getEntitlement,
@@ -268,10 +269,15 @@ async function setBookingStatus(
   const supabase = await createClient();
   const { data: b } = await supabase
     .from("bookings")
-    .select("id, swimmer_id, service_id, services(code)")
+    .select("id, swimmer_id, service_id, starts_at, status, services(code)")
     .eq("id", id)
     .maybeSingle();
   if (!b) return;
+  // Presente/Assente si segnano DOPO l'inizio, e solo su una confermata.
+  // Senza questo paletto un clic di troppo subito dopo «Conferma lezione»
+  // chiudeva una seduta futura: spariva dalle prossime del nuotatore, che la
+  // riprenotava bruciando un secondo token.
+  if (!canMarkAttendance(b)) return;
   await supabase
     .from("bookings")
     .update({ status, coach_note: coachNote })
