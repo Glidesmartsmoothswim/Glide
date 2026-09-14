@@ -8,15 +8,31 @@
 -- Scheda personale 1:1 — "Tecnica e attrezzi — seduta breve"
 -- Settimana del 14/09/2026. 1900 m.
 --
--- ⏸ NON ANCORA ESEGUITO sul live. Come
---    scripts/allenamento-personale-2026-09-14-elite-cambio-fiato.sql,
---    questo file arriva PRIMA dell'insert: è la seduta dettata da Alessio
---    il 14/09/2026, messa in forma per essere letta e approvata. Si lancia
---    solo dopo GO esplicito.
+-- ✅ GIÀ ESEGUITO il 14/09/2026 sul progetto live, con GO esplicito di
+--    Alessio in sessione. Una riga, pubblicata subito, 1900 m,
+--    week_start 2026-09-14. Testo verificato contro il database con
+--    l'impronta md5 di zone, nomi, giri, righe e note dei quattro blocchi:
+--    e56b3fcfeda7343c7305eb0b19e22ebb, identica a quella calcolata su
+--    questo file.
 --
--- 🚫 NON È IDEMPOTENTE: una seconda esecuzione con lo stesso swimmer_id
---    duplica la scheda. Dopo l'esecuzione questo blocco va aggiornato in
---    "✅ GIÀ ESEGUITO il <data>", come negli script precedenti.
+--    LA SEDUTA È UN REGALO a un'atleta che NON ha il percorso 1:1: è
+--    `tier = 'free'` con una richiesta di 1:1 stagionale in attesa di
+--    pagamento. Questo ha una conseguenza da conoscere prima di rifarlo
+--    per qualcun altro: src/app/app/nuoto/page.tsx gata le schede personali
+--    con `personalAccess = tier === 'one_to_one'`, quindi per lei la query
+--    non parte e LA SCHEDA NON COMPARE nella pagina Nuoto. La RLS invece
+--    la concede (`swimmer_id = auth.uid()`, migration_050) e
+--    /app/nuoto/[id] non ha gate di tier: la riga si apre al link diretto,
+--    che è il modo in cui le è stata consegnata. Le alternative — togliere
+--    il gate di tier, o alzarle il tier a one_to_one — sono state scartate
+--    in sessione: la prima è una modifica di prodotto che vale per tutti
+--    (il gate è una decisione esplicita, PROMPT_CODE_PAGAMENTI TASK 6), la
+--    seconda regalerebbe l'intero percorso 1:1 non pagato, lo scivolone
+--    già costato l'Elite da 646 € del 12/09 (vedi lib/payment/pricing.ts).
+--
+-- 🚫 NON RILANCIARE: l'insert NON è idempotente, duplicherebbe la scheda.
+--    Questo file resta come traccia di cosa è stato scritto, come
+--    scripts/allenamento-personale-2026-09-09.sql.
 --
 -- Non è una migration: non va in supabase/migrations/, non tocca lo
 -- schema, usa solo colonne esistenti.
@@ -57,10 +73,15 @@
 --    è internamente coerente: il riscaldamento è dichiarato di 300 m e il
 --    giro da 3x50 ripetuto due volte fa 300; "i primi sei / i secondi sei"
 --    fa 12x50 = 600; "tre per ogni stile" sui quattro stili fa 12x50 = 600.
---    Quindi qui è scritto 1500, e il totale è 1900. Se l'intenzione era
---    davvero 1400 (e quindi 1800), a cambiare è uno dei tre blocchi, e va
---    detto quale: 100 m non si tolgono da soli senza rompere un conto che
---    torna.
+--    Quindi qui è scritto 1500, e il totale è 1900: è il valore andato nel
+--    database. Se l'intenzione era davvero 1400 (e quindi 1800), a cambiare
+--    è uno dei tre blocchi, e va detto quale — 100 m non si tolgono da soli
+--    senza rompere un conto che torna. La correzione a posteriori è una
+--    riga sola, sul modello degli update annotati in
+--    scripts/allenamenti-open-2026-09-14.sql:
+--       update public.workouts set total_meters = 1800
+--       where kind = 'personal' and id = '<id della scheda>';
+--    ma va fatta insieme al blocco che cala, non da sola.
 --
 -- LA SCHIENA. Il terzo 50 di ogni stile nel blocco dei misti è a scelta
 -- dell'atleta — altri esercizi, oppure completo a bracciate ridotte —
