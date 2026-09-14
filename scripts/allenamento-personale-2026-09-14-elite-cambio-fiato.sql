@@ -8,16 +8,27 @@
 -- Scheda personale 1:1 Elite — "Cambio del fiato e aerobico con attrezzi"
 -- Prima seduta dei rinnovi 1:1, settimana del 14/09/2026. 2700 m.
 --
--- ⏸ NON ANCORA ESEGUITO sul live. A differenza di
---    scripts/allenamento-personale-2026-09-09.sql e degli script del
---    Canale Open, questo file arriva PRIMA dell'insert: è la seduta
---    dettata da Alessio il 14/09/2026, messa in forma per essere letta e
---    approvata. Si lancia solo dopo GO esplicito, e una volta sola per
---    ogni atleta a cui va assegnata.
+-- ✅ ESEGUITO IL 14/09/2026 su UNA atleta, non su tutte. Questo file era
+--    nato prima dell'insert — la seduta dettata da Alessio il 14/09 messa
+--    in forma per essere letta e approvata — ed è stato lanciato lo stesso
+--    giorno, con GO in sessione, per la prima dei rinnovi: una riga,
+--    pubblicata subito, 2700 m, week_start 2026-09-14.
+--
+--    Testo verificato contro il database con l'impronta md5 di zone, nomi,
+--    giri, righe e note dei quattro blocchi:
+--    7e2c3bac0e50f968dab976fa1291f9b3, identica a quella calcolata su
+--    questo file. Metri ricontati con woMeters: 2700.
+--
+-- ⚠️ RESTA DA LANCIARE per gli altri rinnovi, cambiando \set swimmer_id.
+--    Al 14/09 mancavano ancora due atleti 1:1 attivi senza scheda su
+--    questa settimana; Alessio ha deciso di occuparsene a parte. Chi ha
+--    già la riga NON va rifatto.
 --
 -- 🚫 NON È IDEMPOTENTE: una seconda esecuzione con lo stesso swimmer_id
---    duplica la scheda. Dopo l'esecuzione questo blocco va aggiornato in
---    "✅ GIÀ ESEGUITO il <data>", come negli script precedenti.
+--    duplica la scheda. Prima di rilanciarlo, verificare chi ce l'ha già:
+--      select swimmer_id from public.workouts
+--       where kind = 'personal' and week_start = '2026-09-14'
+--         and title = 'Cambio del fiato e aerobico con attrezzi';
 --
 -- Non è una migration: non va in supabase/migrations/, non tocca lo
 -- schema, usa solo colonne esistenti.
