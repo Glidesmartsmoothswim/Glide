@@ -39,22 +39,24 @@
 
 
 -- ---------------------------------------------------------------------
--- L'IMPIANTO — dettato da Alessio, 14/09/2026.
+-- L'IMPIANTO — dettato da Alessio, 14/09/2026, e corretto da lui sulla
+-- prima stesura (riscaldamento, 5x100, 2x250 e recuperi).
 --
 -- Due fili, uno tecnico e uno di carico:
 --   • CAMBIO DEL FIATO. Il lato di respirazione non è una preferenza da
---     assecondare: si alterna nel riscaldamento, e nel blocco con le
---     pinne decide da quale bracciata si esce dalla subacquea (sempre
---     quella opposta al lato su cui si respira).
+--     assecondare. Nel riscaldamento si isola il gesto un braccio alla
+--     volta, prima il destro e poi il sinistro; sui 2x250 si cambia lato
+--     a ogni spinta dal muro, e il lato decide da quale bracciata si esce
+--     dalla subacquea (sempre quella opposta al lato su cui si respira).
 --   • AEROBICO GESTITO CON GLI ATTREZZI. I 1500 m di serie aerobica
---     scendono per gradi di assistenza: 500 a corpo libero, 500 con le
---     pinne, 500 con pinne + palette + boccaglio. Lo stimolo resta Z2, a
---     cambiare è quanto l'attrezzo tiene su l'assetto mentre la tecnica
---     regge.
+--     scendono per gradi di assistenza: 500 completi a corpo libero, 500
+--     con le pinne, 500 con pinne + palette + boccaglio. Lo stimolo resta
+--     Z2, a cambiare è quanto l'attrezzo tiene su l'assetto mentre la
+--     tecnica regge.
 --
 --   Blocco 1 (Z1, 3 giri)   riscaldamento, 400 m/giro       1200 m
---     2x50 pinne + 4x25 di esercizi + 100 misto + 2x50 braccia.
---   Blocco 2 (Z2, 1 giro)   5x100 a corpo libero             500 m
+--     100 pinne + 2x50 di esercizi + 100 misto + 2x50 braccia.
+--   Blocco 2 (Z2, 1 giro)   5x100 completi a corpo libero    500 m
 --   Blocco 3 (Z2, 1 giro)   2x250 stile con pinne            500 m
 --   Blocco 4 (Z2, 1 giro)   500 pinne, palette e boccaglio   500 m
 --                                                          -------
@@ -78,9 +80,19 @@
 -- la firma del set principale resta pulita. I metri non cambiano in nessuno
 -- dei due casi.
 --
--- Nota di lettura sul parser: su due righe parseLine marca mode='gambe'
--- solo perché la parola "gambe" compare nella descrizione (i 4x25 del
--- riscaldamento e il 500 finale). Non è un errore da correggere: il campo
+-- IMPAGINAZIONE DELLE NOTE. Il tipo Block (src/lib/workout.ts) ha UN solo
+-- campo `note` per blocco, e workout-card.tsx lo stampa in un unico box
+-- con whitespace-pre-line. Dove le indicazioni dettate sono due e distinte
+-- — il riscaldamento e i 2x250 — restano due note separate dentro quel
+-- campo, ciascuna aperta da un'etichetta in maiuscolo e divisa da una riga
+-- vuota. È la stessa forma già usata in allenamento-personale-2026-09-09
+-- ("STILE — …" / "DORSO — …"): a bordo vasca si legge il titolo giusto
+-- senza rileggere tutto il paragrafo.
+--
+-- Nota di lettura sul parser: su due righe parseLine ricava un `mode` che
+-- non c'entra con il set, perché pesca la parola dalla descrizione —
+-- 'braccia' sui 2x50 del riscaldamento (da "braccia stile") e 'gambe' sul
+-- 500 finale (da "gambe continue"). Non è un errore da correggere: il campo
 -- `mode` non è usato in rendering — workout-card.tsx stampa la riga com'è e
 -- colora solo la zona — e i metri non ne dipendono.
 --
@@ -112,30 +124,30 @@ values
       "name": "Riscaldamento",
       "rounds": 3,
       "lines": [
-        "2x50 SL pinne — ben nuotati",
-        "4x25 pinne — cambio del fiato · gambe delfino sul dorso · solo braccio destro con gambe delfino · solo braccio sinistro con gambe delfino",
+        "100 SL pinne",
+        "2x50 pinne — 25 gambe delfino sul dorso + 25 gambe delfino e braccia stile con un braccio solo: 1° 50 destro, 2° 50 sinistro",
         "100 MX — cambio ogni 25",
-        "2x50 braccia pull — 25 remate + 25 ben nuotati"
+        "2x50 braccia pull — 25 remate + 25 ben nuotate"
       ],
-      "note": "Tre giri da 400, sempre uguali: 1200 m per arrivare alla serie aerobica già caldo e già in assetto, non per fare metri.\n\nI 4x25 con le pinne sono il cuore del riscaldamento. Sul primo 25 si cambia il lato di respirazione, non si nuota sul lato comodo. Sul secondo le gambe delfino sul dorso tengono i fianchi alti. Sugli ultimi due si nuota con un braccio solo, prima il destro e poi il sinistro, gambe delfino: il braccio fermo resta lungo davanti, la rotazione la fa il tronco.\n\nSui 2x50 a braccia con il pull: 25 di remate per sentire l'appoggio dell'avambraccio, 25 nuotati bene. Le remate non sono velocità, sono ricerca dell'acqua."
+      "note": "ESERCIZI — I 2x50 con le pinne sono il cuore del riscaldamento. Sul primo 25 gambe delfino sul dorso: i fianchi restano alti e in linea, la spinta parte dal tronco. Sul secondo 25 si gira sullo stile e si nuota con un braccio solo, sempre gambe delfino: il braccio fermo resta lungo davanti e la rotazione la fa il tronco, non la spalla. Il primo 50 con il destro, il secondo con il sinistro, senza saltare il lato meno comodo.\n\nBRACCIA — Sul 100 misto si cambia stile ogni 25, tranquillo, serve a sciogliere. Sui 2x50 a braccia con il pull: 25 di remate per sentire dove l'avambraccio trova l'acqua, 25 nuotati bene. Le remate non sono velocità, sono ricerca dell'appoggio.\n\nTre giri da 400 sempre uguali: 1200 m per arrivare alla serie aerobica già caldo e già in assetto, non per fare metri."
     },
     {
       "z": "Z2",
-      "name": "Aerobico — 5x100 a corpo libero",
+      "name": "Aerobico — 5x100 completi a corpo libero",
       "rounds": 1,
       "lines": [
-        "5x100 SL — recupero stretto 20 secondi · senza attrezzi · Z2"
+        "5x100 SL completi — recupero 20 secondi · senza attrezzi · Z2"
       ],
-      "note": "Senza attrezzi, apposta: qui non c'è niente che tenga su l'assetto al posto tuo.\n\nSi lavora sul recupero della bracciata: gomito alto e mano bassa, rilassata, che passa vicino all'acqua. Occhio soprattutto al braccio sinistro, dove il carico tende a salire sulla spalla invece di restare sul gomito.\n\nRecupero stretto, 20 secondi: serve a tenere il ritmo, non a recuperare del tutto."
+      "note": "Completi e senza attrezzi, apposta: qui non c'è niente che tenga su l'assetto al posto tuo.\n\nSi lavora sul recupero della bracciata: gomito alto e mano bassa, rilassata, che passa vicino all'acqua. Occhio soprattutto al braccio sinistro, dove il carico tende a salire sulla spalla invece di restare sul gomito.\n\nRecupero 20 secondi: serve a tenere il ritmo, non a recuperare del tutto."
     },
     {
       "z": "Z2",
       "name": "Aerobico — 2x250 stile con pinne",
       "rounds": 1,
       "lines": [
-        "2x250 SL pinne — subacquea a ogni spinta dal muro · Z2"
+        "2x250 SL pinne — subacquea e cambio del fiato a ogni spinta dal muro · Z2"
       ],
-      "note": "Subacquea tutte le volte che si spinge sul muro. Assetto buono, tre colpi di gambe sotto, poi si esce.\n\nL'uscita è sempre con la bracciata del braccio opposto al lato su cui si respira: se respiro a sinistra esco con la bracciata destra, se respiro a destra esco con la sinistra. L'obiettivo è che l'uscita sia fluida, non che sia lunga.\n\nLa virata può essere a capriola o toccando il muro e ripartendo, non è quello il punto: il punto è concentrarsi sulla virata invece di subirla."
+      "note": "SUBACQUEA — Si fa tutte le volte che si spinge sul muro. Assetto buono, tre colpi di gambe sotto, poi si esce. L'obiettivo è che l'uscita sia fluida, non che sia lunga: la virata può essere a capriola o toccando il muro e ripartendo, non è quello il punto — il punto è concentrarsi sulla virata invece di subirla.\n\nCAMBIO DEL FIATO — A ogni spinta dal muro si cambia il lato di respirazione, e il lato decide l'uscita: si esce sempre con la bracciata del braccio opposto a quello su cui si respira. Se respiro a sinistra esco con la destra, se respiro a destra esco con la sinistra."
     },
     {
       "z": "Z2",
