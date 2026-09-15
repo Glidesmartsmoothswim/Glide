@@ -10,6 +10,7 @@ import {
   availableCountByType,
   emptyTokenCount,
   tokenTypeForService,
+  tokenUsageLabel,
 } from "./tokens";
 
 test("tokenTypeForService — ogni servizio ha il suo saldo, e non si scambiano", () => {
@@ -50,4 +51,50 @@ test("availableCountByType — i check-in non gonfiano il saldo delle lezioni", 
     group_lesson: 0,
     call: 2,
   });
+});
+
+const ORA = Date.parse("2026-09-15T10:00:00Z");
+
+test("tokenUsageLabel — dice il giorno della lezione, non quello del riscatto", () => {
+  // Il caso vero: token preso l'11/09 prenotando, lezione nuotata il 12/09.
+  // Prima si leggeva «Usato il 11/09» e i conti non tornavano a nessuno.
+  assert.equal(
+    tokenUsageLabel(
+      {
+        redeemed_at: "2026-09-11T08:29:24Z",
+        expires_at: null,
+        lessonStartsAt: "2026-09-12T09:00:00Z",
+      },
+      ORA,
+    ),
+    "Usato per la lezione di sab 12/09",
+  );
+});
+
+test("tokenUsageLabel — una lezione da fare è impegnata, non spesa", () => {
+  assert.equal(
+    tokenUsageLabel(
+      {
+        redeemed_at: "2026-09-13T08:39:31Z",
+        expires_at: null,
+        lessonStartsAt: "2026-09-19T09:00:00Z",
+      },
+      ORA,
+    ),
+    "Impegnato per la lezione di sab 19/09",
+  );
+});
+
+test("tokenUsageLabel — senza prenotazione agganciata resta la data del riscatto", () => {
+  assert.equal(
+    tokenUsageLabel(
+      { redeemed_at: "2026-09-05T07:45:00Z", expires_at: null, lessonStartsAt: null },
+      ORA,
+    ),
+    "Usato il sab 05/09",
+  );
+  assert.equal(
+    tokenUsageLabel({ redeemed_at: null, expires_at: "2026-09-01T00:00:00Z" }, ORA),
+    "Scaduto",
+  );
 });

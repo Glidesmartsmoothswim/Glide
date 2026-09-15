@@ -68,6 +68,42 @@ export function availableCount(tokens: Redeemability[]): number {
   return tokens.filter((t) => isTokenAvailable(t)).length;
 }
 
+const GIORNO = new Intl.DateTimeFormat("it-IT", {
+  timeZone: "Europe/Rome",
+  weekday: "short",
+  day: "2-digit",
+  month: "2-digit",
+});
+
+/**
+ * Riga dello storico token nel profilo del nuotatore.
+ *
+ * Dice la data della LEZIONE, non quella in cui il token è stato preso: sono
+ * due giorni diversi quasi sempre — si prenota oggi per sabato — e la seconda
+ * non significa niente per chi legge. Chi controlla i conti confronta queste
+ * righe con le lezioni che ricorda di aver fatto, e con `redeemed_at` non
+ * tornavano mai: un token «usato l'11/09» per una lezione nuotata il 12, un
+ * altro «usato il 13/09» per una lezione ancora da fare il 19.
+ *
+ * Distingue anche l'impegnato dallo speso: finché la lezione non è arrivata il
+ * token è prenotato, non consumato, e disdicendo in tempo torna indietro.
+ */
+export function tokenUsageLabel(
+  t: Redeemability & { lessonStartsAt?: string | null },
+  now: number = Date.now(),
+): string {
+  const lesson = t.lessonStartsAt ? new Date(t.lessonStartsAt).getTime() : NaN;
+  if (!Number.isNaN(lesson))
+    return lesson > now
+      ? `Impegnato per la lezione di ${GIORNO.format(lesson)}`
+      : `Usato per la lezione di ${GIORNO.format(lesson)}`;
+  // Nessuna prenotazione agganciata (storico vecchio, o lezione cancellata a
+  // mano): resta la data del riscatto, detta per quello che è.
+  const redeemed = t.redeemed_at ? new Date(t.redeemed_at).getTime() : NaN;
+  if (!Number.isNaN(redeemed)) return `Usato il ${GIORNO.format(redeemed)}`;
+  return "Scaduto";
+}
+
 /**
  * Quanti token LEZIONE disponibili (privata + gruppo), esclusi i check-in da
  * remoto. È il saldo da mostrare dove si parla di lezioni e da confrontare con
