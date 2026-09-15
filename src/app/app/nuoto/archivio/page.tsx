@@ -62,6 +62,10 @@ export default async function OpenArchive({
     .from("workouts")
     .select("*")
     .eq("kind", "open_channel")
+    // L'archivio non filtra per settimana: si affida alla RLS, che a un
+    // Open+ passa OGNI riga open_channel — bozze comprese. Senza questo
+    // filtro una copia ancora da rivedere comparirebbe qui il giorno stesso.
+    .not("published_at", "is", null)
     .order("week_start", { ascending: false });
   let items = (data ?? []) as WorkoutRow[];
 

@@ -6,7 +6,7 @@
 // senza autorizzazione scritta. Vedi LICENSE e NOTICE in radice.
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useCallback, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { CheckCircle2, Plus, Trash2, Waves } from "lucide-react";
 import {
@@ -43,6 +43,12 @@ export type WorkoutInitial = {
   pool?: number;
   week_start?: string | null;
   blocks?: Block[];
+  /**
+   * Totale salvato. Se non coincide col ricalcolo dai blocchi, l'editor parte
+   * già in correzione manuale mostrando questo numero: è il caso delle sedute
+   * che il parser non sa leggere ("Risc 200 m", righe di continuazione).
+   */
+  total_meters?: number | null;
   scale_down?: string | null;
   scale_up?: string | null;
 };
@@ -56,21 +62,45 @@ type EditorProps = {
   swimmerId?: string;
   /** Se presente → modalità MODIFICA di un allenamento esistente. */
   workoutId?: string;
+  /**
+   * Bozza: la seduta esiste ma non è mai stata pubblicata. Cambia due cose —
+   * la settimana parte VUOTA (assegnarla è l'atto che la rende raggiungibile)
+   * e accanto a "Salva bozza" compare "Pubblica".
+   */
+  draft?: boolean;
+  /** Mette il cursore sul titolo e lo seleziona al montaggio (post-Duplica). */
+  autoFocusTitle?: boolean;
   initial?: WorkoutInitial;
   submitLabel?: string;
   /** Ancora/URL a cui rimanda il link "Vai alla scheda" dopo il salvataggio. */
   successHref?: string;
 };
 
-function Submit({ label }: { label: string }) {
+function Submit({
+  label,
+  name,
+  value,
+  tone = "primary",
+}: {
+  label: string;
+  name?: string;
+  value?: string;
+  tone?: "primary" | "ghost";
+}) {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
+      name={name}
+      value={value}
       disabled={pending}
-      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-blu to-navy px-5 py-2.5 font-semibold text-white disabled:opacity-60"
+      className={
+        tone === "primary"
+          ? "inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-blu to-navy px-5 py-2.5 font-semibold text-white disabled:opacity-60"
+          : "inline-flex items-center gap-2 rounded-xl border border-border px-5 py-2.5 font-semibold text-foreground hover:border-blu disabled:opacity-60"
+      }
     >
-      <Waves size={18} />
+      {tone === "primary" && <Waves size={18} />}
       {pending ? "Salvo…" : label}
     </button>
   );
@@ -102,6 +132,8 @@ function EditorForm({
   context,
   swimmerId,
   workoutId,
+  draft = false,
+  autoFocusTitle = false,
   initial,
   submitLabel = "Salva allenamento",
   successHref,
@@ -116,6 +148,30 @@ function EditorForm({
   );
 
   const total = woMeters(blocks);
+
+  /**
+   * Totale corretto a mano. Parte valorizzato solo se il totale salvato NON
+   * coincide col ricalcolo dai blocchi: lì il parser non ci arriva e il numero
+   * buono è quello che c'è già. Negli altri casi il campo non si vede e vale
+   * il calcolo, come sempre.
+   */
+  const [manualMeters, setManualMeters] = useState<number | null>(() => {
+    const saved = initial?.total_meters;
+    if (saved == null) return null;
+    return saved === woMeters(initial?.blocks ?? []) ? null : saved;
+  });
+
+  // Callback ref stabile: fuoco + selezione una sola volta, al montaggio.
+  // Con autoFocus + onFocus si ri-selezionerebbe a ogni click sul campo.
+  const titleRef = useCallback(
+    (el: HTMLInputElement | null) => {
+      if (el && autoFocusTitle) {
+        el.focus();
+        el.select();
+      }
+    },
+    [autoFocusTitle],
+  );
   const patch = (i: number, p: Partial<Block>) =>
     setBlocks((bs) => bs.map((b, j) => (j === i ? { ...b, ...p } : b)));
 
@@ -130,10 +186,10 @@ function EditorForm({
       {swimmerId && <input type="hidden" name="swimmer_id" value={swimmerId} />}
       {workoutId && <input type="hidden" name="workout_id" value={workoutId} />}
       <input type="hidden" name="blocks" value={JSON.stringify(cleanBlocks)} />
-      <input type="hidden" name="total_meters" value={total} />
 
       <div className="grid gap-3 sm:grid-cols-2">
         <input
+          ref={titleRef}
           name="title"
           required
           defaultValue={initial?.title ?? ""}
@@ -156,11 +212,15 @@ function EditorForm({
         </select>
         {context === "open" && (
           <label className="flex flex-col gap-1 text-xs text-muted">
-            Settimana (lunedì)
+            {draft ? "Settimana (lunedì) — serve per pubblicare" : "Settimana (lunedì)"}
             <input
               type="date"
               name="week_start"
-              defaultValue={initial?.week_start ?? currentMonday()}
+              // Su una bozza il campo parte VUOTO di proposito: finché non c'è
+              // una settimana la seduta non entra nel raggio di
+              // currentMonday(), e il default alla settimana corrente la
+              // renderebbe raggiungibile senza che il coach l'abbia deciso.
+              defaultValue={initial?.week_start ?? (draft ? "" : currentMonday())}
               className="rounded-xl border border-border bg-background px-3 py-2.5 outline-none focus:border-blu"
             />
           </label>
@@ -318,9 +378,50 @@ function EditorForm({
         >
           <Plus size={16} /> Aggiungi blocco
         </button>
-        <span className="text-sm font-semibold text-foreground">
-          Totale: {total.toLocaleString("it-IT")} m
-        </span>
+
+        {/* Il totale lo calcola il parser dalla prima cifra di ogni riga per i
+            giri del blocco. Su certe sedute non ci arriva — "Risc 200 m", o
+            una riga che continua quella sopra — e allora il numero giusto lo
+            scrive il coach: il campo si apre da qui e vince sul calcolo. */}
+        {manualMeters == null ? (
+          <span className="flex items-center gap-2 text-sm">
+            <span className="font-semibold text-foreground">
+              Totale: {total.toLocaleString("it-IT")} m
+            </span>
+            <button
+              type="button"
+              onClick={() => setManualMeters(total)}
+              className="text-muted underline hover:text-foreground"
+            >
+              Correggi
+            </button>
+          </span>
+        ) : (
+          <span className="flex items-center gap-2 text-sm">
+            <label className="flex items-center gap-1.5 font-semibold text-foreground">
+              Totale
+              <input
+                type="number"
+                name="total_meters_manual"
+                min={1}
+                step={50}
+                value={manualMeters}
+                onChange={(e) =>
+                  setManualMeters(Math.max(0, +e.target.value || 0))
+                }
+                className="w-24 rounded-lg border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-blu"
+              />
+              m
+            </label>
+            <button
+              type="button"
+              onClick={() => setManualMeters(null)}
+              className="text-muted underline hover:text-foreground"
+            >
+              calcolo: {total.toLocaleString("it-IT")} m
+            </button>
+          </span>
+        )}
       </div>
 
       {state.error && <p className="text-sm text-[#DC2626]">{state.error}</p>}
@@ -335,8 +436,24 @@ function EditorForm({
         </p>
       )}
 
-      <div className="flex justify-end">
-        <Submit label={submitLabel} />
+      {/* Su una bozza il salvataggio e la pubblicazione sono due gesti
+          distinti: `publish` arriva al server solo dal bottone premuto, ed è
+          l'unico punto in cui published_at (e la settimana) vengono scritti. */}
+      <div className="flex flex-wrap justify-end gap-2">
+        {draft ? (
+          <>
+            <Submit label="Salva bozza" name="publish" value="0" tone="ghost" />
+            <Submit
+              label={
+                context === "open" ? "Pubblica sul Canale Open" : "Pubblica"
+              }
+              name="publish"
+              value="1"
+            />
+          </>
+        ) : (
+          <Submit label={submitLabel} />
+        )}
       </div>
     </form>
   );

@@ -49,6 +49,10 @@ export default async function SwimmerToday() {
       .from("workouts")
       .select("id, title, week_day, kind")
       .or(`swimmer_id.eq.${sid},kind.eq.open_channel`)
+      // Le bozze del coach (published_at null) non esistono per l'atleta: la
+      // RLS lascia leggere a un Open+ qualunque riga open_channel, quindi il
+      // filtro deve stare qui. Vale per tutte le liste lato /app.
+      .not("published_at", "is", null)
       .order("created_at", { ascending: false })
       .limit(30),
     supabase

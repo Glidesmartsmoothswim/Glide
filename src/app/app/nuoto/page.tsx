@@ -53,6 +53,10 @@ export default async function SwimmerNuoto() {
           .select("*")
           .eq("kind", "personal")
           .eq("swimmer_id", sid)
+          // Una scheda personale in bozza è indirizzata a questo nuotatore e
+          // la RLS gliela passa: senza questo filtro se la troverebbe in
+          // elenco mentre il coach la sta ancora scrivendo.
+          .not("published_at", "is", null)
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: [] as WorkoutRow[] }),
     weekAccess
@@ -61,6 +65,7 @@ export default async function SwimmerNuoto() {
           .select("*")
           .eq("kind", "open_channel")
           .eq("week_start", currentMonday())
+          .not("published_at", "is", null)
           .order("focus", { ascending: true })
       : Promise.resolve({ data: [] as WorkoutRow[] }),
     supabase

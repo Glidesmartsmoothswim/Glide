@@ -29,6 +29,11 @@ export function canEditWorkout(
   createdAt?: string | null,
   now: number = Date.now(),
 ): boolean {
+  // Bozza mai pubblicata → sempre modificabile. La finestra dei 14 giorni
+  // protegge chi la seduta l'ha già letta a bordo vasca; una bozza non l'ha
+  // letta nessuno, e una copia lasciata lì due settimane non deve nascere
+  // già bloccata.
+  if (!publishedAt) return true;
   const until = workoutEditableUntil(publishedAt, createdAt);
   return until !== null && now <= until;
 }
