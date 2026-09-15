@@ -22,6 +22,7 @@ import {
   availableCountByType,
   isTokenAvailable,
   lessonTokenCount,
+  tokenUsageLabel,
   type LessonTokenRow,
 } from "@/lib/tokens";
 import { formatTempo } from "@/lib/profile/tempo";
@@ -93,6 +94,32 @@ export default async function SwimmerProfilo() {
   const tokenAvail = lessonTokenCount(tokens);
   const callAvail = availableCountByType(tokens).call;
   const pbs = pbRes.data;
+
+  // Storico token: serve la data della LEZIONE agganciata, non quella del
+  // riscatto (che è il giorno in cui si è prenotato). Una query sola, sugli id
+  // che i token già si portano dietro.
+  const usedBookingIds = tokens
+    .map((t) => t.redeemed_booking_id)
+    .filter((id): id is string => Boolean(id));
+  const { data: tokenBookings } = usedBookingIds.length
+    ? await supabase
+        .from("bookings")
+        .select("id, starts_at")
+        .in("id", usedBookingIds)
+    : { data: [] };
+  const lessonByBooking = Object.fromEntries(
+    (tokenBookings ?? []).map((b) => [b.id, b.starts_at as string]),
+  );
+  const lessonOf = (t: LessonTokenRow) =>
+    t.redeemed_booking_id ? lessonByBooking[t.redeemed_booking_id] : null;
+  // Dal più recente: la riga in cima è l'ultima lezione, non l'ultimo clic.
+  const tokenStorico = tokens
+    .filter((t) => t.redeemed_at || !isTokenAvailable(t))
+    .sort(
+      (a, b) =>
+        new Date(lessonOf(b) ?? b.redeemed_at ?? b.granted_at).getTime() -
+        new Date(lessonOf(a) ?? a.redeemed_at ?? a.granted_at).getTime(),
+    );
 
   const hasProfile = Boolean(
     ath?.anno_nascita ||
@@ -267,20 +294,14 @@ export default async function SwimmerProfilo() {
               compreso nel percorso. Lo prenoti come una lezione.
             </Card>
           )}
-          {tokens.filter((t) => t.redeemed_at || !isTokenAvailable(t)).length >
-            0 && (
+          {tokenStorico.length > 0 && (
             <div className="flex flex-col gap-1 text-sm text-muted">
-              {tokens
-                .filter((t) => t.redeemed_at || !isTokenAvailable(t))
-                .slice(0, 5)
-                .map((t) => (
-                  <p key={t.id}>
-                    {t.redeemed_at
-                      ? `Usato il ${new Date(t.redeemed_at).toLocaleDateString("it-IT")}`
-                      : "Scaduto"}
-                    {t.source === "coach" ? " · regalo del coach" : ""}
-                  </p>
-                ))}
+              {tokenStorico.slice(0, 5).map((t) => (
+                <p key={t.id}>
+                  {tokenUsageLabel({ ...t, lessonStartsAt: lessonOf(t) })}
+                  {t.source === "coach" ? " · regalo del coach" : ""}
+                </p>
+              ))}
             </div>
           )}
         </section>
