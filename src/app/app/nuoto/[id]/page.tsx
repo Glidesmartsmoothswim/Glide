@@ -39,6 +39,10 @@ export default async function WorkoutDetail({
     .maybeSingle();
   if (!data) notFound();
   const w = data as WorkoutRow;
+  // Bozza: esiste ma non è pubblicata. Questa query va per id e non guarda né
+  // settimana né published_at, quindi senza questo controllo un Open+ che
+  // conosce l'id aprirebbe una seduta che il coach sta ancora scrivendo.
+  if (!w.published_at && profile?.role !== "coach") notFound();
 
   // TASK 8 (feedback 29/08): se questa seduta è già stata completata, la
   // riga 'post' in v_readiness (RLS: propria o coach) ha nota/RPE/umore —

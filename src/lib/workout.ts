@@ -172,6 +172,43 @@ export const blockMeters = (b: Block): number =>
 export const woMeters = (blocks: Block[]): number =>
   blocks.reduce((s, b) => s + blockMeters(b), 0);
 
+/**
+ * Igiene dei blocchi prima di scriverli su `workouts.blocks`.
+ *
+ * Due sporcizie reali in tabella al 15/09/2026: 13 righe vuote sparse su 7
+ * sedute (l'atleta le vede come spazi bianchi in mezzo alla seduta) e nomi di
+ * blocco con lo spazio finale — "Defaticamento " e "Defaticamento" convivono,
+ * e a occhio sono lo stesso blocco. Qui si normalizza una volta sola, lato
+ * server, così vale sia per le copie che per i salvataggi normali.
+ *
+ * Non tocca il CONTENUTO delle righe piene: la sigla del coach resta com'è.
+ */
+export function sanitizeBlocks(raw: unknown): Block[] {
+  if (!Array.isArray(raw)) return [];
+  const out: Block[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const b = item as Partial<Block>;
+    const lines = Array.isArray(b.lines)
+      ? b.lines.map((l) => String(l ?? "").trim()).filter(Boolean)
+      : [];
+    const name = String(b.name ?? "").trim();
+    const note = typeof b.note === "string" ? b.note.trim() : "";
+    // Blocco senza righe, senza nome e senza nota: non è un blocco, è un
+    // residuo. Un blocco con solo il nome resta (il coach lo sta scrivendo).
+    if (lines.length === 0 && !name && !note) continue;
+    const block: Block = {
+      z: b.z && ZONES[b.z] ? b.z : "Z2",
+      name,
+      rounds: Math.max(1, Math.floor(Number(b.rounds) || 1)),
+      lines,
+    };
+    if (note) block.note = note;
+    out.push(block);
+  }
+  return out;
+}
+
 export const euro = (n: number): string =>
   "€ " + Number(n).toLocaleString("it-IT");
 

@@ -125,6 +125,7 @@ export function WorkoutCard({ w }: { w: WorkoutRow }) {
           {w.focus && <p className="text-sm text-muted">{w.focus}</p>}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
+          {!w.published_at && <Pill>Bozza</Pill>}
           {updated && <Pill tone="brand">Aggiornato</Pill>}
           {showWeekDay && <Pill tone="brand">{w.week_day}</Pill>}
           <span className="text-sm text-muted">

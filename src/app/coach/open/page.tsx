@@ -35,11 +35,15 @@ export default async function CanaleOpen() {
     if (wid) doneCount[wid] = (doneCount[wid] ?? 0) + 1;
   });
 
-  // Raggruppa per settimana (week_start), la più recente in alto.
+  // Raggruppa per settimana (week_start), la più recente in alto. Le bozze
+  // (senza settimana) stanno in cima: sono il lavoro in corso, non un
+  // residuo da scorrere in fondo alla pagina.
   const cur = currentMonday();
   const weeks = [...new Set(workouts.map((w) => w.week_start ?? ""))].sort(
-    (a, b) => (a < b ? 1 : a > b ? -1 : 0),
+    (a, b) =>
+      a === b ? 0 : a === "" ? -1 : b === "" ? 1 : a < b ? 1 : -1,
   );
+  const drafts = workouts.filter((w) => !w.published_at).length;
   const byWeek = weeks.map((wk) => ({
     week: wk,
     isCurrent: wk === cur,
@@ -174,7 +178,13 @@ export default async function CanaleOpen() {
 
       <section id="pubblicati" className="flex flex-col gap-4">
         <h2 className="font-display text-lg text-foreground">
-          Pubblicati ({workouts.length})
+          Pubblicati ({workouts.length - drafts})
+          {drafts > 0 && (
+            <span className="text-sm font-normal text-muted">
+              {" "}
+              · {drafts} in bozza
+            </span>
+          )}
         </h2>
         {workouts.length === 0 ? (
           <Card className="text-muted">
@@ -184,7 +194,7 @@ export default async function CanaleOpen() {
           byWeek.map((g) => (
             <div key={g.week || "no-week"} className="flex flex-col gap-3">
               <h3 className="text-sm font-semibold text-muted">
-                {g.week ? formatWeek(g.week) : "Senza settimana"}
+                {g.week ? formatWeek(g.week) : "Bozze — senza settimana"}
                 {g.isCurrent && (
                   <span className="ml-2 rounded bg-turchese/15 px-1.5 py-0.5 text-xs text-teal">
                     corrente
