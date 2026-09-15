@@ -8,6 +8,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   availableCountByType,
+  deadlineLabel,
   emptyTokenCount,
   tokenTypeForService,
   tokenUsageLabel,
@@ -96,5 +97,39 @@ test("tokenUsageLabel — senza prenotazione agganciata resta la data del riscat
   assert.equal(
     tokenUsageLabel({ redeemed_at: null, expires_at: "2026-09-01T00:00:00Z" }, ORA),
     "Scaduto",
+  );
+});
+
+test("deadlineLabel — i check-in di stagione dicono entro quando", () => {
+  const stagione = [
+    { redeemed_at: null, expires_at: "2027-07-01T00:00:00Z" },
+    { redeemed_at: null, expires_at: "2027-07-01T00:00:00Z" },
+  ];
+  assert.equal(deadlineLabel(stagione, ORA), "Da usare entro il 1 luglio 2027.");
+});
+
+test("deadlineLabel — vince la scadenza più vicina", () => {
+  const misti = [
+    { redeemed_at: null, expires_at: "2027-07-01T00:00:00Z" },
+    { redeemed_at: null, expires_at: "2026-12-31T00:00:00Z" },
+  ];
+  assert.equal(deadlineLabel(misti, ORA), "Da usare entro il 31 dicembre 2026.");
+});
+
+test("deadlineLabel — se anche uno solo non scade, nessuna data inventata", () => {
+  assert.equal(
+    deadlineLabel(
+      [
+        { redeemed_at: null, expires_at: "2027-07-01T00:00:00Z" },
+        { redeemed_at: null, expires_at: null },
+      ],
+      ORA,
+    ),
+    null,
+  );
+  // I riscattati non contano: la scadenza parla di quelli che restano.
+  assert.equal(
+    deadlineLabel([{ redeemed_at: "2026-09-01T00:00:00Z", expires_at: null }], ORA),
+    null,
   );
 });

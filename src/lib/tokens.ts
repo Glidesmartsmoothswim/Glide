@@ -75,6 +75,35 @@ const GIORNO = new Intl.DateTimeFormat("it-IT", {
   month: "2-digit",
 });
 
+const GIORNO_LUNGO = new Intl.DateTimeFormat("it-IT", {
+  timeZone: "Europe/Rome",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+/**
+ * Entro quando vanno spesi i token disponibili di un gruppo (es. i check-in
+ * da remoto, che scadono con la stagione del pacchetto).
+ *
+ * Null se almeno uno non scade: una data che vale per alcuni e non per altri
+ * è una scadenza inventata, e chi legge la prenderebbe per buona su tutti.
+ */
+export function deadlineLabel(
+  tokens: Redeemability[],
+  now: number = Date.now(),
+): string | null {
+  const disponibili = tokens.filter((t) => isTokenAvailable(t, now));
+  if (disponibili.length === 0) return null;
+  const scadenze: number[] = [];
+  for (const t of disponibili) {
+    const d = t.expires_at ? new Date(t.expires_at).getTime() : NaN;
+    if (Number.isNaN(d)) return null;
+    scadenze.push(d);
+  }
+  return `Da usare entro il ${GIORNO_LUNGO.format(Math.min(...scadenze))}.`;
+}
+
 /**
  * Riga dello storico token nel profilo del nuotatore.
  *

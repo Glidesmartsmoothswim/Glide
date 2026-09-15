@@ -20,6 +20,7 @@ import { PbManager, type Pb } from "./pb-manager";
 import type { ObjectiveRow } from "@/lib/objectives";
 import {
   availableCountByType,
+  deadlineLabel,
   isTokenAvailable,
   lessonTokenCount,
   tokenUsageLabel,
@@ -93,6 +94,11 @@ export default async function SwimmerProfilo() {
   // chi ha dieci call in pacchetto sarebbe una promessa sbagliata.
   const tokenAvail = lessonTokenCount(tokens);
   const callAvail = availableCountByType(tokens).call;
+  // I check-in fanno parte del pacchetto stagionale e scadono con la stagione:
+  // la data va detta, altrimenti la scadenza è una sorpresa.
+  const callDeadline = deadlineLabel(
+    tokens.filter((t) => t.redeemable_for === "call"),
+  );
   const pbs = pbRes.data;
 
   // Storico token: serve la data della LEZIONE agganciata, non quella del
@@ -292,6 +298,11 @@ export default async function SwimmerProfilo() {
                   : `${callAvail} check-in da remoto`}
               </span>{" "}
               compreso nel percorso. Lo prenoti come una lezione.
+              {callDeadline && (
+                <span className="mt-1 block t-small text-muted">
+                  {callDeadline}
+                </span>
+              )}
             </Card>
           )}
           {tokenStorico.length > 0 && (
